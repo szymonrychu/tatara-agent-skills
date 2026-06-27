@@ -1,0 +1,54 @@
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Validate skills and manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SKILL.md frontmatter
+        run: python3 .github/scripts/validate_skills.py
+
+      - name: Validate plugin manifests (JSON)
+        run: |
+          python3 - <<'EOF'
+          import json, sys, pathlib
+
+          manifests = list(pathlib.Path(".claude-plugin").glob("*.json"))
+          if not manifests:
+              print("ERROR: no JSON manifests found in .claude-plugin/", file=sys.stderr)
+              sys.exit(1)
+
+          errors = []
+          for path in sorted(manifests):
+              try:
+                  data = json.loads(path.read_text())
+                  # marketplace.json must have name + plugins array
+                  if path.name == "marketplace.json":
+                      for field in ("name", "plugins"):
+                          if field not in data:
+                              errors.append(f"{path}: missing required field '{field}'")
+                      if "plugins" in data and not isinstance(data["plugins"], list):
+                          errors.append(f"{path}: 'plugins' must be an array")
+                  # plugin.json must have name + description
+                  if path.name == "plugin.json":
+                      for field in ("name", "description"):
+                          if field not in data:
+                              errors.append(f"{path}: missing required field '{field}'")
+                  print(f"OK: {path}")
+              except json.JSONDecodeError as exc:
+                  errors.append(f"{path}: invalid JSON: {exc}")
+
+          if errors:
+              for e in errors:
+                  print(f"ERROR: {e}", file=sys.stderr)
+              sys.exit(1)
+          print(f"Validated {len(manifests)} manifest file(s)")
+          EOF

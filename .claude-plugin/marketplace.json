@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "tatara-agent-skills",
+  "description": "Single source of truth for tatara platform agent skills: process skills, platform guardrails, and MCP tool discipline for tatara's autonomous development loop.",
+  "owner": {
+    "name": "Szymon Richert",
+    "url": "https://github.com/szymonrychu"
+  },
+  "plugins": [
+    {
+      "name": "tatara-agent-skills",
+      "description": "Skills for tatara platform agents: brainstorming guardrails, triage judgment, implementation discipline, review checklists, and MCP tool conventions.",
+      "source": "../",
+      "category": "development",
+      "keywords": [
+        "tatara",
+        "skills",
+        "agents",
+        "platform",
+        "autonomous",
+        "process",
+        "guardrails"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# Fixture: duplicate-open-issue
+# Expected: agent should consult tatara-brainstorm-guardrails and apply the dedup invariant.
+# This prompt is a stub. Populate with a brainstorm turn prompt where the candidate idea
+# clearly duplicates an existing open issue returned by task_list, and the agent must
+# choose comment_on_issue or skip_research instead of propose_issue.

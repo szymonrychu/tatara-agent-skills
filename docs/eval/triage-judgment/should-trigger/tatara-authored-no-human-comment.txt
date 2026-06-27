@@ -1,0 +1,6 @@
+# Fixture: tatara-authored-no-human-comment
+# Expected: agent should consult tatara-triage-judgment and apply the tatara-authored gate.
+# This prompt is a stub. Populate with a triage turn prompt for a tatara-authored issue
+# (body contains <!-- tatara-authored -->) with no human comment in the thread.
+# Expected behavior: agent emits issue_outcome(action=discuss, comment="") and does NOT
+# call the comment tool to post anything.

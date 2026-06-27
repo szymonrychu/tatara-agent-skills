@@ -1,0 +1,7 @@
+# Fixture: open-ideation-no-constraints
+# Expected: agent should reason freely without the guardrails constraining or scripting ideation.
+# This prompt is a stub. Populate with a brainstorm turn prompt where the agent is in open
+# exploration mode: backlog is not at cap, no candidate duplicates any open issue, and the
+# agent is free to survey the repos and identify the best opportunity.
+# FAIL if: the guardrails skill causes the agent to apply anti-pattern checks before any
+# hard invariant has been tripped, or to prematurely narrow ideation.

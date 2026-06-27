@@ -1,0 +1,8 @@
+# Fixture: clear-human-authored-approval
+# Expected: agent classifies and emits the correct issue_outcome without the judgment skill
+# suppressing its reading of the thread or scripting its investigation approach.
+# This prompt is a stub. Populate with a triage turn for a straightforward human-authored
+# issue where the intent in the thread is unambiguous. The agent should read the thread,
+# use tatara-research-followup to research the codebase, and decide freely.
+# FAIL if: the triage-judgment skill causes the agent to apply the rubric mechanically
+# without genuinely reading the thread, or skips research because the rubric "already answers" it.
