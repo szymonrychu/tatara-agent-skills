@@ -12,6 +12,25 @@ The operator (`tatara-operator`) creates agent pods via `internal/agent/pod.go`.
 
 Per-kind tool profiles are gated by `TATARA_TOOL_PROFILE` (set in `pod.go`). The profile determines which MCP tools are available. Skills must respect the tool surface for their target kind; referencing a tool not in the profile for that kind will produce a runtime error.
 
+### Per-kind skill routing: `profiles:`
+
+Each SKILL.md declares a `profiles:` list in its frontmatter. The wrapper reads `TATARA_SKILL_PROFILE` (set by the operator per task kind, mirrors `TATARA_TOOL_PROFILE`) and installs only skills whose `profiles:` list contains the active profile or `"*"`.
+
+Profile names, matching `skillProfileForKind`:
+
+| Task kind | Profile |
+|---|---|
+| implement | `implement` |
+| review | `review` |
+| triageIssue | `triage` |
+| brainstorm | `brainstorm` |
+| issueLifecycle | `lifecycle` |
+| incident | `incident` |
+| selfImprove | `selfImprove` |
+| healthCheck / refine / unknown | (empty - fail-open, install all) |
+
+`profiles: ["*"]` installs in every profile. Absent or empty `profiles:` is treated as `["*"]`. If `TATARA_SKILL_PROFILE` is empty or unknown the wrapper fails open and installs all skills (clone failure also fails open with a WARN metric).
+
 ## Directory layout
 
 ```
@@ -93,7 +112,7 @@ Choosing correctly is the heart of this design. Reference skills exist to preser
 
 1. Copy `template/SKILL.md` to `skills/<category>/<skill-name>/SKILL.md`.
 2. Choose task vs reference content type (see `CONTENT-TYPES.md`).
-3. Write the frontmatter: `name` (matches directory name) and a strong `description` that states what AND when.
+3. Write the frontmatter: `name` (matches directory name), a strong `description` that states what AND when, and a `profiles:` list from the table above (`["*"]` for shared skills).
 4. Ground every claim in real platform code: tool names from `tatara-cli/internal/mcp/profiles.go`, prompts from `tatara-operator/internal/controller/`, kind-to-profile mapping from `pod.go`.
 5. Run `pre-commit run --all-files` (or `python3 .github/scripts/validate_skills.py`) to validate.
 6. For reference skills: add should-trigger and should-not-trigger fixtures to `docs/eval/<skill-name>/`.

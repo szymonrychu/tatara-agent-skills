@@ -1,6 +1,7 @@
 ---
 name: tatara-incident-investigation
 description: Use on a tatara incident task (kind=incident, fired by a Grafana alert) to gather read-only evidence from Grafana, form a diagnosis, and file exactly one well-evidenced issue via propose_issue - or declare a false positive and stop.
+profiles: ["incident"]
 ---
 
 # tatara incident investigation

@@ -7,6 +7,7 @@ description: >
   systematically, a directive contradicts itself, or the workspace, memory, or
   graph state is inconsistent; use project_get, repo_list, and task_get to
   orient before any planning or investigation work.
+profiles: ["*"]
 ---
 
 # tatara-mcp-platform

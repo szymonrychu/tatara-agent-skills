@@ -1,6 +1,7 @@
 ---
 name: tatara-evidence-and-citation
 description: "REFERENCE - evidence and citation conventions for tatara agents: query the memory/code graph before reading raw files, cite file:line for every code-level claim, and never assert a codebase fact without a tool result proving it. Read in any research, triage, brainstorm, incident, or implement turn before making assertions about the platform."
+profiles: ["*"]
 ---
 
 # tatara evidence and citation

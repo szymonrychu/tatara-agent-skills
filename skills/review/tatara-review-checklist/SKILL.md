@@ -6,6 +6,7 @@ description: >
   dimensions, apply severity routing to decide approve/request_changes/comment,
   and call review_verdict before finishing. Use whenever the turn-0 directive
   confirms this is a review task (contains "This is an MR/PR REVIEW").
+profiles: ["review", "lifecycle"]
 ---
 
 # tatara-review-checklist

@@ -1,6 +1,7 @@
 ---
 name: tatara-brainstorm-guardrails
 description: "Hard rails and judgment heuristics for tatara brainstorm turns - read before any propose_issue, comment_on_issue, or skip_research call to ensure output is valid and non-duplicate."
+profiles: ["brainstorm"]
 ---
 
 # tatara brainstorm guardrails

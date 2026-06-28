@@ -1,6 +1,7 @@
 ---
 name: tatara-headless-decisions
 description: "Step-by-step procedure for making and recording a decision without a human at the terminal: surface options via comment_on_issue and proceed; use decline_implementation only when completely blocked. Invoke whenever you would normally call AskUserQuestion, ExitPlanMode, or EnterPlanMode."
+profiles: ["*"]
 ---
 
 # Headless decision procedure

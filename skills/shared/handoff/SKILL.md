@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Write a handoff summary when context is nearing capacity.
+profiles: ["*"]
 ---
 
 # /handoff

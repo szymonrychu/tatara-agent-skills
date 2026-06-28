@@ -1,6 +1,7 @@
 ---
 name: tatara-deploy-harness
 description: Use when a tatara agent is asked to deliver a GitHub issue end-to-end in a component repo - implement the code, ship the component MR, then open/merge a tatara-helmfile MR, watch the apply pipeline, roll back on failure, and close the issue as delivered. Triggers on a kickoff prompt naming an issue number and component repo.
+profiles: ["implement", "lifecycle", "incident"]
 ---
 
 # tatara-deploy-harness

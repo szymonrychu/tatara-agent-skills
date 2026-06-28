@@ -1,6 +1,7 @@
 ---
 name: tatara-deep-research
 description: "Use on an autonomous platform-research turn (the brainstorm task kind) to discover ONE high-leverage improvement for the tatara platform. Researches deeply across the whole platform using the tatara-memory knowledge/code graph plus the on-disk repo, scores leverage, dedups against open issues, then takes exactly one action: open a discovery-phase issue via propose_issue when the idea is novel and standalone, or add a substantive design comment via comment_on_issue when the idea connects to / is a sub-aspect of an existing open issue. Never self-implemented."
+profiles: ["brainstorm", "incident", "selfImprove"]
 ---
 
 # tatara deep research

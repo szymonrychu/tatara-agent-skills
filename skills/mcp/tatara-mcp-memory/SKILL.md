@@ -5,6 +5,7 @@ description: >
   traverse the platform knowledge graph. Use whenever you need to recall
   prior decisions, persist findings, ingest bulk content, inspect entities,
   or manage edges. Available in every agent profile.
+profiles: ["*"]
 ---
 
 # tatara-mcp-memory

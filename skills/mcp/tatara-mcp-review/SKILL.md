@@ -5,6 +5,7 @@ description: >
   (review_verdict, submit_handover): exact arg shapes, decision rules, and
   sequencing. Use whenever you are running as a kind=review task and must
   deliver a verdict on a human-authored PR/MR.
+profiles: ["review", "lifecycle"]
 ---
 
 # tatara-mcp-review

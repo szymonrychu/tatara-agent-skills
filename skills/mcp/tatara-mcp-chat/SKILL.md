@@ -6,6 +6,7 @@ description: >
   Use in brainstorm, lifecycle, and incident agent kinds where chat is
   enabled; these tools are absent from implement, review, triage, refine,
   and selfImprove profiles.
+profiles: ["brainstorm", "lifecycle", "incident"]
 ---
 
 # tatara-mcp-chat
