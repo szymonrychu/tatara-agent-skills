@@ -93,11 +93,12 @@ docs/
 | tatara-health-check | task |
 | tatara-triage-judgment | reference |
 
-### skills/operations/ (deploy + ops, 1 skill)
+### skills/operations/ (deploy + ops, 2 skills)
 
 | Skill | Type |
 |---|---|
 | tatara-deploy-harness | task |
+| tatara-pipeline-waiting | task |
 
 ## Task vs Reference content types
 

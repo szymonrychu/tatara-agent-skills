@@ -11,7 +11,9 @@ profiles: ["implement", "lifecycle", "incident"]
 Rigid 9-state machine (S1..S9) for delivering one issue from triage to a
 live deploy, autonomously, gated only by the diff and green pipelines. You run
 ALL states in this one long-lived session. The implement sub-loop (S3) is
-subagent-driven in a git worktree. Pipeline watching is `gh`. Issue research is
+subagent-driven in a git worktree. Pipeline watching (S4/S6/S8) follows
+`tatara-pipeline-waiting`: poll with heartbeats, never one silent blocking
+`gh run watch`, and classify flap-vs-real before reacting. Issue research is
 tatara-mcp + web.
 
 **Core principle:** the loop target is S3. ANY downstream failure jumps back to
