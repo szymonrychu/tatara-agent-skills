@@ -16,6 +16,11 @@ jobs:
       - name: Validate SKILL.md frontmatter
         run: python3 .github/scripts/validate_skills.py
 
+      - name: Validate skill profile routing
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 .github/scripts/validate_profiles.py
+
       - name: Validate plugin manifests (JSON)
         run: |
           python3 - <<'EOF'

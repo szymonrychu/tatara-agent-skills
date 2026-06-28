@@ -7,7 +7,7 @@ description: >
   change_summary, create/edit/list_issues, comment, close_issue). Use in any
   agent turn that must drive an issue, PR, or task through the tatara lifecycle
   - especially when choosing between competing terminal/outcome calls.
-profiles: ["implement", "lifecycle", "review", "triage"]
+profiles: ["implement", "lifecycle", "review", "triage", "refine"]
 ---
 
 # tatara-mcp-scm-lifecycle

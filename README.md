@@ -27,9 +27,10 @@ Profile names, matching `skillProfileForKind`:
 | issueLifecycle | `lifecycle` |
 | incident | `incident` |
 | selfImprove | `selfImprove` |
-| healthCheck / refine / unknown | (empty - fail-open, install all) |
+| refine | `refine` |
+| healthCheck / unknown | (empty - fail-open, install all) |
 
-`profiles: ["*"]` installs in every profile. Absent or empty `profiles:` is treated as `["*"]`. If `TATARA_SKILL_PROFILE` is empty or unknown the wrapper fails open and installs all skills (clone failure also fails open with a WARN metric).
+`profiles: ["*"]` installs in every profile. Absent or empty `profiles:` is treated as `["*"]`. If `TATARA_SKILL_PROFILE` is empty the wrapper fails open and installs all skills. A non-empty but unknown profile is NOT fail-open: it matches only the `["*"]` (wildcard) skills, so an unrecognized profile name installs the wildcards alone. Clone failure also fails open with a WARN metric.
 
 ## Directory layout
 
