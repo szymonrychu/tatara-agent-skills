@@ -1,6 +1,7 @@
 ---
 name: tatara-triage-judgment
 description: "REFERENCE - judgment rubric and hard rails for the tatara issueLifecycle agent during the Triage state. Defines how to classify an issue and which MCP action to take. Do not use as a procedure; use tatara-research-followup for the research workflow."
+profiles: ["triage"]
 ---
 
 # tatara triage judgment

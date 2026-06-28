@@ -7,6 +7,7 @@ description: >
   with idempotency invariants and terminal-CRD survival rules. Invoke at the
   start of any turn that touches the SCM - comments, opening PRs, closing
   issues, posting verdicts, or filing proposals.
+profiles: ["*"]
 ---
 
 # Tatara Writeback Discipline

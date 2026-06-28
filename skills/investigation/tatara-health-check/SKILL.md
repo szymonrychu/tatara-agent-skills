@@ -1,6 +1,7 @@
 ---
 name: tatara-health-check
 description: Use on an autonomous project-health-check turn (the healthCheck task kind) to survey a project's repos and surface ONE high-leverage health issue - a CI failure, a coverage gap, code worth simplifying, a CI/CD pipeline step worth adding, or other tech-debt - then open a single targeted discovery-phase issue via the propose_issue MCP tool. Researches via the tatara-memory graph plus the on-disk repo, dedups against open issues, and files one well-scoped issue that stays in discovery (never self-implemented).
+profiles: ["incident", "selfImprove"]
 ---
 
 # tatara health check

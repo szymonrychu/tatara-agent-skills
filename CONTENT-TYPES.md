@@ -66,6 +66,24 @@ Ask yourself:
 
 When in doubt, split: write a task skill for the procedure and a reference skill for the judgment layer. See `tatara-research-followup` (task) + `tatara-triage-judgment` (reference) as the canonical example of this split.
 
+## Frontmatter `profiles:` field
+
+The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
+
+Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`, `selfImprove`.
+
+`["*"]` (with the asterisk quoted) installs in every profile. Absent or empty field is treated as `["*"]`. When in doubt for a new shared utility skill, use `["*"]`.
+
+Place `profiles:` as the last key in the frontmatter block, after `description:`, before the closing `---`. Example:
+
+```yaml
+---
+name: my-skill
+description: "What this skill does and when to use it."
+profiles: ["implement", "review"]
+---
+```
+
 ## Frontmatter `description` field
 
 The `description` is the trigger text. The agent reads it to decide whether to invoke the skill. Write it as:

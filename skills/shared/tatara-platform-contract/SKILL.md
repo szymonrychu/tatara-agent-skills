@@ -1,6 +1,7 @@
 ---
 name: tatara-platform-contract
 description: Hard constraints and anti-patterns for every tatara agent - headless operation, KISS, zero tech-debt, GitOps-only deploys, and report_internal_issue as the sole platform-failure channel. Load this as inline reference before any task-scoped work.
+profiles: ["*"]
 ---
 
 # Tatara Platform Contract

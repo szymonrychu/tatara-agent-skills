@@ -1,6 +1,7 @@
 ---
 name: tatara-implement-workflow
 description: "Prescriptive implement-phase procedure for tatara agents: subtask decomposition, per-turn commit discipline, change_summary format, and mandatory terminal escapes (decline_implementation / already_done / submit_handover). Use at the start of every Implement-phase task."
+profiles: ["implement", "lifecycle", "selfImprove"]
 ---
 
 # Tatara Implement Workflow
