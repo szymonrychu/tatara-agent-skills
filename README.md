@@ -58,7 +58,7 @@ docs/
 
 ## Skill inventory
 
-### skills/shared/ (superpowers-derived, 15 skills)
+### skills/shared/ (superpowers-derived, 16 skills)
 
 | Skill | Type |
 |---|---|
@@ -77,6 +77,7 @@ docs/
 | dispatching-parallel-agents | task |
 | executing-plans | task |
 | handoff | task |
+| tatara-mise-tooling | task |
 
 ### skills/brainstorming/ (tatara brainstorm kind, 3 skills)
 
