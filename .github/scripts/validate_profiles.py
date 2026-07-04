@@ -19,7 +19,7 @@ import yaml
 # Profile -> exact set of skill names that must EXPLICITLY tag the profile
 # (wildcard "*" skills are excluded; they install everywhere by definition).
 EXPECTED_PROFILE_SKILLS = {
-    "refine": {"tatara-triage-judgment", "tatara-mcp-scm-lifecycle"},
+    "refine": {"tatara-triage-judgment", "tatara-mcp-scm-lifecycle", "handoff"},
 }
 
 

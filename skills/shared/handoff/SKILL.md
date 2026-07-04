@@ -1,40 +1,50 @@
 ---
 name: handoff
-description: Write a handoff summary when context is nearing capacity.
-profiles: ["*"]
+description: Resume prior work via get_handoff at turn start and checkpoint via write_handoff before finishing, keyed by the wrapper's continuation-key preamble.
+profiles: ["implement", "lifecycle", "incident", "brainstorm", "refine"]
 ---
 
 # /handoff
 
-Use this skill when your context window feels tight (roughly 80% consumed) or
-before starting a large subtask that would exceed the window. It writes a
-checkpoint document so the next session can resume without losing state.
+Chat-backed continuation. Pods boot fresh with no conversation restore; the
+only carried state is a compact handoff you read and write yourself via MCP.
 
-## When to invoke
+## At start (resuming)
 
-- Context is nearing capacity and work is not done.
-- About to start a large new subtask.
-- Explicitly requested as a checkpoint before a risky operation.
+The wrapper prepends a continuation key to your first goal:
+`Continuation key: <key>`.
 
-## Steps
+1. Call `get_handoff{handoff_key: <that key>}`.
+2. Present: load the returned `body` as your working context (current state,
+   what's done, what's next, open questions, file/PR refs). Resume from there.
+3. Absent (404): start fresh, no prior context to load.
 
-1. Write `/workspace/handoff.md` with these sections:
-   - **Goal**: one sentence describing the overall task.
-   - **Completed**: bullet list of what is done, with specific details (file
-     paths, test results, commit SHAs).
-   - **In Progress**: what you were doing when you handed off, including exact
-     state (e.g., "editing `pkg/foo/bar.go`, at line 47").
-   - **Open Questions**: blockers or decisions deferred.
-   - **Next Steps**: numbered, ordered list of what the next agent should do
-     first.
-   - **Context**: any non-obvious constraints or findings the next agent must
-     know.
+## At end (checkpoint)
 
-2. Stop. The next session starts by reading `/workspace/handoff.md`.
+Before finishing the turn, call `write_handoff{handoff_key, project, repo,
+kind, body}` with a COMPACT markdown summary:
+
+- Current state (one line).
+- What's done.
+- What's next.
+- Open questions.
+- Key file/PR refs.
+
+Keep it a summary an agent can act on in one read, not a log of everything you
+did. Upsert overwrites the prior handoff for this key - write the whole
+current picture, not a delta.
+
+## refine only: grooming
+
+`refine` additionally has `list_handoffs` and `delete_handoff`. When grooming
+a project, list its handoffs and delete ones that are stale or done (issue
+closed/resolved, clearly superseded, or aged with no matching open work).
+Leave the rest - live handoffs are how `brainstorm` finds work to continue.
 
 ## Notes
 
-- Do not compress aggressively -- the handoff doc is the only context the next
-  session gets.
-- If the current task is nearly done (one or two small steps left), finish it
-  instead of handing off.
+- No `handoff_key` in the goal preamble (e.g. a healthCheck or one-off task):
+  skip this skill, there is nothing to key a handoff to.
+- Do not fall back to `/workspace/handoff.md` or any local file - the handoff
+  lives in chat, not on disk, so the next pod (which may not share a
+  filesystem) can read it.
