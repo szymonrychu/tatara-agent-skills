@@ -64,7 +64,9 @@ jobs:
 
       # Self-pin: keep .claude-plugin/plugin.json's version in lockstep with
       # the tag we just cut, so it never freezes at its initial value.
-      # Single-file commit, straight to main.
+      # Single-file commit, straight to main. Rebuilt on fresh origin/main
+      # each attempt and retried on non-fast-forward push rejection, since
+      # main may have advanced past the head_sha this job checked out.
       - name: Pin plugin.json to tag version
         if: steps.tag.outputs.version != ''
         env:
@@ -73,11 +75,25 @@ jobs:
         run: |
           set -euo pipefail
           bare="${VERSION#v}"
-          jq --arg v "$bare" '.version = $v' .claude-plugin/plugin.json > /tmp/plugin.json
-          mv /tmp/plugin.json .claude-plugin/plugin.json
           git config user.name "szymonrychu-bot"
           git config user.email "szymonrychu-bot@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
-          git add .claude-plugin/plugin.json
-          git commit -m "chore: pin plugin.json to ${bare} [skip ci]"
-          git push origin HEAD:main
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git checkout -B _pin origin/main
+            jq --arg v "$bare" '.version = $v' .claude-plugin/plugin.json > /tmp/plugin.json
+            mv /tmp/plugin.json .claude-plugin/plugin.json
+            if git diff --quiet -- .claude-plugin/plugin.json; then
+              echo "plugin.json already at ${bare}, nothing to do"
+              exit 0
+            fi
+            git add .claude-plugin/plugin.json
+            git commit -m "chore: pin plugin.json to ${bare} [skip ci]"
+            if git push origin _pin:main; then
+              exit 0
+            fi
+            echo "push rejected on attempt ${attempt}, refetching origin/main and retrying"
+          done
+          echo "failed to push plugin.json pin after 5 attempts" >&2
+          exit 1
