@@ -61,3 +61,23 @@ jobs:
                 "value_template": "ARG TATARA_SKILLS_REF={{version}}"
               }
             ]
+
+      # Self-pin: keep .claude-plugin/plugin.json's version in lockstep with
+      # the tag we just cut, so it never freezes at its initial value.
+      # Single-file commit, straight to main.
+      - name: Pin plugin.json to tag version
+        if: steps.tag.outputs.version != ''
+        env:
+          TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          bare="${VERSION#v}"
+          jq --arg v "$bare" '.version = $v' .claude-plugin/plugin.json > /tmp/plugin.json
+          mv /tmp/plugin.json .claude-plugin/plugin.json
+          git config user.name "szymonrychu-bot"
+          git config user.email "szymonrychu-bot@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
+          git add .claude-plugin/plugin.json
+          git commit -m "chore: pin plugin.json to ${bare} [skip ci]"
+          git push origin HEAD:main
