@@ -1,7 +1,7 @@
 ---
 name: tatara-deep-architectural-research
 description: Use on an architectural-research turn to discover ONE high-leverage structural improvement for the tatara platform. Walks SCOPE -> MAP INWARD -> (Phase-1 stubbed) SURVEY -> ASSESS FIT -> NOVELTY -> SYNTHESIZE ADR -> PROPOSE; Phase-1 external field survey deferred (memory graph + on-disk only); terminal no-yield action is skip_research; never self-implemented.
-profiles: ["brainstorm", "selfImprove"]
+profiles: ["selfImprove"]
 ---
 
 # tatara deep architectural research
