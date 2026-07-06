@@ -39,7 +39,8 @@ Every skill in this repo is one of two content types. Choosing correctly is the 
 
 **Examples:**
 - `tatara-brainstorm-guardrails`: what the operator enforces, what valid output looks like, anti-patterns. The actual research strategy is the agent's.
-- `tatara-triage-judgment`: decision rubric for classifying an issue. The research methodology is in `tatara-research-followup`.
+- `tatara-triage-judgment`: decision rubric for classifying an issue on a triage/refine turn. The
+  procedural counterpart is a task skill in the same profile (never a cross-profile reference).
 - `writing-skills`: style and communication heuristics, not a writing procedure.
 - `using-superpowers`: when to reach for each skill, not how to execute them.
 
@@ -64,13 +65,17 @@ Ask yourself:
 3. **Does the skill need to preserve creative latitude?** If yes: reference. If the work is rote: task.
 4. **Is the skill about WHAT to do or HOW to do it?** What = reference. How (with a specific sequence) = task.
 
-When in doubt, split: write a task skill for the procedure and a reference skill for the judgment layer. See `tatara-research-followup` (task) + `tatara-triage-judgment` (reference) as the canonical example of this split.
+When in doubt, split: write a task skill for the procedure and a reference skill for the judgment
+layer. See `tatara-incident-sre` (task) + `tatara-incident-investigation` (reference) as the
+canonical example of this split: both carry `profiles: ["incident"]`, so they co-install and are
+mandated together on every incident turn.
 
 ## Frontmatter `profiles:` field
 
 The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
 
-Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`, `selfImprove`, `refine`, `documentation`.
+Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`,
+`refine`, `documentation`.
 
 `["*"]` (with the asterisk quoted) installs in every profile. Absent or empty field is treated as `["*"]`. When in doubt for a new shared utility skill, use `["*"]`.
 
