@@ -75,7 +75,8 @@ mandated together on every incident turn.
 The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
 
 Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`,
-`refine`, `documentation`.
+`refine`, `documentation`. (`selfImprove` is retired - the operator no longer emits that kind; a
+few legacy skills still carry the inert tag pending a cleanup sweep. Do not add new ones.)
 
 `["*"]` (with the asterisk quoted) installs in every profile. Absent or empty field is treated as `["*"]`. When in doubt for a new shared utility skill, use `["*"]`.
 

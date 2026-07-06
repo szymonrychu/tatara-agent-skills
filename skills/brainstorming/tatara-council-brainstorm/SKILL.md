@@ -1,14 +1,14 @@
 ---
 name: tatara-council-brainstorm
-description: "TASK harness for the brainstorm task kind: a rotating seven-lens architect-council session that grounds one high-leverage proposal in real code and delegates the terminal action to tatara-deep-research (scoped) or tatara-deep-architectural-research (structural). Invoke FIRST on every brainstorm turn; do not call the deep-research skills directly."
+description: "TASK harness for the brainstorm task kind: a rotating seven-lens architect-council session that grounds one high-leverage proposal in real code and emits a single propose_issue / comment_on_issue / skip_research. Invoke FIRST on every brainstorm turn; it owns the whole turn end to end."
 profiles: ["brainstorm"]
 ---
 
 # tatara council brainstorm
 
 The disciplined shell for a brainstorm turn. It imposes a rotating architectural lens so successive
-runs examine the platform from different angles, forces evidence before conclusion, and delegates
-the actual proposal to the deep-research sub-skills. All I/O is via the `tatara` MCP tools; you never
+runs examine the platform from different angles, forces evidence before conclusion, and emits a
+single grounded proposal itself via `propose_issue`. All I/O is via the `tatara` MCP tools; you never
 use git or gh. Run at maximum effort.
 
 ## Lens rotation order
@@ -47,11 +47,13 @@ failure-modes, fitness-functions, coupling, simplification, operability, product
    >=2 concrete failure mechanisms. No terminal action without this artifact.
 6. **ADR-vs-scoped-issue decision (written).** Decide whether the finding warrants a structural ADR
    (architectural, cross-cutting) or a single scoped issue. Write the one-line answer.
-7. **Terminal action via a delegated sub-skill.** Invoke `tatara-deep-research` for a scoped
-   proposal, or `tatara-deep-architectural-research` for a structural one. Do NOT open the issue
-   yourself and do NOT call the deep-research skills' terminal tools directly outside them - the
-   sub-skill owns the single `propose_issue` / `comment_on_issue` action and the
-   `<!-- tatara-authored -->` discovery contract.
+7. **Terminal action (you own it).** Emit exactly ONE action this turn: `propose_issue` for a novel
+   finding (carry the ADR sketch in the body when phase 6 said structural), `comment_on_issue` to
+   fold the finding into an existing open issue, or `skip_research(reason)` if nothing cleared the
+   bar. Ground the body per the `tatara-code-quality-proposal` reference skill (concrete `file:line`
+   evidence + the options-with-tradeoffs from the phase-5 scratchpad). Every `propose_issue` body
+   MUST embed the `<!-- tatara-authored -->` marker (the human-approval gate). Respect
+   `maxOpenProposals`. You never implement, push, or open a PR.
 8. **Register update (HARD GATE, last).** Call
    `harness_state_cas(key="LENS_CYCLE", value="<lens used>", version="<version from phase 1>")`.
    On a 409 conflict another turn advanced the register concurrently - re-read with
@@ -62,6 +64,6 @@ failure-modes, fitness-functions, coupling, simplification, operability, product
 
 - Taking any action before the phase-1 register read and the phase-2 context summary.
 - A generic assertion with no `file:line` / SHA / graph finding behind it.
-- Calling `tatara-deep-research` or `propose_issue` before the phase-5 scratchpad exists.
+- Calling `propose_issue` / `comment_on_issue` before the phase-5 scratchpad exists.
 - More than one terminal action (one proposal / one comment / one skip) per turn.
 - Silently skipping the register update, which strands the rotation on one lens forever.
