@@ -28,6 +28,7 @@ Profile names, matching `skillProfileForKind`:
 | incident | `incident` |
 | selfImprove | `selfImprove` |
 | refine | `refine` |
+| documentation | `documentation` |
 | healthCheck / unknown | (empty - fail-open, install all) |
 
 `profiles: ["*"]` installs in every profile. Absent or empty `profiles:` is treated as `["*"]`. If `TATARA_SKILL_PROFILE` is empty the wrapper fails open and installs all skills. A non-empty but unknown profile is NOT fail-open: it matches only the `["*"]` (wildcard) skills, so an unrecognized profile name installs the wildcards alone. Clone failure also fails open with a WARN metric.
@@ -46,6 +47,7 @@ skills/
   implement/          # implementation workflow skills
   mcp/                # MCP tool discipline and writeback skills
   operations/         # deploy and ops skills
+  documentation/      # post-merge documentation agent skill
 template/             # starter skill (copy this to begin a new skill)
 docs/
   eval/               # eval scaffolding for reference skills (A/B gate fixtures)
@@ -101,6 +103,12 @@ docs/
 |---|---|
 | tatara-deploy-harness | task |
 | tatara-pipeline-waiting | task |
+
+### skills/documentation/ (post-merge documentation kind, 1 skill)
+
+| Skill | Type |
+|---|---|
+| tatara-documentation-workflow | task |
 
 ## Task vs Reference content types
 
