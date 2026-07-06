@@ -70,7 +70,7 @@ When in doubt, split: write a task skill for the procedure and a reference skill
 
 The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
 
-Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`, `selfImprove`, `refine`.
+Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`, `selfImprove`, `refine`, `documentation`.
 
 `["*"]` (with the asterisk quoted) installs in every profile. Absent or empty field is treated as `["*"]`. When in doubt for a new shared utility skill, use `["*"]`.
 
