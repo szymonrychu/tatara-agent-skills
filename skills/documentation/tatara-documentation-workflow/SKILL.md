@@ -1,6 +1,6 @@
 ---
 name: tatara-documentation-workflow
-description: "Prescriptive post-merge documentation procedure: clone the merged source repo, diff base..head, judge whether the central docs repo needs an update, then either edit the docs and call change_summary or decline_implementation on a clean no-op. Use at the start of every documentation-kind task."
+description: "Prescriptive post-merge documentation procedure: clone the merged source repo, diff base..head, judge whether the central docs repo needs an update, then either edit the docs and call change_summary or just finish the turn (no tool call) on a clean no-op. Use at the start of every documentation-kind task."
 profiles: ["documentation"]
 ---
 
@@ -95,21 +95,20 @@ or bot review.
 
 ---
 
-## 3b. Not doc-relevant: decline cleanly
+## 3b. Not doc-relevant: finish with no change
 
-If step 2 concludes no docs update is warranted, call `decline_implementation`
-with a clear, specific reason before ending the turn:
+If step 2 concludes no docs update is warranted, just end the turn with no docs
+edit and no tool call. That empty finish IS the correct terminal for a no-op
+documentation task: the operator records a no-change writeback and marks the
+task Succeeded.
 
-```
-decline_implementation(
-  task="<TATARA_TASK>",
-  reason="<what you read in the diff and docs, and why no update is warranted>"
-)
-```
-
-A silent finish - no docs edit, no `change_summary`, no
-`decline_implementation` - is never allowed; it is treated as
-`refused-no-explanation` on requeue.
+Do NOT call `decline_implementation` (or `already_done`) here. Those post an
+implement-outcome, which the operator accepts only for `issueLifecycle` tasks;
+a `documentation` task gets a deterministic `409 "implement outcome only applies
+to an issueLifecycle task"`. There is nothing to retry - it is a backend
+constraint on task kind, not a validation error. The `refused-no-explanation`
+requeue applies only to `issueLifecycle` implement tasks, never to this kind, so
+a silent no-op finish is safe and expected.
 
 ---
 
@@ -118,8 +117,8 @@ A silent finish - no docs edit, no `change_summary`, no
 | Situation | Correct call |
 |---|---|
 | Diff has an external-facing change the docs don't cover | edit docs, then `change_summary(...)` |
-| Diff is internal-only / already covered / non-functional | `decline_implementation(reason=...)` |
-| Silent finish (no edit, no tool call) | **FORBIDDEN** - will trigger a re-prompt |
+| Diff is internal-only / already covered / non-functional / no docs change warranted | finish the turn: no edit, no tool call (operator marks it Succeeded, no-change) |
+| `decline_implementation` / `already_done` on a documentation task | never - 409 issueLifecycle-only; just finish instead |
 
 ## Anti-patterns
 
