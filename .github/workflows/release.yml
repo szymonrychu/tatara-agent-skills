@@ -21,10 +21,16 @@ jobs:
     name: Tag semver and propagate skills ref to wrapper
     runs-on: ubuntu-latest
     # Only after lint succeeds, only for push-to-main (not PR validation runs).
+    # The last guard breaks the recursion: the plugin.json self-pin PR merge
+    # is itself a push to main that reruns lint -> would retrigger this job
+    # and re-tag forever. head_commit is populated on workflow_run events
+    # triggered by a push (github.event.workflow_run.event == 'push' above),
+    # so its message reliably reflects the commit that fired lint.yml here.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event.workflow_run.head_branch == 'main' &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'chore: pin plugin.json')
 
     steps:
       - uses: actions/checkout@v4
@@ -64,36 +70,46 @@ jobs:
 
       # Self-pin: keep .claude-plugin/plugin.json's version in lockstep with
       # the tag we just cut, so it never freezes at its initial value.
-      # Single-file commit, straight to main. Rebuilt on fresh origin/main
-      # each attempt and retried on non-fast-forward push rejection, since
-      # main may have advanced past the head_sha this job checked out.
+      # main requires the "Validate skills and manifests" status check, and a
+      # direct [skip ci] push has no check run to satisfy it - so land the
+      # bump through an auto-merge PR instead (no [skip ci]: the check MUST
+      # run for the PR to become mergeable). The branch is rebuilt from
+      # fresh origin/main and force-pushed each run, so a stale branch left
+      # over from a prior attempt is simply reset rather than causing a
+      # conflict; an already-open PR for it is reused instead of duplicated.
       - name: Pin plugin.json to tag version
         if: steps.tag.outputs.version != ''
         env:
           TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+          GH_TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
           VERSION: ${{ steps.tag.outputs.version }}
         run: |
           set -euo pipefail
           bare="${VERSION#v}"
+          branch="cd/plugin-pin-${bare}"
+          title="chore: pin plugin.json to ${bare}"
           git config user.name "szymonrychu-bot"
           git config user.email "szymonrychu-bot@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
 
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git checkout -B _pin origin/main
-            jq --arg v "$bare" '.version = $v' .claude-plugin/plugin.json > /tmp/plugin.json
-            mv /tmp/plugin.json .claude-plugin/plugin.json
-            if git diff --quiet -- .claude-plugin/plugin.json; then
-              echo "plugin.json already at ${bare}, nothing to do"
-              exit 0
-            fi
-            git add .claude-plugin/plugin.json
-            git commit -m "chore: pin plugin.json to ${bare} [skip ci]"
-            if git push origin _pin:main; then
-              exit 0
-            fi
-            echo "push rejected on attempt ${attempt}, refetching origin/main and retrying"
-          done
-          echo "failed to push plugin.json pin after 5 attempts" >&2
-          exit 1
+          git fetch origin main
+          git checkout -B "$branch" origin/main
+          jq --arg v "$bare" '.version = $v' .claude-plugin/plugin.json > /tmp/plugin.json
+          mv /tmp/plugin.json .claude-plugin/plugin.json
+          if git diff --quiet -- .claude-plugin/plugin.json; then
+            echo "plugin.json already at ${bare}, nothing to do"
+            exit 0
+          fi
+          git add .claude-plugin/plugin.json
+          git commit -m "${title}"
+          git push --force origin "${branch}:${branch}"
+
+          pr_number="$(gh pr list --head "${branch}" --state open --json number --jq '.[0].number')"
+          if [ -z "${pr_number}" ]; then
+            gh pr create \
+              --title "${title}" \
+              --body "Automated version sync: pins .claude-plugin/plugin.json to the tag just cut by the release workflow (${VERSION})." \
+              --head "${branch}" \
+              --base main
+          fi
+          gh pr merge "${branch}" --auto --squash --delete-branch --subject "${title}"
