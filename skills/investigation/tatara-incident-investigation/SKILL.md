@@ -154,6 +154,10 @@ Anti-patterns that produce bad incident issues:
 
 ## Filing the issue
 
+Before filing, confirm via `task_list` (open incident Tasks) and `list_issues` that this
+is not already tracked - see `tatara-incident-sre`'s survey phase. A recurring alert on an
+already-tracked problem gets a `comment_on_issue` evidence update, never a new `propose_issue`.
+
 `propose_issue(repo, title, body, kind)`:
 - `repo`: the project repo most implicated by evidence.
 - `title`: one line, concrete - name the alert and the apparent cause.
