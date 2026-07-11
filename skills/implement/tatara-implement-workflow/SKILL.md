@@ -1,7 +1,7 @@
 ---
 name: tatara-implement-workflow
 description: "Prescriptive implement-phase procedure for tatara agents: subtask decomposition, per-turn commit discipline, change_summary format, and mandatory terminal escapes (decline_implementation / already_done / submit_handover). Use at the start of every Implement-phase task."
-profiles: ["implement", "lifecycle", "selfImprove"]
+profiles: ["implement"]
 ---
 
 # Tatara Implement Workflow
@@ -19,6 +19,15 @@ At turn 0 you receive:
 - The task branch (e.g. `tatara/task-<name>`). All your pushes target this branch. The branch is created from the default branch automatically. **Never commit or push to the default branch directly.**
 - Workspace root: `/workspace/<owner>/<repo>` (a two-level namespace from the repo slug, e.g. `/workspace/szymonrychu/tatara-cli`). Every repo in scope is cloned here under its own `owner/repo` subdirectory. Changes you commit and push to the task branch are restored on the next run; uncommitted edits are discarded.
 - Optionally: a `## Re-entry context` block (from a previous partial run), or a `## Resume from handover` block (when you were handed over from a prior agent that hit the context limit). Read these before doing anything else.
+
+The operator injects the FULL cross-repo umbrella context for this Task at
+turn 0 (every linked issue and its comment thread, every open PR/MR under
+this Task with its description, branch, and CI/mergeability state, across
+every repo in the project scope - Decision 7 of the locked task-kind design).
+This is everything a human maintainer would see. Do not re-crawl SCM
+(list-issues/list-comments loops) to reconstruct history already in your
+prompt; reserve MCP/SCM calls for things not already there (fresh code
+investigation, posting, opening PRs).
 
 ---
 
@@ -52,6 +61,27 @@ Work through subtasks in order across turns. Each turn ends with a git push; the
 
 ---
 
+## 1a. Dispatch through typed subagents (mandatory)
+
+You are the Opus surface for this Task; do the mechanical and read-only work
+through the typed subagents shipped in this plugin's `.claude/agents/`, not
+inline, so your own context stays lean across a multi-turn implementation.
+Dispatch by task shape:
+
+| Task shape | Dispatch to | Baked model/effort |
+|---|---|---|
+| Locate where code/config/behavior lives; map blast radius; read-only investigation | `explorer` | haiku, low |
+| Write or run tests for an already-decided change | `tester` | haiku, low (re-dispatch with a `sonnet` model override for cross-file integration test design) |
+| Mechanical edit to 1-3 files from an already-decided spec | `builder` | sonnet, medium |
+| Ambiguous scope, a decision between competing approaches, cross-repo integration judgment, or anything a builder/tester/explorer would have to guess on | `architect` | opus, high |
+
+Launch independent subagents (e.g. explorer calls into two unrelated repos in
+the same Task) in a single message so they run concurrently - do not
+serialize what can fan out. A subagent that reports back ambiguity is a
+signal to re-dispatch to `architect`, not to guess and proceed with `builder`.
+
+---
+
 ## 2. Multi-repo work
 
 If the prompt includes `**This issue spans repos: ...**`, each listed repo has a clone at `/workspace/<owner>/<repo>`. Edit and push every repo you change. Each repo with a committed change gets its own PR. If a listed repo genuinely needs no change, state that explicitly in your result summary.
@@ -60,7 +90,7 @@ If the prompt includes `**This issue spans repos: ...**`, each listed repo has a
 
 ## 3. Systemic group leadership
 
-If the prompt includes `**You lead systemic improvement group ...**`, you are the lead agent for a group of related issues in this repo. Resolve all listed sibling issues in one combined PR and close them from the PR body using `Closes #N` for each sibling. Do not open separate PRs per sibling.
+If the prompt includes `**You lead systemic improvement group ...**`, you are the lead agent for a group of related issues in this repo. Resolve all listed sibling issues in one combined PR. Each sibling needs its OWN maintainer approval (its own `tatara-approved` label, verified against `MaintainerLogins`) to be closed by this PR - an unapproved or declined sibling is never force-closed alongside the approved ones. In the PR body: reference an approved sibling with `Closes #N`; reference an unapproved or declined sibling with `refs #N` instead (never `Closes`). Do not open separate PRs per sibling.
 
 For cross-repo siblings listed under "Related work in OTHER repos": those are handled by separate agents. Do not edit those repos here.
 
@@ -117,6 +147,19 @@ decline_implementation(
 ```
 
 `reason` is required and must be non-empty. It is posted as a comment on the issue and the task is parked.
+
+**`decline_implementation` MUST NOT cite insufficient context, ambiguous
+scope, or "need more information" as its reason.** By construction (see
+section 0) you already have everything a human maintainer has: the full
+umbrella of linked issues, comments, and PR/MR state across every repo in
+scope. If a specific technical unknown remains, dispatch an `architect`
+subagent to resolve it, or make the best defensible engineering call and
+record the assumption in `pr_body` / `most_problematic` when you call
+`change_summary`. `decline_implementation` is reserved for: the change
+should NOT be made at all (wrong direction, harmful, genuinely
+out-of-platform-scope), or a hard external blocker outside the codebase (a
+third-party credential the platform cannot provide, a dependency that does
+not exist). A "this is ambiguous" decline is a protocol violation.
 
 Do **not** use this when the fix already exists - use `already_done` instead.
 

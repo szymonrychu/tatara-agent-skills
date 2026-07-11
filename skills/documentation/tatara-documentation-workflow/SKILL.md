@@ -1,6 +1,6 @@
 ---
 name: tatara-documentation-workflow
-description: "Prescriptive post-merge documentation procedure: clone the merged source repo, diff base..head, judge whether the central docs repo needs an update, then either edit the docs and call change_summary or just finish the turn (no tool call) on a clean no-op. Use at the start of every documentation-kind task."
+description: "Prescriptive scheduled documentation procedure: determine when docs were last updated, diff every enrolled component repo's default branch since then, judge whether the central docs repo needs an update, then either edit the docs and call change_summary or just finish the turn (no tool call) on a clean no-op. Use at the start of every documentation-kind task."
 profiles: ["documentation"]
 ---
 
@@ -12,47 +12,68 @@ TASK content. Follow these steps in order. Do not skip or reorder.
 
 ## 0. Understand your context
 
-You are spawned after a merge lands on some component repo's default branch.
-Unlike an `implement` task, **your working clone is the central documentation
-repo** (mkdocs-based), not the repo that changed. The repo and SHA range that
-triggered you ride as environment variables, not as your workspace:
+You are spawned on a schedule (cron), not by a specific merge event. Unlike
+an `implement` task, **your working clone is the central documentation repo**
+(mkdocs-based). You also have read-only clones of every enrolled component
+repo at their current default-branch HEAD (the project-scoped clone set, same
+mechanism `brainstorm`/`incident` use) - use these to diff, not a single
+triggering repo:
 
 - `task` (env `TATARA_TASK`) and `project` (env `TATARA_PROJECT`) - pass to
   every MCP tool call.
-- `TATARA_SOURCE_REPO` - the full git clone URL of the merged component repo,
-  provider-agnostic (GitHub or GitLab), e.g. `https://github.com/szymonrychu/tatara-cli`.
-- `TATARA_SOURCE_BASE_SHA` - the commit before the merge.
-- `TATARA_SOURCE_HEAD_SHA` - the commit after the merge.
 - Workspace root: `/workspace/<owner>/<docs-repo>` - the docs repo, already
   cloned on your task branch. **Never commit or push to the docs repo's
   default branch directly.**
+- Every other enrolled repo cloned read-only at `/workspace/<owner>/<repo>`
+  (list them with `repo_list`, per `tatara-mcp-platform`), at their current
+  default-branch HEAD.
 
-The source repo is NOT pre-cloned. You clone it yourself in step 1.
+**Confirm this against the operator's actual scheduled-trigger
+implementation** - if it instead injects an explicit per-repo "last
+ingested SHA" cursor rather than relying on the docs repo's own git history
+(Step 1 below), use that cursor instead of the derivation this skill
+describes.
 
 ---
 
-## 1. Shallow-clone the source repo and diff the merge
+## 1. Determine "since when" per repo, then diff each one
 
-Source repos are public; no auth is needed.
+Find the last time THIS documentation task actually made a change: in the
+docs repo clone, `git log --all --grep="docs:" --since="90 days ago"
+--format="%H %ad %s" --date=short -- .` (or, more precisely, the most recent
+commit whose message matches the `change_summary` `pr_title` convention this
+skill itself uses, `"docs: ..."`) gives you a timestamp T. If no prior
+doc-update commit is found (first run, or none in the lookback window),
+default T to 30 days ago rather than the full repo history - a full-history
+diff on first run would be enormous and mostly irrelevant.
+
+For each enrolled component repo (`repo_list`), diff its default branch since
+T:
 
 ```bash
-git clone --depth 50 "$TATARA_SOURCE_REPO" /tmp/source-repo
-cd /tmp/source-repo
-git fetch --depth 50 origin "$TATARA_SOURCE_BASE_SHA" "$TATARA_SOURCE_HEAD_SHA" 2>/dev/null || true
-git diff "$TATARA_SOURCE_BASE_SHA".."$TATARA_SOURCE_HEAD_SHA"
+cd /workspace/<owner>/<component-repo>
+git log --since="<T>" --oneline
+git diff "$(git rev-list -1 --before="<T>" HEAD)"..HEAD
 ```
 
-If the shallow depth does not reach `TATARA_SOURCE_BASE_SHA` (old or squash-merged
-history), re-fetch with a larger depth or `git fetch --unshallow` before
-diffing. Read the full diff, not just file names - the decision in step 2
-depends on what actually changed, not which files changed.
+If a repo has no commits since T, skip it - nothing to evaluate. Read the
+full diff for repos that do, not just file names - the decision in step 2
+depends on what actually changed, not which files changed. When several
+repos have commits since T, dispatch one `explorer` subagent per repo (via
+the `Agent` tool, `model: haiku`, `effort: low`) to produce a compact
+summary of "what changed and whether it looks doc-relevant" for that repo,
+launched in a single message so they run concurrently - then make the
+step-2 judgment yourself from their reports plus your own reading of the
+docs repo.
 
 ---
 
 ## 2. Read the docs repo and judge doc impact
 
-Read `mkdocs.yml` (nav structure) and the relevant pages under `docs/` in your
-working clone. Decide whether the merged change warrants a docs update.
+Read `mkdocs.yml` (nav structure) and the relevant pages under `docs/` in
+your working clone. Decide, per repo with commits since T, whether that
+repo's changes warrant a docs update - and whether, taken together, they add
+up to a meaningful update even if no single repo's diff alone would.
 
 **Warrants an update:** new user-facing feature or CLI flag, changed
 behavior/config contract, new API/tool surface, a renamed or removed concept
@@ -80,7 +101,7 @@ Before ending the turn, call `change_summary`:
 change_summary(
   task="<TATARA_TASK>",
   pr_title="docs: <concise imperative summary>",
-  pr_body="<what changed upstream, what was updated in the docs, and why>",
+  pr_body="<which repo(s) changed since the last doc update, what changed upstream in each, what was updated in the docs, and why>",
   delivered_scope="<pages/sections edited>",
   remaining_scope="",       # optional
   most_problematic=""       # optional
@@ -103,11 +124,11 @@ documentation task: the operator records a no-change writeback and marks the
 task Succeeded.
 
 Do NOT call `decline_implementation` (or `already_done`) here. Those post an
-implement-outcome, which the operator accepts only for `issueLifecycle` tasks;
+implement-outcome, which the operator accepts only for `implement` tasks;
 a `documentation` task gets a deterministic `409 "implement outcome only applies
-to an issueLifecycle task"`. There is nothing to retry - it is a backend
+to an implement task"`. There is nothing to retry - it is a backend
 constraint on task kind, not a validation error. The `refused-no-explanation`
-requeue applies only to `issueLifecycle` implement tasks, never to this kind, so
+requeue applies only to `implement` tasks, never to this kind, so
 a silent no-op finish is safe and expected.
 
 ---
@@ -118,11 +139,11 @@ a silent no-op finish is safe and expected.
 |---|---|
 | Diff has an external-facing change the docs don't cover | edit docs, then `change_summary(...)` |
 | Diff is internal-only / already covered / non-functional / no docs change warranted | finish the turn: no edit, no tool call (operator marks it Succeeded, no-change) |
-| `decline_implementation` / `already_done` on a documentation task | never - 409 issueLifecycle-only; just finish instead |
+| `decline_implementation` / `already_done` on a documentation task | never - 409 implement-only; just finish instead |
 
 ## Anti-patterns
 
-- Do not clone or edit the source repo - it is read-only, for diffing only.
+- Do not edit any component repo - they are read-only clones, for diffing only.
 - Do not push to the docs repo's default branch.
 - Do not update docs "just in case" when the change is purely internal.
 - Do not wait for a human/bot review on the docs MR - it auto-merges on green

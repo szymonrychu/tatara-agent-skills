@@ -12,7 +12,7 @@ Every skill in this repo is one of two content types. Choosing correctly is the 
 - The agent should not need to invent the approach.
 
 **Examples:**
-- `tatara-deploy-harness`: fixed sequence of version bump, helmfile diff, PR, wait-for-CI.
+- `tatara-implement-workflow`: fixed sequence of triage, plan, build, test, review, and writeback for an implement turn.
 - `tatara-deep-research`: fixed fan-out and synthesis workflow with a required terminal action.
 - `writing-plans`: structured decomposition into subtasks with required artifact.
 - `test-driven-development`: red-green-refactor cycle with required coverage check.
@@ -39,7 +39,7 @@ Every skill in this repo is one of two content types. Choosing correctly is the 
 
 **Examples:**
 - `tatara-brainstorm-guardrails`: what the operator enforces, what valid output looks like, anti-patterns. The actual research strategy is the agent's.
-- `tatara-triage-judgment`: decision rubric for classifying an issue on a triage/refine turn. The
+- `tatara-triage-judgment`: decision rubric for classifying an issue on a clarify/refine turn. The
   procedural counterpart is a task skill in the same profile (never a cross-profile reference).
 - `writing-skills`: style and communication heuristics, not a writing procedure.
 - `using-superpowers`: when to reach for each skill, not how to execute them.
@@ -74,9 +74,13 @@ mandated together on every incident turn.
 
 The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
 
-Valid profile names: `implement`, `review`, `triage`, `brainstorm`, `lifecycle`, `incident`,
-`refine`, `documentation`. (`selfImprove` is retired - the operator no longer emits that kind; a
-few legacy skills still carry the inert tag pending a cleanup sweep. Do not add new ones.)
+Valid profile names: `implement`, `review`, `clarify`, `brainstorm`, `incident`,
+`refine`, `documentation`. `triage`, `lifecycle`, and `selfImprove` are
+retired - the operator no longer emits those kinds (their agent-facing
+front-half work is absorbed into `clarify`/`implement`/`review`; the
+lifecycle's CD back-half is an operator-only deploy supervisor with no
+agent-facing skills at all). Do not add any of the three retired names to a
+`profiles:` list.
 
 `["*"]` (with the asterisk quoted) installs in every profile. Absent or empty field is treated as `["*"]`. When in doubt for a new shared utility skill, use `["*"]`.
 

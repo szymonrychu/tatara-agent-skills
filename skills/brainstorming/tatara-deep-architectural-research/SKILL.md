@@ -1,7 +1,7 @@
 ---
 name: tatara-deep-architectural-research
 description: Use on an architectural-research turn to discover ONE high-leverage structural improvement for the tatara platform. Walks SCOPE -> MAP INWARD -> (Phase-1 stubbed) SURVEY -> ASSESS FIT -> NOVELTY -> SYNTHESIZE ADR -> PROPOSE; Phase-1 external field survey deferred (memory graph + on-disk only); terminal no-yield action is skip_research; never self-implemented.
-profiles: ["selfImprove"]
+profiles: ["brainstorm"]
 ---
 
 # tatara deep architectural research
@@ -19,7 +19,9 @@ issue yourself - `propose_issue` does that under the bot identity.
   implementation requests.
 - Discovery-only. Embed `<!-- tatara-authored -->` in the issue body; set no
   trigger label. The operator parks tatara-authored ideas in Conversation
-  until a human approves. Never self-implement an unapproved idea.
+  until a maintainer (per `MaintainerLogins`, bots excluded) applies the
+  `tatara-approved` label directly on the issue - a comment does not advance
+  it. Never self-implement an unapproved idea.
 - Respect every platform hard rule (read the on-disk `CLAUDE.md`): KISS, no
   tech debt, charts cluster-agnostic, conventional commits, newest stable Go,
   JSON slog + INFO business logging + /metrics.
@@ -31,24 +33,25 @@ issue yourself - `propose_issue` does that under the bot identity.
 - Use the ADR template and Technology Radar convention in
   [`adr-template.md`](adr-template.md) for the SYNTHESIZE artifact.
 
-## Orchestration (run at maximum effort)
+## Orchestration (context-boundary subagent dispatch)
 
-This is a deep, cross-repo architectural research turn - run it at
-**maximum effort** and orchestrate, do not work single-threaded:
+This is a deep, cross-repo architectural research turn. Sustain multi-step
+reasoning yourself for MAP INWARD / ASSESS FIT / SYNTHESIZE; keep your own
+context lean by fanning per-repo legwork out to subagents.
 
-- The pod's `EFFORT` is already set high; sustain deep multi-step reasoning
-  and read widely before deciding.
 - **Decompose** the cross-repo survey into one independent unit of work per
-  repository in the Project (repos under `/workspace/*/` plus the cross-repo
-  graph view).
-- **Dispatch one parallel subagent per repo** to gather that repo's state
-  (MEMORY themes, fragile/load-bearing code via `code_*` graph tools, open
-  issues/MRs, recurring debt). Launch them in a single batch so they run
-  concurrently; do not serialize what can fan out.
-- Use a **Workflow** to fan the per-repo investigations out and then
-  **synthesize** their findings into the single highest-leverage SYSTEMIC
-  opportunity - a pattern spanning >=2 repos, a platform-wide gap, or
-  recurring debt - in preference to a one-repo tweak.
+  repository in the Project (repos under `/workspace/*/` plus the
+  cross-repo graph view).
+- **Dispatch one `explorer` subagent per repo** (via the `Agent` tool,
+  `model: haiku`, `effort: low`) to gather that repo's state: MEMORY themes,
+  fragile/load-bearing code via `code_*` graph tools, open issues/MRs,
+  recurring debt. Launch them in a single message so they run concurrently;
+  do not serialize what can fan out. Each reports back compact evidence, not
+  full-file dumps - this is what keeps your own context under the ~50%
+  budget.
+- **Synthesize** the subagent reports yourself into the single
+  highest-leverage SYSTEMIC opportunity - a pattern spanning >=2 repos, a
+  platform-wide gap, or recurring debt - in preference to a one-repo tweak.
 - For a genuinely systemic improvement you MAY open one `propose_issue` per
   affected repo sharing a single `systemicId` you generate (bounded, <=6);
   the operator correlates them and counts the group as one against the
@@ -115,13 +118,16 @@ Create a TodoWrite item per numbered step.
    affected repo sharing a single `systemicId` you generate, bounded <=6,
    for multi-repo systemic work). Include the full ADR text in the issue body.
    Embed `<!-- tatara-authored -->`. Set no trigger label - the operator parks
-   it in Conversation for human approval. Then stop.
+   it in Conversation until a maintainer applies the `tatara-approved` label.
+   Then stop.
 
 ## Anti-patterns
 
 - Proposing more than one action (propose OR skip, never both).
 - Self-implementing or requesting implementation of a tatara-authored issue.
-- Setting a trigger label that bypasses the human-approval gate.
+- Setting the `tatara-approved` label (or any trigger label) yourself to
+  bypass the maintainer-approval gate - only a verified maintainer label-apply
+  counts.
 - Proposing a vague "improve X" issue with no `file:line` evidence.
 - Attempting WebSearch/WebFetch in Phase 1 (egress is not yet wired).
 - Proposing memory ranking work before the eval-harness gate exists.

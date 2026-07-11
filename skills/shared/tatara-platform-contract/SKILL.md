@@ -72,16 +72,18 @@ enforced in `tatara-cli/internal/mcp/profiles.go`. Unknown or empty profiles fai
 **Always available** (every profile): `report_internal_issue`, `project_get`, `repo_list`,
 `task_get`, plus all `groupMemory` (13 tools) and `groupCodeGraph` (19 `code_*` tools).
 
-**`chat_*` tools** (10 tools): present in `brainstorm`, `lifecycle`, `incident` profiles only.
+**`chat_*` tools** (10 tools): present in `brainstorm`, `clarify`, `incident` profiles only.
 
 **Profile-specific operator tools** (examples):
 - `implement`: `task_update`, `subtask_*`, `change_summary`, `decline_implementation`,
   `already_done`, `submit_handover`.
-- `triage`: `issue_outcome`, `comment`, `comment_on_issue`.
-- `lifecycle`: union of triage + implement + review tools (one long-lived pod spans all states).
+- `clarify`: `issue_outcome`, `comment_on_issue`. Task-scoped `comment` is
+  issueLifecycle-only (409 for clarify) - use `issue_outcome(action="discuss",
+  comment=...)` for task conversation instead.
 - `incident`: `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`.
 - `brainstorm`: `propose_issue`, `comment_on_issue`, `skip_research`.
 - `review`: `review_verdict`, `submit_handover`.
+- `refine`: `list_issues`, `list_commits`, `close_issue`, `edit_issue`, `create_issue`, `comment_on_issue`.
 
 **What this means in practice**: if a tool call returns "unknown tool" or is absent from
 `tools/list`, you are not in a profile that includes it. Do not retry. Adjust your approach
@@ -94,12 +96,28 @@ required for the task.
 
 The workspace is transient - rebuilt by git clone + checkout on every run. What survives:
 
-- **Comment phases** (Triage, Conversation): only what you post to the issue/MR conversation
-  (comments, `issue_outcome` decisions). File edits on disk are discarded.
-- **Implementation phases** (Implement, MRCI, Merge, MainCI): changes committed and pushed to
-  the task branch are restored on the next run. Uncommitted edits are discarded.
+- **Conversation kinds** (`clarify`, `brainstorm`, `incident`, `refine`): only what you post to the
+  issue/MR conversation (comments, outcome decisions). File edits on disk are discarded.
+- **Implementation kind** (`implement`): changes committed and pushed to the task branch are
+  restored on the next run. Uncommitted edits are discarded. `review` reads the pushed branch
+  read-only and never commits.
 
 Never assume local disk state from a prior turn is still there unless you pushed it.
+
+---
+
+## Turn-0 context bundle (project-scoped kinds)
+
+For every project-scoped kind (`brainstorm`, `incident`, `clarify`,
+`implement`, `review`, `refine`), the operator assembles the FULL cross-repo
+umbrella context into your turn-0 prompt: every linked issue's body and
+comment thread, every open PR/MR's description, branch, and CI/mergeability
+state, across every repo in the project's scope (Decision 7 of the locked
+task-kind design). This is everything a human maintainer following the Task
+would see. Do NOT re-crawl SCM (looping `list_issues`/comment-fetch calls) to
+reconstruct history that is already in your prompt - spend MCP/SCM calls on
+things not already there: fresh code investigation, dedup checks against
+state that may have changed since the bundle was assembled, and posting.
 
 ---
 

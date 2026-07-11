@@ -1,12 +1,12 @@
 ---
 name: tatara-evidence-and-citation
-description: "REFERENCE - evidence and citation conventions for tatara agents: query the memory/code graph before reading raw files, cite file:line for every code-level claim, and never assert a codebase fact without a tool result proving it. Read in any research, triage, brainstorm, incident, or implement turn before making assertions about the platform."
+description: "REFERENCE - evidence and citation conventions for tatara agents: query the memory/code graph before reading raw files, cite file:line for every code-level claim, and never assert a codebase fact without a tool result proving it. Read in any research, clarify, brainstorm, incident, or implement turn before making assertions about the platform."
 profiles: ["*"]
 ---
 
 # tatara evidence and citation
 
-This is a REFERENCE skill. It defines the evidence standard and citation conventions that apply across every tatara agent kind. It ADVISES; it does not drive. The research procedure for a specific turn lives in the task skill for that kind (e.g. `tatara-deep-research`, `tatara-research-followup`, `tatara-health-check`).
+This is a REFERENCE skill. It defines the evidence standard and citation conventions that apply across every tatara agent kind. It ADVISES; it does not drive. The research procedure for a specific turn lives in the task skill for that kind (e.g. `tatara-deep-research`, `tatara-research-followup`).
 
 ## What the platform expects
 

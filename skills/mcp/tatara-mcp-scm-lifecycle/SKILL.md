@@ -3,11 +3,11 @@ name: tatara-mcp-scm-lifecycle
 description: >
   Prescriptive decision tables and call recipes for every SCM and lifecycle
   operator MCP tool (propose_issue, comment_on_issue, issue_outcome,
-  decline_implementation, already_done, skip_research, pr_outcome,
+  decline_implementation, already_done, skip_research, review_verdict,
   change_summary, create/edit/list_issues, comment, close_issue). Use in any
   agent turn that must drive an issue, PR, or task through the tatara lifecycle
   - especially when choosing between competing terminal/outcome calls.
-profiles: ["implement", "lifecycle", "review", "triage", "refine"]
+profiles: ["implement", "review", "clarify", "refine"]
 ---
 
 # tatara-mcp-scm-lifecycle
@@ -35,7 +35,7 @@ ephemeral; you must capture the `id` returned by `subtask_create` or
 
 ## 1. Issue discovery - propose vs comment vs skip
 
-These three tools cover the brainstorm/healthCheck profile end state. Exactly
+These three tools cover the brainstorm profile end state. Exactly
 one must be called before the turn finishes; a silent exit causes a re-prompt.
 
 ### Decision table
@@ -59,9 +59,18 @@ propose_issue(
 ```
 
 The operator opens the issue under the bot identity with an `idea` label and
-holds it in discovery until a human approves. Embed `<!-- tatara-authored -->`
-in the body so the operator keeps it in discovery. `project` defaults to
-`TATARA_PROJECT`.
+holds it in discovery indefinitely. The ONLY way it advances into
+implement->review->merge->deploy is a maintainer (a login listed in the
+project's `MaintainerLogins` config, bots excluded) applying the
+`tatara-approved` label directly on the issue - the operator verifies the
+label-event actor against `MaintainerLogins` and records that as
+`ApprovedByMaintainer` before `clarify` is allowed to hand off to implement
+(Section 2). A comment - including from the reporter, from a non-maintainer,
+or from a bot - does NOT approve, and a non-maintainer or bot applying the
+label does NOT approve either. If `MaintainerLogins` is unset or empty for
+the project, this record can never be created, so the issue never advances
+(fail-closed). Embed `<!-- tatara-authored -->` in the body so the operator
+keeps it in discovery. `project` defaults to `TATARA_PROJECT`.
 
 For cross-repo systemic improvements: call `propose_issue` once per affected
 repo with the SAME `systemicId` string. The operator stamps
@@ -93,10 +102,14 @@ skip_research(
 Call after investigation when you have nothing to propose. A blank reason is
 rejected. `task` defaults to `TATARA_TASK`.
 
-## 2. Triage outcome - issue_outcome
+## 2. Clarify outcome
 
-Called at the end of a triage agent turn. Sets the operator-visible outcome
-that drives the next lifecycle transition. Call exactly once per triage turn.
+Called at the end of a `clarify` turn to record the outcome and drive the
+next transition: stay in conversation (`discuss`), close the issue
+(`close`), or hand off to `implement` (`implement` - swaps the
+`tatara-brainstorming` label for `tatara-implementation` per
+`tatara-writeback-discipline`'s label table). The tool is `issue_outcome`;
+this is settled by the cross-repo contract, not a placeholder.
 
 ### Decision table
 
@@ -109,6 +122,14 @@ that drives the next lifecycle transition. Call exactly once per triage turn.
 A nil outcome (agent finishes without calling `issue_outcome`) defaults
 internally to awaiting human input - the operator does NOT silently proceed to
 implement. Always call explicitly.
+
+`action="implement"` only advances the issue when the operator already holds
+a verified `ApprovedByMaintainer` record for it - i.e. a `MaintainerLogins`
+login applied the `tatara-approved` label directly on the issue (Section 1).
+Calling `issue_outcome(action="implement")` on an issue that has not cleared
+that gate does not bypass it; only call `"implement"` when you have confirmed
+the label is present and was applied by a maintainer, never on the strength
+of a comment alone.
 
 ### issue_outcome recipes
 
@@ -136,7 +157,7 @@ issue_outcome(
 
 ## 3. Implementation terminal calls
 
-At the end of an implement (or lifecycle) turn, you MUST call exactly one of:
+At the end of an implement turn, you MUST call exactly one of:
 
 - Open a PR and call `change_summary` (the normal path)
 - Call `decline_implementation` (if no code SHOULD be written)
@@ -193,31 +214,7 @@ already_done(
 Posts `reason` as an issue comment and parks the task. This is NOT a refusal.
 Use only when you have confirmed the fix exists in the codebase.
 
-## 4. PR outcome (selfImprove only)
-
-Available only in the `selfImprove` profile. Drives merge or close of a
-tatara-authored PR that has passed CI and review.
-
-### Decision table
-
-| Condition | action |
-|-----------|--------|
-| PR is approved, CI green, ready to ship | `"merge"` |
-| PR should be abandoned (superseded, wrong direction, broken) | `"close"` |
-
-### pr_outcome recipe
-
-```
-pr_outcome(
-  action="merge"|"close",
-  reason="<optional rationale>"
-)
-```
-
-`task` defaults to `TATARA_TASK`. The operator enforces merge policy; do not
-call if CI is failing.
-
-## 5. Review verdict (review profile)
+## 4. Review verdict (review profile)
 
 ### Decision table
 
@@ -242,11 +239,11 @@ review_verdict(
 
 `task` defaults to `TATARA_TASK`.
 
-## 6. Free-form comment during a turn
+## 5. Free-form comment during a turn
 
 Use `comment` to post a message on the task's linked issue WITHOUT changing
-the lifecycle state. Use it for mid-turn updates, clarifying questions, or
-design notes that do not constitute a final outcome.
+the lifecycle state. Use it for mid-turn updates or design notes that do
+not constitute a final outcome.
 
 ```
 comment(
@@ -257,7 +254,13 @@ comment(
 `task` defaults to `TATARA_TASK`. This does NOT replace `issue_outcome` or
 any terminal call. Always call the appropriate outcome tool at turn end.
 
-## 7. Issue CRUD (refine and lifecycle profiles)
+**Not available to `clarify`.** The task-scoped `comment` endpoint
+(`/tasks/{t}/comment`) is gated issueLifecycle-only by the operator - a
+`clarify` agent calling it 409s. Clarify's conversation path is
+`issue_outcome(action="discuss", comment="...")` for the task's own issue,
+plus `comment_on_issue` for any other issue.
+
+## 6. Issue CRUD (refine profile)
 
 ### list_issues recipe
 
@@ -323,7 +326,7 @@ create_issue(
 This bypasses the proposal/approval flow (no `idea` label, no human gate).
 For new autonomous proposals use `propose_issue` instead.
 
-## 8. Handover
+## 7. Handover
 
 Call before context runs out or when handing off to a parallel/next agent.
 
@@ -336,7 +339,7 @@ submit_handover(
 
 `task` defaults to `TATARA_TASK`. Post this before any context-limit stop.
 
-## 9. Profile availability reference
+## 8. Profile availability reference
 
 Not all tools are available in every profile. The table below shows which
 terminal/outcome tools are present per profile.
@@ -344,18 +347,16 @@ terminal/outcome tools are present per profile.
 | Profile | Available terminal/outcome tools |
 |---------|--------------------------------|
 | `brainstorm` | `propose_issue`, `comment_on_issue`, `skip_research` |
-| `triage` | `issue_outcome`, `comment`, `comment_on_issue` |
+| `clarify` | `issue_outcome`, `comment_on_issue` |
 | `implement` | `change_summary`, `decline_implementation`, `already_done`, `submit_handover` |
 | `review` | `review_verdict`, `submit_handover` |
-| `lifecycle` | union: all triage + implement + review + `pr_outcome` |
 | `incident` | `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`, `submit_handover` |
-| `selfImprove` | `change_summary`, `pr_outcome`, `decline_implementation`, `already_done`, `submit_handover` |
 | `refine` | `list_issues`, `list_commits`, `close_issue`, `edit_issue`, `create_issue`, `comment_on_issue` |
 
 `project_get`, `repo_list`, `task_get`, `report_internal_issue` are present
 in every profile (alwaysOn). Memory and code-graph tools are always included.
 
-## 10. Anti-patterns
+## 9. Anti-patterns
 
 - Do NOT pass `project` or `task` explicitly unless addressing a different
   project/task than the injected env. Let the env fill it.

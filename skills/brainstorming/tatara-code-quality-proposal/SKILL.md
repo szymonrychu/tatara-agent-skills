@@ -34,15 +34,16 @@ read. No speculative "you might also want" features.
 
 ## How to propose
 
-- One `propose_issue` per standalone improvement; a genuinely systemic pattern
-  spanning >=2 repos MAY emit one per affected repo (bounded), sharing a
-  `systemicId`.
+- One `propose_issue` per affected repo under a shared `systemicId` (bounded
+  to 6) - true even for a one-repo improvement; see
+  `tatara-brainstorm-guardrails` for the umbrella-Task framing.
 - Respect `maxOpenProposals`: if nothing clears the bar this cycle, call
   `skip_research(reason)` and stop. Silence over noise.
 - Duplicate of an existing open issue: do not propose; note the duplicate.
 - Every `propose_issue` body MUST embed the `<!-- tatara-authored -->` marker
   (per tatara-brainstorm-guardrails). The operator holds the proposal in the
-  brainstorming state until a human approves; omitting the marker bypasses the
-  human-approval gate.
+  brainstorming state until a maintainer (per `MaintainerLogins`, bots
+  excluded) applies the `tatara-approved` label directly on the issue - a
+  comment does not advance it; omitting the marker bypasses this gate.
 - Never implement, never push, never open a PR. Proposals only.
 - No attribution or session links in any proposal body or comment.

@@ -1,7 +1,7 @@
 ---
 name: handoff
 description: Resume prior work via get_handoff at turn start and checkpoint via write_handoff before finishing, keyed by the wrapper's continuation-key preamble.
-profiles: ["implement", "lifecycle", "incident", "brainstorm", "refine"]
+profiles: ["implement", "incident", "brainstorm", "refine", "clarify"]
 ---
 
 # /handoff
@@ -43,7 +43,7 @@ Leave the rest - live handoffs are how `brainstorm` finds work to continue.
 
 ## Notes
 
-- No `handoff_key` in the goal preamble (e.g. a healthCheck or one-off task):
+- No `handoff_key` in the goal preamble (e.g. a documentation or one-off task):
   skip this skill, there is nothing to key a handoff to.
 - Do not fall back to `/workspace/handoff.md` or any local file - the handoff
   lives in chat, not on disk, so the next pod (which may not share a

@@ -3,17 +3,17 @@ name: tatara-mcp-chat
 description: >
   Drive the 10 tatara-chat MCP tools (groupChat) to create rooms, manage
   participants, send messages, and poll or page through message history.
-  Use in brainstorm, lifecycle, and incident agent kinds where chat is
-  enabled; these tools are absent from implement, review, triage, refine,
-  and selfImprove profiles.
-profiles: ["brainstorm", "lifecycle", "incident"]
+  Use in brainstorm, clarify, and incident agent kinds where chat is
+  enabled; these tools are absent from implement, review, and refine
+  profiles.
+profiles: ["brainstorm", "incident", "clarify"]
 ---
 
 # tatara-mcp-chat
 
 The 10 tools in `groupChat` hit the tatara-chat backend (Target=TargetChat).
 They are available only when the agent's `TATARA_TOOL_PROFILE` is one of
-`brainstorm`, `lifecycle`, or `incident`. In all other profiles the tools
+`brainstorm`, `clarify`, or `incident`. In all other profiles the tools
 are not registered and must not be called.
 
 Tool names and argument names are exact; use them verbatim.
@@ -44,9 +44,10 @@ personas or between an agent and a human observer. Concrete triggers:
 - **brainstorm**: open a room to draft proposals collaboratively across
   conceptual "roles" (researcher, critic, synthesiser) before calling
   `propose_issue`.
-- **lifecycle**: open a room when the task spans multiple phases (Triage
-  -> Implement -> Review) and you want a persistent shared log visible to
-  all stages.
+- **clarify**: open a room when an issue conversation needs a persistent
+  shared log across multiple clarify turns (e.g. re-engaging a
+  discovery-phase issue) or a human observer needs visibility into the
+  discussion.
 - **incident**: open a room immediately on task start so investigation
   steps, hypotheses, and findings are recorded in one thread.
 
@@ -181,8 +182,8 @@ Signal the room is finished                   -> chat_close_room
   required and the call will fail without them.
 - Do NOT share one `participant_id` across multiple logical roles. Each
   persona needs its own `chat_add_participant` call.
-- Do NOT call chat tools from implement, review, triage, refine, or
-  selfImprove profiles. They are not registered and the call will fail.
+- Do NOT call chat tools from implement, review, refine, or documentation
+  profiles. They are not registered and the call will fail.
 - Do NOT leave rooms open indefinitely. Call `chat_close_room` when the
   task exits so room state reflects actual task lifecycle.
 - Do NOT construct `participant_id` from names. Always use the `id`

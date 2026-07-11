@@ -24,9 +24,11 @@ Tool surface available in the incident profile:
 - Grafana MCP server: query Prometheus/Loki, read alert rules and
   dashboards, follow generatorURL - all read-only.
 - tatara operator tools: `propose_issue`, `comment_on_issue`,
-  `change_summary`, `decline_implementation`, `submit_handover`,
-  `task_list`, `task_update`, `subtask_list`, `subtask_create`,
-  `subtask_update`.
+  `change_summary`, `submit_handover`, `task_list`, `task_update`,
+  `subtask_list`, `subtask_create`, `subtask_update`. Incident is
+  read-only/propose-only - it does NOT have `decline_implementation`
+  (that tool is implement-only; calling it from incident 409s against the
+  operator's implement_outcome gate).
 - Always-on: `report_internal_issue`, `project_get`, `repo_list`,
   `task_get`.
 - Memory and code-graph tools (groupMemory, groupCodeGraph) for
@@ -170,9 +172,9 @@ Anti-patterns that produce bad incident issues:
      (dashboard/explore) from the alert context.
 
 Do not embed `<!-- tatara-authored -->` in an incident issue body. That
-marker is for brainstorm/discovery issues that need human approval
-before the bot pursues them. Incident issues route through triage
-directly.
+marker is for brainstorm/discovery issues that need a maintainer to apply
+the `tatara-approved` label before the bot pursues them. Incident issues
+route through triage directly.
 
 Do not set a `systemicId` unless the alert is clearly one instance of a
 cross-repo pattern you have confirmed with evidence. If in doubt, leave
