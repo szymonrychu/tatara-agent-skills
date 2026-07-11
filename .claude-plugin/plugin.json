@@ -1,6 +1,6 @@
 {
   "name": "tatara-agent-skills",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "Single source of truth for tatara platform agent skills. Contains 20 absorbed process skills (superpowers-derived + tatara-native) plus guardrail and MCP-discipline skills layered on top. Agents running inside the tatara autonomous loop load skills from this repo instead of from the wrapper image.",
   "author": {
     "name": "Szymon Richert",
