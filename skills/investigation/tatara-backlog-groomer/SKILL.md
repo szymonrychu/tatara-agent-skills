@@ -43,6 +43,29 @@ PRs, or implement. All I/O via the `tatara` MCP tools.
    closed/resolved, that are superseded by newer work, or that are aged with no matching open work.
    Retain every handoff with a live open-issue + open-task pair.
 
+## Self-comment exception
+
+`refine` is the ONLY kind in this repo permitted to comment under its own
+(tatara-authored) prior comment - every other kind's self-comment is refused
+by the operator's permission layer (last-comment-is-bot-authored guard).
+Use it ONLY for one of two narrow cases, and always link the MR or commit
+that justifies it:
+
+- **Scope already delivered.** A prior refine (or implement) comment set a
+  scope or expectation on the issue, and you have now confirmed via the
+  memory graph or commit history that the work is done - comment citing the
+  delivering commit/PR, then close per phase 3.
+- **Meaningful scope change.** The issue's scope has materially changed
+  since your last comment (e.g. a sibling issue or PR changed what's still
+  needed) and the existing comment is now stale or misleading - comment
+  correcting the scope, citing the issue/MR that changed it.
+
+Anti-pattern: do NOT use the self-comment exception to restate, nudge, or
+re-request action on your own prior comment ("still waiting", "any update?"),
+to escalate, or for any case outside the two above. Outside those two cases,
+treat your own last comment as the wait signal it is everywhere else in this
+platform.
+
 ## Anti-patterns
 
 - Creating a new issue, splitting an issue into children, or filing a followup (refine grooms the

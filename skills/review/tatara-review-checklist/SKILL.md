@@ -4,7 +4,8 @@ description: >
   Prescriptive PR/MR review gate for kind=review Tasks: build + test + lint the
   checked-out PR head locally, evaluate correctness/security/quality/test
   dimensions, apply severity routing to decide approve/request_changes/comment,
-  and call review_verdict before finishing. Use whenever the turn-0 directive
+  stamp a per-MR semver:<level> on every MR in the stream when approving, and
+  call review_verdict before finishing. Use whenever the turn-0 directive
   confirms this is a review task (contains "This is an MR/PR REVIEW").
 profiles: ["review"]
 ---
@@ -134,7 +135,50 @@ mergeability check in Step 1 must gate this before you compose the verdict.
 
 ---
 
-## Step 5 - Submit review_verdict (required)
+## Step 5 - Judge semver level per MR (approve only)
+
+Only when Step 4 routes to `decision="approve"`: for EVERY MR in scope -
+every stream member PR/MR, whether human/maintainer-authored or
+tatara-authored, not just the one you built/tested in Steps 1-3 - judge its
+release level from its diff:
+
+| Diff shape | `level` |
+|---|---|
+| Breaking change (API/contract break, removed/renamed public surface, incompatible schema/config change) | `major` |
+| Backward-compatible feature or capability addition | `minor` |
+| Fix, refactor, docs, chore, or anything else | `patch` |
+
+This applies to human/maintainer MRs too, not only tatara-authored ones -
+review is the ONLY point in the pipeline that ever stamps a release level on
+a human PR, since humans have no `change_summary` step to declare
+significance. Skipping a human MR here means it ships with no release
+label at all.
+
+You do not need to build/test every member repo to judge its level - use
+the diff (`git diff` against that member's base branch, or the diff summary
+already present in the turn-0 umbrella bundle) to classify it. If a member
+MR already carries a `semver:*` label (check the turn-0 bundle or
+`task_get`), you may still include your own judgment - the operator treats
+an existing human-set label as authoritative and keeps it over your
+assignment, so there is no harm in always emitting one.
+
+Build the `semver` list, one entry per MR in the stream:
+
+```
+semver=[
+  {"repo": "acme/api-service", "number": 142, "level": "minor"},
+  {"repo": "acme/docs", "number": 58, "level": "patch"}
+]
+```
+
+`repo` is the `owner/repo` slug, `number` is the PR/MR number, `level` is
+one of `major`/`minor`/`patch`. Omit the `semver` key entirely when
+`decision` is not `approve` (request_changes/comment never merge, so no
+release is cut).
+
+---
+
+## Step 6 - Submit review_verdict (required)
 
 Compose the verdict body:
 
@@ -160,17 +204,26 @@ review_verdict(
       "line": 42,                    # integer
       "body": "suggested fix or note"
     }
+  ],
+  semver=[                           # approve only; see Step 5. Omit otherwise
+    {
+      "repo": "acme/api-service",    # owner/repo slug
+      "number": 142,                 # PR/MR number
+      "level": "minor"                # major | minor | patch
+    }
   ]
 )
 ```
 
 All three fields (`path`, `line`, `body`) are required on every suggestions
 item. Omit the `suggestions` key entirely rather than passing an empty array
-or partial items.
+or partial items. Same rule for `semver` items: `repo`, `number`, `level`
+are all required, and the key is omitted entirely (not an empty array) on
+any non-approve decision.
 
 ---
 
-## Step 6 - Finish
+## Step 7 - Finish
 
 After `review_verdict` returns, the turn is complete. Hard stops:
 

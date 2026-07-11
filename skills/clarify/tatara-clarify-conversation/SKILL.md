@@ -10,8 +10,13 @@ The disciplined shell for a `clarify` turn. `clarify` fires on two distinct
 triggers - a brand-new issue, or any new comment on an issue already in
 conversation - and both paths end in one of three outcomes: keep the
 conversation open (post + wait), close it, or hand off to `implement`. All
-I/O is via the `tatara` MCP tools; you never use git or gh, and you never
-push code (that is `implement`'s job after handoff).
+conversation and lifecycle I/O is via the `tatara` MCP tools - never git or
+gh for that. You MAY check out the workspace, a branch, or an existing
+MR/PR to read code and verify whether the ask is already addressed or
+already coherent with what's on disk; this is read-only investigation, no
+different from what an `explorer` subagent would do. You never push code
+or open a PR (that is `implement`'s job after handoff) - checkout is for
+reading, not writing.
 
 The operator injects the FULL cross-repo umbrella context for this Task at
 turn 0 (every linked issue + its full comment thread, across every repo in
@@ -35,8 +40,11 @@ posting, not for re-fetching what you already have.
    ambiguities worth asking about. Do not ask questions answerable from the
    code or the issue text.
 3. **Post clarifying questions** (or, if nothing is genuinely ambiguous, a
-   short confirmation of scope + your proposed approach) via `comment` or
-   `comment_on_issue` per `tatara-mcp-scm-lifecycle`. Apply
+   short confirmation of scope + your proposed approach) via
+   `issue_outcome(action="discuss", comment=...)` for the task's own issue,
+   or `comment_on_issue` for any other issue, per `tatara-mcp-scm-lifecycle`.
+   The task-scoped `comment` tool is issueLifecycle-only and 409s for
+   clarify - never call it. Apply
    `tatara-triage-judgment`'s rubric to decide whether this issue is already
    clear enough to hand off directly (skip to step 3 of Branch B) or genuinely
    needs a round of human input (go to the wait step below).
@@ -80,14 +88,11 @@ narrow scope-change/already-delivered case.
 
 **Hand off to implement.** When the outcome is "implement": remove the
 `tatara-brainstorming` label and add the `tatara-implementation` label (per
-`tatara-writeback-discipline`'s label table) via the outcome tool documented
-in `tatara-mcp-scm-lifecycle` - confirm the EXACT tool/argument name against
-the operator's current MCP surface for the `clarify` profile before relying
-on this description verbatim; the operator plan is the source of truth for
-that tool's name (see this plan's "Cross-repo dependencies" section). Supply
-a `plan` describing what will be implemented and how - this seeds
-`implement`'s turn-0 context and is posted as the implementation-start
-message.
+`tatara-writeback-discipline`'s label table) via
+`issue_outcome(action="implement", plan=...)`, documented in
+`tatara-mcp-scm-lifecycle` Section 2. Supply `plan` describing what will be
+implemented and how - this seeds `implement`'s turn-0 context and is posted
+as the implementation-start message.
 
 ## Anti-patterns
 

@@ -39,7 +39,7 @@ for the wrong kind.
 |------------------|-----------------------------------------------------------------------------------|----------------------------------------------------|
 | `implement`      | `change_summary`, `decline_implementation`, `already_done`                        | Operator opens PR via `OpenChange`; agent does not |
 | `brainstorm`     | `propose_issue`, `skip_research`, `comment_on_issue`                              | Must call one of the first two; silent finish forbidden |
-| `clarify`        | `issue_outcome` (name TBD - see `tatara-mcp-scm-lifecycle` Section 2), `comment`, `comment_on_issue` | Operator posts comment; implement handoff swaps the label |
+| `clarify`        | `issue_outcome`, `comment_on_issue`                                               | Operator posts comment; implement handoff swaps the label. Task-scoped `comment` is issueLifecycle-only (409 for clarify) - use `issue_outcome(action="discuss", comment=...)` instead |
 | `review`         | `review_verdict`                                                                  | Operator posts approve/request_changes/comment; approve = label + native review, never a merge |
 | `incident`       | `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`   | Project-scoped; never opens its own PR             |
 | `documentation`  | `change_summary` (doc-relevant) or no tool call at all (no-op finish)             | Repo-scoped (docs repo); scheduled trigger          |
@@ -118,8 +118,7 @@ the operator re-prompts or parks as `refused-no-explanation`.
 
 ### Recording a clarify outcome (clarify kind)
 
-Use `issue_outcome` (name TBD - see `tatara-mcp-scm-lifecycle` Section 2).
-The operator posts the comment and transitions state.
+Use `issue_outcome`. The operator posts the comment and transitions state.
 
 ```
 issue_outcome(action="implement"|"close"|"discuss", comment="...")

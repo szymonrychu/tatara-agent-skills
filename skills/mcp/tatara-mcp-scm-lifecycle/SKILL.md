@@ -99,12 +99,8 @@ Called at the end of a `clarify` turn to record the outcome and drive the
 next transition: stay in conversation (`discuss`), close the issue
 (`close`), or hand off to `implement` (`implement` - swaps the
 `tatara-brainstorming` label for `tatara-implementation` per
-`tatara-writeback-discipline`'s label table). **Confirm the exact tool name
-against the operator's current MCP surface for the `clarify` profile** -
-this section describes the decision semantics using the pre-existing
-`issue_outcome` tool name as a placeholder; if the operator ships a
-differently-named clarify-specific tool, update every recipe below to match
-it exactly (see this plan's "Cross-repo dependencies").
+`tatara-writeback-discipline`'s label table). The tool is `issue_outcome`;
+this is settled by the cross-repo contract, not a placeholder.
 
 ### Decision table
 
@@ -229,8 +225,8 @@ review_verdict(
 ## 5. Free-form comment during a turn
 
 Use `comment` to post a message on the task's linked issue WITHOUT changing
-the lifecycle state. Use it for mid-turn updates, clarifying questions, or
-design notes that do not constitute a final outcome.
+the lifecycle state. Use it for mid-turn updates or design notes that do
+not constitute a final outcome.
 
 ```
 comment(
@@ -240,6 +236,12 @@ comment(
 
 `task` defaults to `TATARA_TASK`. This does NOT replace `issue_outcome` or
 any terminal call. Always call the appropriate outcome tool at turn end.
+
+**Not available to `clarify`.** The task-scoped `comment` endpoint
+(`/tasks/{t}/comment`) is gated issueLifecycle-only by the operator - a
+`clarify` agent calling it 409s. Clarify's conversation path is
+`issue_outcome(action="discuss", comment="...")` for the task's own issue,
+plus `comment_on_issue` for any other issue.
 
 ## 6. Issue CRUD (refine profile)
 
@@ -328,7 +330,7 @@ terminal/outcome tools are present per profile.
 | Profile | Available terminal/outcome tools |
 |---------|--------------------------------|
 | `brainstorm` | `propose_issue`, `comment_on_issue`, `skip_research` |
-| `clarify` | `issue_outcome` (name TBD - see Section 2), `comment`, `comment_on_issue` |
+| `clarify` | `issue_outcome`, `comment_on_issue` |
 | `implement` | `change_summary`, `decline_implementation`, `already_done`, `submit_handover` |
 | `review` | `review_verdict`, `submit_handover` |
 | `incident` | `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`, `submit_handover` |

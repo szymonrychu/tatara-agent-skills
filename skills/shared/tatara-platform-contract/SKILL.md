@@ -77,7 +77,9 @@ enforced in `tatara-cli/internal/mcp/profiles.go`. Unknown or empty profiles fai
 **Profile-specific operator tools** (examples):
 - `implement`: `task_update`, `subtask_*`, `change_summary`, `decline_implementation`,
   `already_done`, `submit_handover`.
-- `clarify`: `issue_outcome` (name TBD - see `tatara-mcp-scm-lifecycle`), `comment`, `comment_on_issue`.
+- `clarify`: `issue_outcome`, `comment_on_issue`. Task-scoped `comment` is
+  issueLifecycle-only (409 for clarify) - use `issue_outcome(action="discuss",
+  comment=...)` for task conversation instead.
 - `incident`: `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`.
 - `brainstorm`: `propose_issue`, `comment_on_issue`, `skip_research`.
 - `review`: `review_verdict`, `submit_handover`.
