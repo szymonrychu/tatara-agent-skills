@@ -172,9 +172,9 @@ Anti-patterns that produce bad incident issues:
      (dashboard/explore) from the alert context.
 
 Do not embed `<!-- tatara-authored -->` in an incident issue body. That
-marker is for brainstorm/discovery issues that need human approval
-before the bot pursues them. Incident issues route through triage
-directly.
+marker is for brainstorm/discovery issues that need a maintainer to apply
+the `tatara-approved` label before the bot pursues them. Incident issues
+route through triage directly.
 
 Do not set a `systemicId` unless the alert is clearly one instance of a
 cross-repo pattern you have confirmed with evidence. If in doubt, leave

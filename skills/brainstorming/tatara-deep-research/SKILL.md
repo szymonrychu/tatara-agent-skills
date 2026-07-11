@@ -22,9 +22,11 @@ the bot identity.
   issue is worth a substantive addition, finish with no action - honest
   no-yield beats a low-value proposal or an empty comment.
 - Stay in discovery. Do NOT request implementation. Embed the literal
-  marker `<!-- tatara-authored -->` in the issue body and never set a
-  trigger label - the operator holds tatara-authored ideas in
-  conversation until a human approves.
+  marker `<!-- tatara-authored -->` in the issue body and never set the
+  `tatara-approved` label yourself - the operator holds tatara-authored
+  ideas in conversation until a maintainer (per `MaintainerLogins`, bots
+  excluded) applies the `tatara-approved` label directly on the issue; a
+  comment does not advance it.
 - Every proposal must respect the platform's 14 hard rules (read the
   on-disk `CLAUDE.md`), or the loop that later implements it will reject
   it. KISS; no tech debt; charts cluster-agnostic; conventional commits;

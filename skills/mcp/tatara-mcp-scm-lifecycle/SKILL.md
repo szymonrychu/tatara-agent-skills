@@ -59,9 +59,18 @@ propose_issue(
 ```
 
 The operator opens the issue under the bot identity with an `idea` label and
-holds it in discovery until a human approves. Embed `<!-- tatara-authored -->`
-in the body so the operator keeps it in discovery. `project` defaults to
-`TATARA_PROJECT`.
+holds it in discovery indefinitely. The ONLY way it advances into
+implement->review->merge->deploy is a maintainer (a login listed in the
+project's `MaintainerLogins` config, bots excluded) applying the
+`tatara-approved` label directly on the issue - the operator verifies the
+label-event actor against `MaintainerLogins` and records that as
+`ApprovedByMaintainer` before `clarify` is allowed to hand off to implement
+(Section 2). A comment - including from the reporter, from a non-maintainer,
+or from a bot - does NOT approve, and a non-maintainer or bot applying the
+label does NOT approve either. If `MaintainerLogins` is unset or empty for
+the project, this record can never be created, so the issue never advances
+(fail-closed). Embed `<!-- tatara-authored -->` in the body so the operator
+keeps it in discovery. `project` defaults to `TATARA_PROJECT`.
 
 For cross-repo systemic improvements: call `propose_issue` once per affected
 repo with the SAME `systemicId` string. The operator stamps
@@ -113,6 +122,14 @@ this is settled by the cross-repo contract, not a placeholder.
 A nil outcome (agent finishes without calling `issue_outcome`) defaults
 internally to awaiting human input - the operator does NOT silently proceed to
 implement. Always call explicitly.
+
+`action="implement"` only advances the issue when the operator already holds
+a verified `ApprovedByMaintainer` record for it - i.e. a `MaintainerLogins`
+login applied the `tatara-approved` label directly on the issue (Section 1).
+Calling `issue_outcome(action="implement")` on an issue that has not cleared
+that gate does not bypass it; only call `"implement"` when you have confirmed
+the label is present and was applied by a maintainer, never on the strength
+of a comment alone.
 
 ### issue_outcome recipes
 

@@ -125,7 +125,20 @@ issue_outcome(action="implement"|"close"|"discuss", comment="...")
 ```
 
 - `implement`: operator swaps `tatara-brainstorming` for `tatara-implementation`
-  and hands the Task to `implement`.
+  and hands the Task to `implement`. This transition requires the operator to
+  already hold a verified `ApprovedByMaintainer` record for the issue - a
+  maintainer (a login listed in the project's `MaintainerLogins` config,
+  bots excluded) applied the `tatara-approved` label directly on the issue,
+  and the operator verified the label-event actor against that list. A
+  comment never satisfies this, including from the reporter or from a
+  non-maintainer, and a non-maintainer/bot applying the label does not
+  either. If `MaintainerLogins` is unset or empty for the project, this
+  record can never be created and the issue never advances (fail-closed).
+  For systemic-group siblings, each sibling needs its own
+  `ApprovedByMaintainer` record; an unapproved or declined sibling is not
+  force-closed by the group's lead implement PR - see
+  `tatara-implement-workflow` Section 3 for the `Closes #N` / `refs #N`
+  distinction.
 - `close`: operator calls `CloseIssue`. Forbidden when `Status.PrURL != ""`
   (unmerged change guard).
 - `discuss`: operator posts the comment and keeps the clarify pod in
@@ -241,17 +254,21 @@ Managed labels (defaults; overridable in `ScmSpec`):
 
 | Label name               | Meaning                        | Set on transition to...          |
 |--------------------------|--------------------------------|----------------------------------|
-| `tatara-brainstorming`   | Discovery / awaiting approval  | brainstorm proposal, clarify discuss arm |
-| `tatara-approved`        | Human approved                 | clarify implement arm; review approve arm |
+| `tatara-brainstorming`   | Discovery / awaiting maintainer approval | brainstorm proposal, clarify discuss arm |
+| `tatara-approved`        | Maintainer approved (issue) / review approved (PR) | On the issue: applied directly by a maintainer (per `MaintainerLogins`, bots excluded) - NOT by the operator or by clarify - and is the precondition for the clarify implement arm, not a result of it. On the PR: applied by the operator when `review` calls `decision="approve"`. |
 | `tatara-implementation`  | Implementation in progress     | clarify/review handoff to implement |
 | `tatara-declined`        | Refused / not implemented      | decline_implementation, already_done |
 | `tatara-incident`        | Incident-originated proposal   | Operator sets automatically on proposals from `incident` kind tasks |
 
 Rules for `setLifecycleLabel`:
-- Sets EXACTLY ONE managed label and removes all others.
+- Sets EXACTLY ONE managed label and removes all others, EXCEPT `tatara-approved`
+  on an issue: that is maintainer-applied, not operator-managed, and is not
+  cleared by `setLifecycleLabel`'s single-label invariant.
 - `AddLabel` failure returns an error (requeue); `RemoveLabel` failure is
   logged but tolerated.
-- Never set labels manually via git or direct SCM API calls.
+- Never set labels manually via git or direct SCM API calls. Agents never
+  apply `tatara-approved` to an issue themselves - only a maintainer's
+  label-apply, verified against `MaintainerLogins`, counts.
 
 ---
 

@@ -90,7 +90,7 @@ If the prompt includes `**This issue spans repos: ...**`, each listed repo has a
 
 ## 3. Systemic group leadership
 
-If the prompt includes `**You lead systemic improvement group ...**`, you are the lead agent for a group of related issues in this repo. Resolve all listed sibling issues in one combined PR and close them from the PR body using `Closes #N` for each sibling. Do not open separate PRs per sibling.
+If the prompt includes `**You lead systemic improvement group ...**`, you are the lead agent for a group of related issues in this repo. Resolve all listed sibling issues in one combined PR. Each sibling needs its OWN maintainer approval (its own `tatara-approved` label, verified against `MaintainerLogins`) to be closed by this PR - an unapproved or declined sibling is never force-closed alongside the approved ones. In the PR body: reference an approved sibling with `Closes #N`; reference an unapproved or declined sibling with `refs #N` instead (never `Closes`). Do not open separate PRs per sibling.
 
 For cross-repo siblings listed under "Related work in OTHER repos": those are handled by separate agents. Do not edit those repos here.
 

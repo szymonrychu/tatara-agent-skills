@@ -30,7 +30,20 @@ outcome call before finishing (see `tatara-clarify-conversation` and
 
 Read the issue AND the full conversation thread before deciding. The thread is the authoritative record of human intent.
 
-**action=implement** when a human has posted an explicit approval or go-ahead in the thread. Applies to both human-authored and tatara-authored issues. For tatara-authored issues (marked `<!-- tatara-authored -->`): require a positive human approval comment; ambiguous or absent comments do NOT satisfy this gate. When routing to implement, supply a `plan` arg (a short description of what will be implemented and how - key ideas, approach, flow); this is posted to the issue as the implementation-start message and seeds the implement agent's context.
+**action=implement** when the issue carries the `tatara-approved` label,
+applied by a maintainer (a login listed in the project's `MaintainerLogins`
+config, bots excluded). Applies equally to human-authored and tatara-authored
+issues - there is no separate comment-based path for either. The operator
+verifies the label-adding actor against `MaintainerLogins` and only then
+records `ApprovedByMaintainer`; a comment, however explicit ("go ahead",
+"LGTM", "approved"), does NOT satisfy this gate, and a non-maintainer or bot
+applying the label does NOT satisfy it either. If `MaintainerLogins` is
+unset or empty for the project, this record can never be created and the
+issue never advances (fail-closed) - treat that as a permanent hold, not
+something to route around. When routing to implement, supply a `plan` arg (a
+short description of what will be implemented and how - key ideas, approach,
+flow); this is posted to the issue as the implementation-start message and
+seeds the implement agent's context.
 
 **action=close** when:
 - A human has explicitly declined or closed the issue in the thread.
@@ -51,15 +64,18 @@ The turn is not complete until `issue_outcome` is called with one of `{implement
 The `clarify` kind is a classification/conversation turn only. Do not open pull requests, push commits, or modify any code. The implement gate handles execution.
 
 **tatara-authored gate.**
-An issue opened by the bot carries the `<!-- tatara-authored -->` marker. Only implement it when a human has posted an approval comment. If no human has commented, emit `discuss` with `comment=""` and do NOT use the `comment` tool or `comment_on_issue` to post anything; the operator handles silence intentionally.
+An issue opened by the bot carries the `<!-- tatara-authored -->` marker. Only implement it once a maintainer has applied the `tatara-approved` label (same gate as any other issue - see the rubric above). If no human has commented and the label is absent, emit `discuss` with `comment=""` and do NOT use the `comment` tool or `comment_on_issue` to post anything; the operator handles silence intentionally.
 
 **`comment` field carries the human-visible rationale.**
 For `close` and `discuss`, the `comment` field is what gets posted to the issue (if non-empty). Make it useful: name the duplicate ref, state why the issue is out of scope, or surface the specific questions you need answered. Do not post boilerplate or empty close reasons.
 
 ## Judgment anti-patterns
 
-- Emitting `implement` on a tatara-authored issue that has no human approval comment.
-- Emitting `discuss` when a human has clearly approved or declined.
+- Emitting `implement` on any issue (tatara-authored or human-authored) that
+  does not carry a maintainer-applied `tatara-approved` label - a comment,
+  including an explicit approval comment, does not substitute.
+- Emitting `discuss` when a maintainer has clearly applied the
+  `tatara-approved` label, or when a human has clearly declined.
 - Emitting `close` as a shortcut when the issue is legitimately actionable but needs clarification.
 - Calling the `comment` tool to post a comment when `action=discuss` and `comment=""` (tatara-authored, no human comment yet) - the operator intentionally stays silent.
 - Completing the turn without calling `issue_outcome`.

@@ -19,7 +19,9 @@ issue yourself - `propose_issue` does that under the bot identity.
   implementation requests.
 - Discovery-only. Embed `<!-- tatara-authored -->` in the issue body; set no
   trigger label. The operator parks tatara-authored ideas in Conversation
-  until a human approves. Never self-implement an unapproved idea.
+  until a maintainer (per `MaintainerLogins`, bots excluded) applies the
+  `tatara-approved` label directly on the issue - a comment does not advance
+  it. Never self-implement an unapproved idea.
 - Respect every platform hard rule (read the on-disk `CLAUDE.md`): KISS, no
   tech debt, charts cluster-agnostic, conventional commits, newest stable Go,
   JSON slog + INFO business logging + /metrics.
@@ -116,13 +118,16 @@ Create a TodoWrite item per numbered step.
    affected repo sharing a single `systemicId` you generate, bounded <=6,
    for multi-repo systemic work). Include the full ADR text in the issue body.
    Embed `<!-- tatara-authored -->`. Set no trigger label - the operator parks
-   it in Conversation for human approval. Then stop.
+   it in Conversation until a maintainer applies the `tatara-approved` label.
+   Then stop.
 
 ## Anti-patterns
 
 - Proposing more than one action (propose OR skip, never both).
 - Self-implementing or requesting implementation of a tatara-authored issue.
-- Setting a trigger label that bypasses the human-approval gate.
+- Setting the `tatara-approved` label (or any trigger label) yourself to
+  bypass the maintainer-approval gate - only a verified maintainer label-apply
+  counts.
 - Proposing a vague "improve X" issue with no `file:line` evidence.
 - Attempting WebSearch/WebFetch in Phase 1 (egress is not yet wired).
 - Proposing memory ranking work before the eval-harness gate exists.

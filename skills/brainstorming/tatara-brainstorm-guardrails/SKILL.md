@@ -46,7 +46,7 @@ No combinations. No silent exits. A turn that ends without one of these three is
 `propose_issue` requires the idea to be:
 - **Not already tracked**: no open SCM issue and no inflight Task covering the same problem (checked in step 1 above).
 - **Grounded**: supported by file:line evidence from the code graph, not general intuition.
-- **Actionable**: scoped so the maintainer can approve or redirect in one comment. Not "improve X generally."
+- **Actionable**: scoped so a maintainer can approve it (by applying the `tatara-approved` label) or redirect it (via a comment) without further back-and-forth. Not "improve X generally."
 - **Platform-compatible**: consistent with all platform rules (KISS, cluster-agnostic charts, no tech-debt, newest stable Go, JSON slog, /metrics endpoint, conventional commits). An incompatible proposal will be rejected at the implement gate.
 
 If the candidate clears the bar but only as an extension of an existing issue, use `comment_on_issue` (not `propose_issue`).
@@ -64,7 +64,7 @@ its own `systemicId`. This counts as ONE proposal against `maxOpenProposals`, no
 
 ### 6. Discovery only, never self-implement
 
-Do not open PRs, request CI triggers, or set approval labels. Every `propose_issue` body must embed the literal marker `<!-- tatara-authored -->` - the operator holds it in brainstorming state until a human approves. Implementation is gated on human sign-off; the brainstorm turn only discovers and proposes.
+Do not open PRs, request CI triggers, or set the `tatara-approved` label yourself. Every `propose_issue` body must embed the literal marker `<!-- tatara-authored -->` - the operator holds it in brainstorming state until a maintainer (per `MaintainerLogins`, bots excluded) applies the `tatara-approved` label directly on the issue; a comment does not advance it. Implementation is gated on that maintainer label-apply; the brainstorm turn only discovers and proposes.
 
 ### 7. Per-cycle concurrency and cap (enforced externally)
 

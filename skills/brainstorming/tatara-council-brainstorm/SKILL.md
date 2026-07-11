@@ -64,7 +64,9 @@ failure-modes, fitness-functions, coupling, simplification, operability, product
    - Split the problem into >=2 concrete approaches, each with a one-line tradeoff, ONE explicitly
      flagged "Recommended" - never a single-decision "approve or comment" framing.
    - Carry the ADR sketch in the body when phase 6 said structural.
-   - Embed the `<!-- tatara-authored -->` marker (the human-approval gate).
+   - Embed the `<!-- tatara-authored -->` marker (keeps the issue gated on a
+     maintainer applying the `tatara-approved` label - a comment never
+     satisfies this gate).
    Share a single `systemicId` you generate across every linked issue in this Task (bounded, <=6) so
    the operator correlates them under one umbrella and counts the group as ONE against
    `maxOpenProposals`. You never implement, push, or open a PR.

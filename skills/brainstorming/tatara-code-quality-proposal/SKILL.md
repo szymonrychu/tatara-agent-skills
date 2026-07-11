@@ -42,7 +42,8 @@ read. No speculative "you might also want" features.
 - Duplicate of an existing open issue: do not propose; note the duplicate.
 - Every `propose_issue` body MUST embed the `<!-- tatara-authored -->` marker
   (per tatara-brainstorm-guardrails). The operator holds the proposal in the
-  brainstorming state until a human approves; omitting the marker bypasses the
-  human-approval gate.
+  brainstorming state until a maintainer (per `MaintainerLogins`, bots
+  excluded) applies the `tatara-approved` label directly on the issue - a
+  comment does not advance it; omitting the marker bypasses this gate.
 - Never implement, never push, never open a PR. Proposals only.
 - No attribution or session links in any proposal body or comment.
