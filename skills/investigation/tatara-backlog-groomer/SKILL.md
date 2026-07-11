@@ -13,10 +13,14 @@ PRs, or implement. All I/O via the `tatara` MCP tools.
 
 ## Procedure (execute the numbered phases in order)
 
-1. **Data acquisition (HARD GATE).** Call `task_list`, then `list_issues` (open + closed within the
-   lookback window) and `list_commits` (default branch, lookback window) for every repo. If any call
-   errors such that you cannot see the backlog, call `write_handoff` describing what you got and stop
-   - do not groom on partial data.
+1. **Data acquisition (HARD GATE).** Call `task_list` on the main thread (project-scoped, one call).
+   For `list_issues` and `list_commits` per repo, when the project has more than a couple of enrolled
+   repos, dispatch one `explorer` subagent per repo (via the `Agent` tool, `model: haiku`, `effort:
+   low`) to gather that repo's open+closed issues (lookback window) and its commit log, plus an
+   already-implemented check via the memory graph for that repo's candidates - launched in a single
+   message so they run concurrently, keeping your own sonnet surface lean. If any call errors such
+   that you cannot see a repo's backlog, call `write_handoff` describing what you got and stop - do
+   not groom on partial data.
 2. **Priority-0 gave-up queue.** Select tasks with `lifecycleState == "Parked"` AND
    `implementGiveUps >= 1`. NEVER touch a task in any other lifecycle state (that agent is live).
    For each gave-up issue choose exactly ONE branch: delivered/duplicate/obsolete -> `close_issue`

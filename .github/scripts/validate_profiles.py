@@ -9,6 +9,10 @@ an accidental over-tag (or a dropped tag) fails CI.
 The refine groomer is deliberately minimal: it must receive ONLY the dup/keep
 judgment rubric and the SCM close/edit-issue surface, never the dev/PR/research
 skills. Locking the refine set here is the load-bearing guard for that intent.
+
+The clarify profile is similarly locked: it is the live-polling issue-
+conversation kind and must receive exactly its conversation/handoff/wait
+toolkit, never the review or brainstorm-proposal skills.
 """
 
 import sys
@@ -24,6 +28,16 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-mcp-scm-lifecycle",
         "handoff",
         "tatara-backlog-groomer",
+    },
+    "clarify": {
+        "tatara-clarify-conversation",
+        "tatara-triage-judgment",
+        "tatara-research-followup",
+        "tatara-mcp-scm-lifecycle",
+        "handoff",
+        "tatara-mcp-chat",
+        "tatara-pipeline-waiting",
+        "tatara-mcp-code-graph",
     },
 }
 

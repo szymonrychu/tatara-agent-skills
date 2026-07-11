@@ -6,7 +6,7 @@ description: >
   dimensions, apply severity routing to decide approve/request_changes/comment,
   and call review_verdict before finishing. Use whenever the turn-0 directive
   confirms this is a review task (contains "This is an MR/PR REVIEW").
-profiles: ["review", "lifecycle"]
+profiles: ["review"]
 ---
 
 # tatara-review-checklist
@@ -40,6 +40,13 @@ git diff origin/main..HEAD --stat
 Read the diff (`git diff origin/main..HEAD`) for any files where stat shows
 meaningful change. Use `code_search` or `code_entity` from the code-graph tools
 to navigate unfamiliar call sites without reading entire files.
+
+Also check the PR/MR's mergeability state (from your turn-0 context, or via
+`task_get` if not already present - do not re-crawl SCM for state already
+injected). If it is unmergeable (conflict, failed required CI), that fact
+alone routes the outcome to "changes required, route to implement" (Step 4) -
+still run Steps 2-3 for whatever evidence you can gather, but the verdict
+must not be `approve`.
 
 ---
 
@@ -113,10 +120,17 @@ For each dimension: record finding (pass or severity+evidence) and skip none.
 | Any correctness or security finding | `"request_changes"` |
 | Quality or test gap only (no correctness/security issue) | `"request_changes"` (must-fix) or `"comment"` (optional) |
 | Concerns noted but safe to merge; no blocking issue | `"comment"` |
+| PR/MR is unmergeable (conflict or failed required CI), regardless of code quality | `"request_changes"` - this routes the Task back to `implement` |
 
 Use `"request_changes"` for anything that must be resolved before merge.
 Use `"comment"` for style or quality concerns the author may address at will.
 Use `"approve"` only when every gate above passes.
+
+`approve` never merges anything. Approving means: apply `tatara-approved` and
+post a native PR/MR approval; the operator's deploy supervisor is the ONLY
+caller that ever merges, and only once CI is green AND the approval is set.
+`review` calling `approve` on an unmergeable PR is a protocol violation - the
+mergeability check in Step 1 must gate this before you compose the verdict.
 
 ---
 

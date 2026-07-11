@@ -1,7 +1,7 @@
 ---
 name: tatara-research-followup
-description: Use when continuing an existing discovery/research issue conversation on an issueLifecycle Triage or Conversation turn. Read the issue thread and task state, research the gaps with the tatara-memory graph and on-disk code, post substantive design comments via the comment MCP tool, refine the proposal into a concrete design, and push toward human approval - never self-approving. Idle quietly when there is nothing new to add.
-profiles: ["brainstorm", "incident", "selfImprove"]
+description: Use when continuing an existing discovery/research issue conversation on a clarify turn (or, more broadly, any turn re-engaging a discovery-phase issue). Read the issue thread and task state, research the gaps with the tatara-memory graph and on-disk code, post substantive design comments via the comment MCP tool, refine the proposal into a concrete design, and push toward human approval - never self-approving. Idle quietly when there is nothing new to add.
+profiles: ["brainstorm", "incident", "clarify"]
 ---
 
 # tatara research follow-up

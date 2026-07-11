@@ -9,7 +9,7 @@ profiles: ["brainstorm"]
 The disciplined shell for a brainstorm turn. It imposes a rotating architectural lens so successive
 runs examine the platform from different angles, forces evidence before conclusion, and emits a
 single grounded proposal itself via `propose_issue`. All I/O is via the `tatara` MCP tools; you never
-use git or gh. Run at maximum effort.
+use git or gh.
 
 ## Lens rotation order
 
@@ -31,7 +31,13 @@ failure-modes, fitness-functions, coupling, simplification, operability, product
    novel, high-leverage proposal through your chosen lens this cycle, call `skip_research(reason)`
    (naming the lens and why nothing qualified), advance the register (phase 8), and STOP. Silence
    over noise.
-4. **Lens-specific evidence gathering** (prescribed tool calls for the chosen lens):
+4. **Lens-specific evidence gathering.** When the current lens needs evidence from more than one
+   repo (failure-modes, coupling, and tech-radar routinely do; the others may), dispatch one
+   `explorer` subagent per implicated repo (via the `Agent` tool, `model: haiku`, `effort: low`) to
+   gather that repo's slice of the lens-specific evidence below, launched in a single message so
+   they run concurrently. This is what keeps your own Opus surface context under the ~50% budget
+   where reasoning quality degrades - synthesize the subagents' compact reports yourself rather than
+   reading every repo's code inline. Prescribed tool calls per lens:
    - failure-modes: `code_bridges` + `code_important`, then read the actual failure-path source.
    - fitness-functions: read CI config on disk and run the real lint/test, cite numeric output.
    - coupling: `code_cross_repo` + `code_communities`, report a concrete hop count.
@@ -45,16 +51,23 @@ failure-modes, fitness-functions, coupling, simplification, operability, product
    statement grounded in a concrete `file:line`; a decomposition into sub-problems; for EACH
    sub-problem 2-3 options with a one-line tradeoff and your recommended pick; a pre-mortem naming
    >=2 concrete failure mechanisms. No terminal action without this artifact.
-6. **ADR-vs-scoped-issue decision (written).** Decide whether the finding warrants a structural ADR
-   (architectural, cross-cutting) or a single scoped issue. Write the one-line answer.
-7. **Terminal action (you own it).** Emit exactly ONE action this turn: `propose_issue` for a novel
-   finding (carry the ADR sketch in the body when phase 6 said structural), or `skip_research(reason)`
-   when nothing clears the bar or the finding duplicates an open issue (note the duplicate in the
-   reason; do NOT comment on it - brainstorm proposes new issues only). Ground the body per the
-   `tatara-code-quality-proposal` reference skill (concrete `file:line` evidence + the
-   options-with-tradeoffs from the phase-5 scratchpad). Every `propose_issue` body MUST embed the
-   `<!-- tatara-authored -->` marker (the human-approval gate). Respect `maxOpenProposals`. You never
-   implement, push, or open a PR.
+6. **ADR-vs-scoped-issue decision, and repo scope (written).** Decide whether the finding warrants a
+   structural ADR (architectural, cross-cutting) or a single scoped issue, AND list every repo the
+   finding touches - even a one-repo finding still gets its own project Task per phase 7. Write both
+   as one-line answers.
+7. **Terminal action (you own it).** Emit `skip_research(reason)` when nothing clears the bar or the
+   finding duplicates an open issue/inflight Task (note the duplicate in the reason; do NOT comment on
+   it - brainstorm proposes new issues only). Otherwise, this turn's ONE project Task collects
+   one-or-many LINKED `propose_issue` calls - one per affected repo (a single-repo finding still gets
+   exactly one). Every issue body MUST:
+   - Ground itself per `tatara-code-quality-proposal` (concrete `file:line` evidence).
+   - Split the problem into >=2 concrete approaches, each with a one-line tradeoff, ONE explicitly
+     flagged "Recommended" - never a single-decision "approve or comment" framing.
+   - Carry the ADR sketch in the body when phase 6 said structural.
+   - Embed the `<!-- tatara-authored -->` marker (the human-approval gate).
+   Share a single `systemicId` you generate across every linked issue in this Task (bounded, <=6) so
+   the operator correlates them under one umbrella and counts the group as ONE against
+   `maxOpenProposals`. You never implement, push, or open a PR.
 8. **Register update (HARD GATE, last).** Call
    `harness_state_cas(key="LENS_CYCLE", value="<lens used>", version="<version from phase 1>")`.
    On a 409 conflict another turn advanced the register concurrently - re-read with

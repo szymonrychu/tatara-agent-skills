@@ -5,7 +5,7 @@ description: >
   (review_verdict, submit_handover): exact arg shapes, decision rules, and
   sequencing. Use whenever you are running as a kind=review task and must
   deliver a verdict on a human-authored PR/MR.
-profiles: ["review", "lifecycle"]
+profiles: ["review"]
 ---
 
 # tatara-mcp-review
@@ -90,9 +90,16 @@ terminates. A missing verdict leaves the task stuck.
 | Change is correct, tests pass, no issues | `approve` | Summary of what you verified | omit |
 | Change has blocking issues that must be fixed before merge | `request_changes` | Explanation of each issue | include (see below) |
 | You have questions or non-blocking notes but no position to approve/reject | `comment` | Your questions or notes | omit |
+| PR/MR is unmergeable (conflict or failed required CI) | `request_changes` | State the mergeability problem plainly; this routes the Task back to `implement` | omit unless you also have code findings |
 
 Use `comment` sparingly. If you can form a clear position, use `approve`
 or `request_changes` instead.
+
+`approve` does not merge anything - it applies the `tatara-approved` label
+and posts a native approval; the operator's deploy supervisor is the sole
+merge caller, gated on green CI AND the approval. Never call `approve` on an
+unmergeable change even if the code itself looks correct; the mergeability
+check comes first.
 
 ---
 

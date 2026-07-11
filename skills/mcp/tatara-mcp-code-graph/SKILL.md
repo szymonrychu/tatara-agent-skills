@@ -7,7 +7,7 @@ description: >
   understand code structure before reading files, trace a bug across call
   boundaries, assess impact of a change, or locate tightly-coupled subsystems.
   Available in every agent profile.
-profiles: ["brainstorm", "implement", "lifecycle", "incident", "selfImprove", "review"]
+profiles: ["brainstorm", "implement", "incident", "review", "clarify"]
 ---
 
 # tatara-mcp-code-graph

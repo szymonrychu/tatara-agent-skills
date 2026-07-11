@@ -34,9 +34,9 @@ read. No speculative "you might also want" features.
 
 ## How to propose
 
-- One `propose_issue` per standalone improvement; a genuinely systemic pattern
-  spanning >=2 repos MAY emit one per affected repo (bounded), sharing a
-  `systemicId`.
+- One `propose_issue` per affected repo under a shared `systemicId` (bounded
+  to 6) - true even for a one-repo improvement; see
+  `tatara-brainstorm-guardrails` for the umbrella-Task framing.
 - Respect `maxOpenProposals`: if nothing clears the bar this cycle, call
   `skip_research(reason)` and stop. Silence over noise.
 - Duplicate of an existing open issue: do not propose; note the duplicate.

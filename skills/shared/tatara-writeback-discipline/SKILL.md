@@ -38,17 +38,20 @@ for the wrong kind.
 | `spec.kind`      | Allowed writeback tools                                                           | Notes                                              |
 |------------------|-----------------------------------------------------------------------------------|----------------------------------------------------|
 | `implement`      | `change_summary`, `decline_implementation`, `already_done`                        | Operator opens PR via `OpenChange`; agent does not |
-| `issueLifecycle` | `comment`, `change_summary`, `decline_implementation`, `already_done`             | Same as implement; Implement state only            |
 | `brainstorm`     | `propose_issue`, `skip_research`, `comment_on_issue`                              | Must call one of the first two; silent finish forbidden |
-| `triageIssue`    | `issue_outcome`                                                                   | Operator posts comment + closes/opens PR           |
-| `review`         | `review_verdict`                                                                  | Operator posts approve/request_changes/comment     |
-| `selfImprove`    | `pr_outcome`                                                                      | Operator enforces merge policy + authorship gate   |
+| `clarify`        | `issue_outcome` (name TBD - see `tatara-mcp-scm-lifecycle` Section 2), `comment`, `comment_on_issue` | Operator posts comment; implement handoff swaps the label |
+| `review`         | `review_verdict`                                                                  | Operator posts approve/request_changes/comment; approve = label + native review, never a merge |
 | `incident`       | `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`   | Project-scoped; never opens its own PR             |
-| `healthCheck`    | `propose_issue`, `comment_on_issue`, `skip_research`                              | Project-scoped; never opens its own PR             |
+| `documentation`  | `change_summary` (doc-relevant) or no tool call at all (no-op finish)             | Repo-scoped (docs repo); scheduled trigger          |
+| `refine`         | `list_issues`, `list_commits`, `close_issue`, `edit_issue`, `create_issue`, `comment_on_issue` | Project-scoped; grooms existing backlog only |
 
-Project-scoped kinds (`brainstorm`, `incident`, `healthCheck`) MUST NOT push
-code or call any tool that implies a PR - the operator would error-loop on
-`writeBackOpenChange` for an empty `RepositoryRef`.
+`brainstorm`, `incident`, `clarify`, and `refine` never push code and never
+call a tool that implies opening a PR - the operator would error-loop on
+`writeBackOpenChange` for a WorkItem with no repo target. `implement` and
+`review` are also project-scoped Tasks (Decision 3 of the locked task-kind
+design: every kind operates under one project-level umbrella Task) but DO
+push code / act on PRs - scoped to the specific repo(s) named in the Task's
+WorkItem ledger, never a repo outside it.
 
 ---
 
@@ -78,7 +81,7 @@ not open in this task.
 comment_on_issue(repo="owner/repo", number=42, body="...")
 ```
 
-### Proposing a new issue (brainstorm / incident / health-check)
+### Proposing a new issue (brainstorm / incident)
 
 Use `propose_issue`. The operator creates the issue under the bot identity,
 places it in the "Proposed" board column, and records `Spec.Source`.
@@ -113,18 +116,21 @@ skip_research(reason="...")
 A silent finish with no `propose_issue` and no `skip_research` is forbidden;
 the operator re-prompts or parks as `refused-no-explanation`.
 
-### Recording a triage outcome (triageIssue kind)
+### Recording a clarify outcome (clarify kind)
 
-Use `issue_outcome`. The operator posts the comment and transitions state.
+Use `issue_outcome` (name TBD - see `tatara-mcp-scm-lifecycle` Section 2).
+The operator posts the comment and transitions state.
 
 ```
 issue_outcome(action="implement"|"close"|"discuss", comment="...")
 ```
 
-- `implement`: operator calls `OpenChange` on the pushed branch.
+- `implement`: operator swaps `tatara-brainstorming` for `tatara-implementation`
+  and hands the Task to `implement`.
 - `close`: operator calls `CloseIssue`. Forbidden when `Status.PrURL != ""`
   (unmerged change guard).
-- `discuss`: operator posts the comment and enters Conversation idle state.
+- `discuss`: operator posts the comment and keeps the clarify pod in
+  conversation (live-polling, up to 1h wall-clock).
 - A nil or whitespace comment for `discuss` is silently dropped (blank-body guard).
 
 ### Declaring implementation refusal
@@ -188,19 +194,10 @@ For `request_changes`: operator posts the verdict AND inline suggestions in
 one pass. For `comment`: operator uses the PR ref (not the issue ref) so the
 note lands on the MR, not on the issue.
 
-### Deciding the outcome of a bot-authored PR (selfImprove kind)
-
-Use `pr_outcome`. The operator enforces the authorship gate (PR must be
-bot-authored) before merge or close.
-
-```
-pr_outcome(action="merge"|"close", reason="...")
-```
-
-Merge policy (`mergeAllowed`):
-- `autoMergeOnGreenCI`: merges only when CI status is `"success"`.
-- `afterApproval` (default): trusts `pr_outcome=merge` as the agent relaying
-  an approving signal; does NOT consult live review state.
+`pr_outcome` has no live caller under this design: `selfImprove` is retired,
+and merge/close now flow through `implement`'s `already_done` /
+`decline_implementation` (conflict-resolution path) or the operator's deploy
+supervisor (the sole merge caller, gated on green CI + `review` approval).
 
 ---
 
@@ -245,9 +242,9 @@ Managed labels (defaults; overridable in `ScmSpec`):
 
 | Label name               | Meaning                        | Set on transition to...          |
 |--------------------------|--------------------------------|----------------------------------|
-| `tatara-brainstorming`   | Discovery / awaiting approval  | Triage entry, discuss arm        |
-| `tatara-approved`        | Human approved                 | Triage implement arm             |
-| `tatara-implementation`  | Implementation in progress     | Implement state spawn            |
+| `tatara-brainstorming`   | Discovery / awaiting approval  | brainstorm proposal, clarify discuss arm |
+| `tatara-approved`        | Human approved                 | clarify implement arm; review approve arm |
+| `tatara-implementation`  | Implementation in progress     | clarify/review handoff to implement |
 | `tatara-declined`        | Refused / not implemented      | decline_implementation, already_done |
 | `tatara-incident`        | Incident-originated proposal   | Operator sets automatically on proposals from `incident` kind tasks |
 
@@ -295,7 +292,7 @@ reconciling it. Partial writebacks may be orphaned. To survive:
 | Push code and then call `decline_implementation` | The operator will see a pushed branch in `Status.HeadBranch` and refuse to close the issue via `hasUnmergedChange` guard |
 | Call `issue_outcome("close")` when there is a `Status.PrURL` | The operator's `hasUnmergedChange` guard blocks the close; the task parks in Conversation |
 | Rely on the `<!-- tatara-authored -->` marker absence to detect human issues | The marker is appended by the operator; authored status is read via `Source.AuthorLogin` vs `BotLogin` |
-| Use `pr_outcome` for `issueLifecycle` or `implement` tasks | `pr_outcome` is `selfImprove` only; other kinds use `change_summary` + operator-driven `OpenChange` |
+| Call `review_verdict(decision="approve")` on an unmergeable PR/MR | Approve never merges; it only applies `tatara-approved` + a native review. Mergeability must be checked first (see `tatara-review-checklist`) |
 
 ---
 
@@ -316,7 +313,7 @@ reconciling it. Partial writebacks may be orphaned. To survive:
    comment "Done - opened PR/MR: https://..." on issue.
 ```
 
-### Triage that decides to discuss
+### Clarify that decides to discuss
 
 ```
 1. Read the issue. Determine: needs human input before proceeding.

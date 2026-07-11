@@ -31,24 +31,27 @@ the bot identity.
   newest stable Go; JSON slog + INFO business logging + /metrics.
 - Communication only via `tatara` MCP tools.
 
-## Orchestration (run at maximum effort)
+## Orchestration (context-boundary subagent dispatch)
 
-This is a deep, cross-repo research turn - run it at **maximum effort** and
-orchestrate, do not work single-threaded:
+This is a deep, cross-repo research turn. Sustain multi-step reasoning
+yourself for the synthesis step; keep your own context lean by fanning the
+per-repo LEGWORK out to subagents rather than reading every repo inline.
 
-- The pod's `EFFORT` is already set high; sustain deep multi-step reasoning and
-  read widely before deciding. Spend the thinking budget on the survey.
 - **Decompose** the cross-repo survey into one independent unit of work per
-  repository in the Project (the repos under `/workspace/*/` plus the cross-repo
-  graph view).
-- **Dispatch one parallel subagent per repo** to gather that repo's state
-  (roadmap themes, fragile/load-bearing code via the `code_*` graph tools, open
-  issues/MRs, recurring debt). Launch them in a single batch so they run
-  concurrently; do not serialize what can fan out.
-- Use a **Workflow** to fan the per-repo investigations out and then **synthesize**
-  their findings into the single highest-leverage SYSTEMIC opportunity - a
-  pattern spanning >=2 repos, a platform-wide gap, or recurring debt - in
-  preference to a one-repo tweak.
+  repository in the Project (the repos under `/workspace/*/` plus the
+  cross-repo graph view).
+- **Dispatch one `explorer` subagent per repo** (via the `Agent` tool, `model:
+  haiku`, `effort: low` - explorer's baked defaults) to gather that repo's
+  state: roadmap themes, fragile/load-bearing code via the `code_*` graph
+  tools, open issues/MRs, recurring debt. Launch them in a single message so
+  they run concurrently; do not serialize what can fan out. Each explorer
+  reports back a compact summary (file:line evidence, not full-file dumps) -
+  this is what keeps your own surface context under the ~50% budget where
+  reasoning degrades.
+- **Synthesize** the subagent reports yourself into the single highest-leverage
+  opportunity - prefer a pattern spanning >=2 repos, a platform-wide gap, or
+  recurring debt over a one-repo tweak, but a well-evidenced one-repo finding
+  is a valid outcome too.
 - Only after synthesis do you choose the propose-vs-comment action below. For a
   genuinely systemic improvement you MAY open one `propose_issue` per affected
   repo sharing a single `systemicId` you generate (bounded, <=6); the operator
@@ -104,16 +107,17 @@ Create a TodoWrite item per numbered step.
    - **Genuinely novel and standalone** -> proceed to compose a new proposal
      (step 5).
 
-5. **Compose ONE proposal.** Write:
+5. **Compose ONE proposal, split into >=2 approaches.** Write:
    - Title: imperative, specific (e.g. "Add per-item ingest timeout to the
      memory ingest worker").
    - Body: Problem (what hurts, why it matters to the platform/repo goal);
      Evidence (`file:line` references and concrete graph findings from
-     steps 1-2); Proposed approach (KISS, respecting the hard rules);
-     Scope boundary (what is in and explicitly out); a SINGLE explicit
-     decision for the maintainer: "Approve to implement, or comment to
-     refine." Do NOT list open questions that invite back-and-forth - one
-     well-researched proposal gets one clear approval gate.
+     steps 1-2); at least 2 concrete approaches, each with a one-line
+     tradeoff, with ONE explicitly flagged "Recommended"; Scope boundary
+     (what is in and explicitly out, per approach if it differs). Do NOT
+     list open questions that invite back-and-forth - the maintainer's job
+     is to pick an approach (or redirect), not to answer a design
+     questionnaire.
      Append the literal line `<!-- tatara-authored -->`.
 
 6. **File it** (novel path only; a connecting idea already ended at step 4

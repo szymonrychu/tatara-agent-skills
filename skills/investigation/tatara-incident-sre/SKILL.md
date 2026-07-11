@@ -21,6 +21,16 @@ access is via the read-only `grafana` MCP server.
    classification to your scratchpad BEFORE running any query.
 2. **Runbook check.** Follow the alert `generatorURL` to the Grafana rule and its `runbookURL`.
    Surface any immediate mitigation as a HUMAN instruction in the issue - you are read-only.
+Grafana queries are not repo-scoped - run them directly on the main thread,
+in order, as below. If the RCA implicates or must rule out more than one
+repo (e.g. a shared library used by two services, or you need to check
+recent commits/config across several implicated repos), dispatch one
+`explorer` subagent per implicated repo (via the `Agent` tool, `model:
+haiku`, `effort: low`) to gather that repo's code-level evidence (recent
+commits, the failing code path, config) in parallel, keeping your own RCA
+thread lean. Do this once you know WHICH repos are implicated (after phase 3
+or 4), not speculatively before you have Grafana evidence pointing anywhere.
+
 3. **Ordered signal correlation (step-gate).** In order: PromQL current + baseline -> related
    dashboard panels -> LogQL within the incident window -> deploy/config annotations. Attach a
    result snippet for each. Do NOT form an RCA without Loki evidence unless this is the
@@ -29,7 +39,8 @@ access is via the read-only `grafana` MCP server.
 5. **Structured 5-Whys RCA.** Each Why is evidence-cited; label each factor contributing vs
    root-cause; stop at the first code/config change that breaks the failure class.
 6. **Fix-target identification.** Name the repo slug + file/config key precisely enough to seed an
-   implement task.
+   implement task. If you fanned out `explorer` subagents in phase 3/4, their file:line reports are
+   exactly what phase 6 needs to name the fix target precisely.
 7. **File exactly one output.** `propose_issue(repo, body)` with a postmortem body: exec summary,
    verbatim alert context, timeline, signal evidence (with snippets), contributing factors, root
    cause, immediate mitigation (as a human instruction), fix target, action items. OR an

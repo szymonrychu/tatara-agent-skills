@@ -22,14 +22,17 @@ Profile names, matching `skillProfileForKind`:
 |---|---|
 | implement | `implement` |
 | review | `review` |
-| triageIssue | `triage` |
+| clarify | `clarify` |
 | brainstorm | `brainstorm` |
-| issueLifecycle | `lifecycle` |
 | incident | `incident` |
-| selfImprove | `selfImprove` |
 | refine | `refine` |
 | documentation | `documentation` |
-| healthCheck / unknown | (empty - fail-open, install all) |
+| unknown | (empty - fail-open, install all) |
+
+`triageIssue`, `issueLifecycle`, `selfImprove`, and `healthCheck` are retired
+kinds; the operator no longer emits them (stored terminal Task CRs of those
+kinds may still exist and are read-only history, but no new pod boots with
+one of those `TATARA_SKILL_PROFILE` values).
 
 `profiles: ["*"]` installs in every profile. Absent or empty `profiles:` is treated as `["*"]`. If `TATARA_SKILL_PROFILE` is empty the wrapper fails open and installs all skills. A non-empty but unknown profile is NOT fail-open: it matches only the `["*"]` (wildcard) skills, so an unrecognized profile name installs the wildcards alone. Clone failure also fails open with a WARN metric.
 
@@ -39,15 +42,18 @@ Profile names, matching `skillProfileForKind`:
 .claude-plugin/
   marketplace.json    # marketplace manifest
   plugin.json         # plugin manifest (name, version, author)
+.claude/
+  agents/             # typed subagent definitions (explorer/tester/builder/architect)
 skills/
   shared/             # superpowers-derived process skills, always relevant
-  brainstorming/      # tatara brainstorm/healthCheck kind skills + guardrails
-  investigation/      # tatara triage + health investigation skills + judgment
+  brainstorming/      # tatara brainstorm kind skills + guardrails
+  clarify/            # tatara clarify kind conversation harness + judgment
+  investigation/      # tatara incident + refine kind skills (SRE workflow, evidence judgment, backlog groomer, research follow-up)
   review/             # code review discipline skills
   implement/          # implementation workflow skills
   mcp/                # MCP tool discipline and writeback skills
-  operations/         # deploy and ops skills
-  documentation/      # post-merge documentation agent skill
+  operations/         # shared pipeline-waiting mechanic
+  documentation/      # scheduled documentation agent skill
 template/             # starter skill (copy this to begin a new skill)
 docs/
   eval/               # eval scaffolding for reference skills (A/B gate fixtures)
@@ -57,6 +63,20 @@ docs/
   scripts/
     validate_skills.py
 ```
+
+## Typed subagents (`.claude/agents/`)
+
+| Agent | Model | Effort | Role |
+|---|---|---|---|
+| explorer | haiku | low | read-only code/config location |
+| tester | haiku | low | test writing/running for a decided spec |
+| builder | sonnet | medium | mechanical 1-3 file edits from a decided spec |
+| architect | opus | high | ambiguous scope, competing approaches, cross-file/repo judgment |
+
+`implement`'s rigid skill dispatches through these by task shape. Other
+task-harness skills (brainstorm/incident/refine) dispatch `explorer` for
+context-boundary (per-repo) fan-out to keep their own Opus/Sonnet surface
+context lean.
 
 ## Skill inventory
 
@@ -89,22 +109,36 @@ docs/
 | tatara-deep-architectural-research | task |
 | tatara-brainstorm-guardrails | reference |
 
-### skills/investigation/ (tatara triage + health, 3 skills)
+### skills/clarify/ (tatara clarify kind, 2 skills)
 
 | Skill | Type |
 |---|---|
-| tatara-research-followup | task |
-| tatara-health-check | task |
+| tatara-clarify-conversation | task |
 | tatara-triage-judgment | reference |
 
-### skills/operations/ (deploy + ops, 2 skills)
+### skills/investigation/ (tatara incident + refine kinds, 4 skills)
 
 | Skill | Type |
 |---|---|
-| tatara-deploy-harness | task |
+| tatara-incident-sre | task |
+| tatara-incident-investigation | reference |
+| tatara-backlog-groomer | task |
+| tatara-research-followup (brainstorm/incident/clarify) | task |
+
+### skills/implement/ (tatara implement kind, 2 skills)
+
+| Skill | Type |
+|---|---|
+| tatara-implement-workflow | task |
+| tatara-implement-conflict-resolution | task |
+
+### skills/operations/ (shared pipeline-waiting mechanic, 1 skill)
+
+| Skill | Type |
+|---|---|
 | tatara-pipeline-waiting | task |
 
-### skills/documentation/ (post-merge documentation kind, 1 skill)
+### skills/documentation/ (scheduled documentation kind, 1 skill)
 
 | Skill | Type |
 |---|---|

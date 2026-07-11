@@ -36,7 +36,7 @@ A brainstorm turn ends with exactly ONE of:
 | Action | When |
 |---|---|
 | `skip_research(reason)` | No genuinely novel candidate clears the bar this cycle |
-| `propose_issue(repo, title, body, kind, [systemicId])` | Genuinely novel, standalone opportunity; one per affected repo for systemic, bounded to at most 6 sharing one `systemicId` |
+| `propose_issue(repo, title, body, kind, systemicId)` | Genuinely novel opportunity - one call per affected repo (even a one-repo finding), all sharing one `systemicId` you generate, bounded to at most 6 |
 | `comment_on_issue(repo, number, body)` | Candidate extends an existing open issue - contributes concrete new design content |
 
 No combinations. No silent exits. A turn that ends without one of these three is a protocol violation the operator will re-enqueue or wedge.
@@ -53,9 +53,10 @@ If the candidate clears the bar but only as an extension of an existing issue, u
 
 ### 4. Systemic cap
 
-A single systemic opportunity (spanning 2+ repos, a platform-wide gap, or recurring cross-repo debt) may emit one `propose_issue` per affected repository. Maximum 6 issues per `systemicId`. All must share the same `systemicId` string you generate. This counts as ONE proposal against the cap, not N.
-
-One-repo improvements emit exactly one `propose_issue`. State which path you chose before executing.
+Every brainstorm proposal - whether it touches one repo or spans several - is framed as one project
+Task's linked-issue set. Emit one `propose_issue` per affected repository, all sharing the same
+`systemicId` string you generate (maximum 6). A one-repo finding still gets exactly one issue under
+its own `systemicId`. This counts as ONE proposal against `maxOpenProposals`, not N.
 
 ### 5. No silent finish
 
@@ -87,8 +88,8 @@ The creative-space requirement is structural: the rails above are narrow by desi
 **Good `propose_issue` body:**
 - One-paragraph problem statement with file:line evidence.
 - Decomposition into constituent sub-problems / decision points.
-- For each sub-problem: 2-3 concrete options, each with a one-line tradeoff, and a recommended pick.
-- Maintainer decision framed as choosing one option per sub-problem - NOT a list of open questions.
+- >=2 concrete approaches, each with a one-line tradeoff, and ONE explicitly flagged "Recommended".
+- Maintainer decision framed as picking an approach (or redirecting) - NOT a list of open questions.
 - Ends with `<!-- tatara-authored -->`.
 
 **Good `comment_on_issue` body:**
