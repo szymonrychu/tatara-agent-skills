@@ -41,7 +41,12 @@ or 4), not speculatively before you have Grafana evidence pointing anywhere.
 6. **Fix-target identification.** Name the repo slug + file/config key precisely enough to seed an
    implement task. If you fanned out `explorer` subagents in phase 3/4, their file:line reports are
    exactly what phase 6 needs to name the fix target precisely.
-7. **File exactly one output.** `propose_issue(repo, body)` with a postmortem body: exec summary,
+7. **Survey for an existing tracker.** Before filing anything: list open incident Tasks (`task_list`,
+   filter kind=incident) and open issues in the implicated repo(s) (`list_issues`). If this
+   alert-group or problem is already tracked, `comment_on_issue` with your fresh evidence (queries
+   run, results, diagnosis delta) on the existing tracker and STOP - do not proceed to phase 8. Only
+   continue to phase 8 when nothing open already covers this alert.
+8. **File exactly one output.** `propose_issue(repo, body)` with a postmortem body: exec summary,
    verbatim alert context, timeline, signal evidence (with snippets), contributing factors, root
    cause, immediate mitigation (as a human instruction), fix target, action items. OR an
    evidence-backed false-positive note with no issue. A BLOCKED Grafana tool is NOT a false positive

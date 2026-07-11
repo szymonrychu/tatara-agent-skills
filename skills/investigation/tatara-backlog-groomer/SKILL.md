@@ -34,7 +34,10 @@ implement. All I/O via the `tatara` MCP tools.
    done -> `close_issue` citing the SHA. Ambiguous -> leave open.
 4. **Duplicate consolidation.** Pairwise title+lead overlap. Close the newer / less-specific issue
    citing the canonical one; fold any unique acceptance criteria into the survivor via `edit_issue`
-   BEFORE closing the duplicate.
+   BEFORE closing the duplicate. When you close a duplicate or edit a canonical issue, maintain the
+   `tatara-links` managed block in every affected sibling (drop the closed one, repoint the
+   duplicate's block to the canonical) using `edit_issue` - see the sibling set given to you in this
+   turn's context.
 5. **INVEST gate (token-cost capped).** Evaluate all six INVEST criteria per surviving issue and
    `edit_issue` ONLY the failing criteria - never add scope. Cap: touch at most the oldest 15 issues
    not refined in a recent cycle, to bound spend on large backlogs.

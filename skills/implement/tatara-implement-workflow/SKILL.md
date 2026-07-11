@@ -19,6 +19,10 @@ At turn 0 you receive:
 - The task branch (e.g. `tatara/task-<name>`). All your pushes target this branch. The branch is created from the default branch automatically. **Never commit or push to the default branch directly.**
 - Workspace root: `/workspace/<owner>/<repo>` (a two-level namespace from the repo slug, e.g. `/workspace/szymonrychu/tatara-cli`). Every repo in scope is cloned here under its own `owner/repo` subdirectory. Changes you commit and push to the task branch are restored on the next run; uncommitted edits are discarded.
 - Optionally: a `## Re-entry context` block (from a previous partial run), or a `## Resume from handover` block (when you were handed over from a prior agent that hit the context limit). Read these before doing anything else.
+- On re-entry (issue-in-conversation, implement-after-review, or resuming mid-task), review
+  the prior subtask trail via `task_get` before continuing - `status.subtasks` carries every
+  prior subtask's title, phase, and result (including the synthetic "Planning" entry for turn
+  0), so you can pick up the reasoning where the last turn left off instead of re-deriving it.
 
 The operator injects the FULL cross-repo umbrella context for this Task at
 turn 0 (every linked issue and its comment thread, every open PR/MR under
