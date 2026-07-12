@@ -76,17 +76,15 @@ this issue is part of a multi-issue/cross-repo design and the human's answer
 here may affect - or depend on - decisions still open in a sibling. Before
 posting a question or a confirmation, check that section:
 
-- Any sibling listed as **still open** (not `implementation-locked`): remind
-  the human, in your posted comment, that part of the design lives in that
-  sibling issue and is not yet settled - name the specific `owner/repo#N`
-  ref so they know where to look. Do this whenever the topic you are asking
-  about plausibly touches that sibling's open scope; skip it for siblings
-  that are clearly unrelated to the current question.
+- Any sibling listed as **still open**: remind the human, in your posted
+  comment, that part of the design lives in that sibling issue and is not
+  yet settled - name the specific `owner/repo#N` ref so they know where to
+  look. Do this whenever the topic you are asking about plausibly touches
+  that sibling's open scope; skip it for siblings that are clearly
+  unrelated to the current question.
 - A sibling listed as **not yet tracked**: no clarify conversation has
   started there yet; note it the same way if relevant, without implying
   it is blocked - it may simply not have been picked up.
-- A sibling listed as **implementation-locked**: no reminder needed - that
-  part of the design is already settled.
 
 This reminder duty applies in addition to, not instead of, the normal
 digest/questions flow above - it is a one- or two-sentence addition to
@@ -115,19 +113,10 @@ narrow scope-change/already-delivered case.
 **Hand off to implement.** When the outcome is "implement": remove the
 `tatara-brainstorming` label and add the `tatara-implementation` label (per
 `tatara-writeback-discipline`'s label table) via
-`issue_outcome(action="implement", plan=..., locked=...)`, documented in
+`issue_outcome(action="implement", plan=...)`, documented in
 `tatara-mcp-scm-lifecycle` Section 2. Supply `plan` describing what will be
 implemented and how - this seeds `implement`'s turn-0 context and is posted
-as the implementation-start message. Set `locked=true` ONLY when you have NO
-open questions left and every decision is settled - this issue is ready for
-full-scope implementation the moment a maintainer approves it, with nothing
-still pending a human answer. Leave `locked` false (or omit it) if anything
-about scope or approach is still uncertain, even if you are confident enough
-to hand off. `locked` is read by the operator's systemic-group approval
-fan-out (see `tatara-mcp-scm-lifecycle`): approving one issue of a
-multi-issue task can release every OTHER member that is locked, without its
-own separate approval, so an inaccurate `locked=true` skips a review step a
-sibling actually needed.
+as the implementation-start message.
 
 **Approval is the `tatara-approved` label, never a comment.** The gate the
 operator enforces is: a maintainer (a login listed in the project's
@@ -157,5 +146,3 @@ not something to work around.
 - Pushing code, opening a PR, or making any file edit - that is `implement`'s
   job after handoff, never clarify's.
 - Re-crawling SCM history already present in the turn-0 prompt bundle.
-- Declaring `locked=true` while a genuine open question remains (your own or
-  a sibling's) - this skips a review step a sibling actually needed.

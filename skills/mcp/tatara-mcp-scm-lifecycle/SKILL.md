@@ -115,8 +115,7 @@ this is settled by the cross-repo contract, not a placeholder.
 
 | Condition | action | Additional args |
 |-----------|--------|----------------|
-| Issue is clear, scoped, approved for implementation, NO open questions remain | `"implement"` | `plan` (required), `locked=true` |
-| Issue is clear enough to hand off but not every decision is certainly settled | `"implement"` | `plan` (required), `locked=false` or omit |
+| Issue is clear, scoped, and approved for implementation | `"implement"` | `plan` (required) |
 | Issue needs closing (duplicate, won't fix, already done) | `"close"` | `comment` (required: reason for close) |
 | Issue needs more discussion, design, or human input | `"discuss"` | `comment` (required: the questions or design notes to post) |
 
@@ -132,24 +131,13 @@ that gate does not bypass it; only call `"implement"` when you have confirmed
 the label is present and was applied by a maintainer, never on the strength
 of a comment alone.
 
-`locked=true` declares that this issue's design is FULLY settled: no open
-questions remain and every decision is locked. It is read by the operator's
-systemic-group approval fan-out - when a maintainer approves ONE issue of a
-multi-issue task, every OTHER member that is `locked=true` is released into
-implementation too, without its own separate approval. Set it honestly: a
-`locked=true` on an issue that still has an open question skips a review
-step a sibling actually needed. Leave it `false` (or omit) whenever anything
-is still uncertain, even if you are confident enough to hand off this issue
-alone.
-
 ### issue_outcome recipes
 
 ```
 # Approve for implementation:
 issue_outcome(
   action="implement",
-  plan="<what will be implemented and how - flow, key ideas, approach>",
-  locked=true|false   # OPTIONAL, default false - see decision table above
+  plan="<what will be implemented and how - flow, key ideas, approach>"
 )
 
 # Close:
