@@ -115,7 +115,8 @@ this is settled by the cross-repo contract, not a placeholder.
 
 | Condition | action | Additional args |
 |-----------|--------|----------------|
-| Issue is clear, scoped, approved for implementation | `"implement"` | `plan` (required: describe WHAT and HOW) |
+| Issue is clear, scoped, approved for implementation, NO open questions remain | `"implement"` | `plan` (required), `locked=true` |
+| Issue is clear enough to hand off but not every decision is certainly settled | `"implement"` | `plan` (required), `locked=false` or omit |
 | Issue needs closing (duplicate, won't fix, already done) | `"close"` | `comment` (required: reason for close) |
 | Issue needs more discussion, design, or human input | `"discuss"` | `comment` (required: the questions or design notes to post) |
 
@@ -131,13 +132,24 @@ that gate does not bypass it; only call `"implement"` when you have confirmed
 the label is present and was applied by a maintainer, never on the strength
 of a comment alone.
 
+`locked=true` declares that this issue's design is FULLY settled: no open
+questions remain and every decision is locked. It is read by the operator's
+systemic-group approval fan-out - when a maintainer approves ONE issue of a
+multi-issue task, every OTHER member that is `locked=true` is released into
+implementation too, without its own separate approval. Set it honestly: a
+`locked=true` on an issue that still has an open question skips a review
+step a sibling actually needed. Leave it `false` (or omit) whenever anything
+is still uncertain, even if you are confident enough to hand off this issue
+alone.
+
 ### issue_outcome recipes
 
 ```
 # Approve for implementation:
 issue_outcome(
   action="implement",
-  plan="<what will be implemented and how - flow, key ideas, approach>"
+  plan="<what will be implemented and how - flow, key ideas, approach>",
+  locked=true|false   # OPTIONAL, default false - see decision table above
 )
 
 # Close:
@@ -181,14 +193,18 @@ change_summary(
   pr_title="<imperative PR title>",         # REQUIRED
   pr_body="<full PR description>",           # REQUIRED
   delivered_scope="<what was implemented>",  # REQUIRED
-  remaining_scope="<any out-of-scope items>",# OPTIONAL
+  remaining_scope="",                        # MUST be empty - see below
   most_problematic="<biggest gotcha or tricky integration point>"  # OPTIONAL
 )
 ```
 
 The operator uses `pr_title` and `pr_body` as the MR title and body. The
 `most_problematic` field is surfaced in the MR body and persisted to docs.
-`task` defaults to `TATARA_TASK`.
+`task` defaults to `TATARA_TASK`. **`remaining_scope` MUST be left empty**
+(full-scope-or-decline): a non-empty value no longer opens a follow-up
+issue - it HARD-FAILS the task (`Phase=Failed`, reason
+`IncompleteImplementation`). If the full scope cannot be delivered this turn,
+call `decline_implementation` instead of opening a partial PR.
 
 ### decline_implementation recipe
 
