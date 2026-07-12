@@ -115,7 +115,7 @@ this is settled by the cross-repo contract, not a placeholder.
 
 | Condition | action | Additional args |
 |-----------|--------|----------------|
-| Issue is clear, scoped, approved for implementation | `"implement"` | `plan` (required: describe WHAT and HOW) |
+| Issue is clear, scoped, and approved for implementation | `"implement"` | `plan` (required) |
 | Issue needs closing (duplicate, won't fix, already done) | `"close"` | `comment` (required: reason for close) |
 | Issue needs more discussion, design, or human input | `"discuss"` | `comment` (required: the questions or design notes to post) |
 
@@ -181,14 +181,18 @@ change_summary(
   pr_title="<imperative PR title>",         # REQUIRED
   pr_body="<full PR description>",           # REQUIRED
   delivered_scope="<what was implemented>",  # REQUIRED
-  remaining_scope="<any out-of-scope items>",# OPTIONAL
+  remaining_scope="",                        # MUST be empty - see below
   most_problematic="<biggest gotcha or tricky integration point>"  # OPTIONAL
 )
 ```
 
 The operator uses `pr_title` and `pr_body` as the MR title and body. The
 `most_problematic` field is surfaced in the MR body and persisted to docs.
-`task` defaults to `TATARA_TASK`.
+`task` defaults to `TATARA_TASK`. **`remaining_scope` MUST be left empty**
+(full-scope-or-decline): a non-empty value no longer opens a follow-up
+issue - it HARD-FAILS the task (`Phase=Failed`, reason
+`IncompleteImplementation`). If the full scope cannot be delivered this turn,
+call `decline_implementation` instead of opening a partial PR.
 
 ### decline_implementation recipe
 

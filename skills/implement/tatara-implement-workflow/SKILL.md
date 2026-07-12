@@ -118,7 +118,7 @@ change_summary(
   pr_title="<concise imperative title>",        # required - becomes the MR title
   pr_body="<markdown body>",                     # required - becomes the MR description
   delivered_scope="<what was implemented>",      # required - appended as ## Delivered block
-  remaining_scope="<what was not done>",         # optional - surfaces follow-up work
+  remaining_scope="",                            # MUST be empty - see below
   most_problematic="<gotchas / dead-ends>"       # optional - recorded in MR body and docs
 )
 ```
@@ -130,8 +130,14 @@ change_summary(
 | `pr_title` | Short imperative: `fix: <thing>`, `feat: <thing>`. No trailing period. |
 | `pr_body` | Motivation + approach. Enough for a reviewer to understand without reading code. |
 | `delivered_scope` | Bullet list of concrete changes made (files, behaviors, tool names). |
-| `remaining_scope` | Anything explicitly out of scope for this PR, or follow-up issues worth tracking. Leave blank if nothing. |
+| `remaining_scope` | **MUST be left empty.** Full-scope-or-decline: implement the FULL agreed scope in this PR, or call `decline_implementation` instead of opening a partial PR. A non-empty `remaining_scope` no longer files a follow-up issue - it HARD-FAILS the task (`Phase=Failed`, reason `IncompleteImplementation`) so an incomplete implementation is never silently accepted. |
 | `most_problematic` | The single biggest gotcha or surprise (dead-end explored, tricky integration point, non-obvious constraint). Leave blank if nothing notable. |
+
+**There is no "ship most of it, follow up on the rest" path.** If part of the
+agreed scope cannot be delivered this turn (a hard blocker, a dependency that
+does not exist, work genuinely outside this task), that is a
+`decline_implementation` situation (section 6a), not a partial PR with
+`remaining_scope` filled in. Never open a PR you know is incomplete.
 
 ---
 
@@ -184,10 +190,10 @@ already_done(
 
 | Situation | Correct call |
 |---|---|
-| Implemented, branch pushed | `change_summary(...)` then finish turn |
-| Should not be implemented (wrong/out-of-scope/harmful) | `decline_implementation(reason=...)` |
+| Implemented, branch pushed, FULL agreed scope delivered | `change_summary(...)` then finish turn |
+| Full scope cannot be delivered this turn (blocked, wrong approach, harmful, genuinely out of scope) | `decline_implementation(reason=...)` |
 | Fix already exists in the repo/branch | `already_done(reason=...)` |
-| None of the above (silent finish) | **FORBIDDEN** - will trigger a re-prompt |
+| None of the above (silent finish, or a PR with acknowledged remaining scope) | **FORBIDDEN** - will trigger a re-prompt or hard-fail the task |
 
 ---
 
