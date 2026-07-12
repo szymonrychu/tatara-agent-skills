@@ -69,6 +69,27 @@ posting, not for re-fetching what you already have.
    - Still ambiguous, or the `tatara-approved` label has not been applied by
      a maintainer -> go to the wait step.
 
+## Systemic-group siblings
+
+If your turn-0 context includes a `## Related systemic-group issues` section,
+this issue is part of a multi-issue/cross-repo design and the human's answer
+here may affect - or depend on - decisions still open in a sibling. Before
+posting a question or a confirmation, check that section:
+
+- Any sibling listed as **still open**: remind the human, in your posted
+  comment, that part of the design lives in that sibling issue and is not
+  yet settled - name the specific `owner/repo#N` ref so they know where to
+  look. Do this whenever the topic you are asking about plausibly touches
+  that sibling's open scope; skip it for siblings that are clearly
+  unrelated to the current question.
+- A sibling listed as **not yet tracked**: no clarify conversation has
+  started there yet; note it the same way if relevant, without implying
+  it is blocked - it may simply not have been picked up.
+
+This reminder duty applies in addition to, not instead of, the normal
+digest/questions flow above - it is a one- or two-sentence addition to
+whatever you were already going to post, not a separate turn.
+
 ## Shared: wait, or hand off to implement
 
 **Wait (up to 1h wall-clock).** `clarify` is a live-polling pod: the operator
