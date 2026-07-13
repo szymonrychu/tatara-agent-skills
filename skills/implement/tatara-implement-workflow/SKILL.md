@@ -1,6 +1,6 @@
 ---
 name: tatara-implement-workflow
-description: "Prescriptive implement-phase procedure for tatara agents: subtask decomposition, per-turn commit discipline, change_summary format, and mandatory terminal escapes (decline_implementation / already_done / submit_handover). Use at the start of every Implement-phase task."
+description: "Prescriptive implement-stage procedure for tatara agents: planning notes, per-turn commit discipline, opening the MR with mr_write, the submit_outcome shape (including merge_order), and the mandatory terminal escapes. Use at the start of every implement turn."
 profiles: ["implement"]
 ---
 
@@ -14,54 +14,47 @@ TASK content. Follow these steps in order. Do not skip or reorder.
 
 At turn 0 you receive:
 
-- `task` ID (also in env `TATARA_TASK`) and `project` ID (env `TATARA_PROJECT`). Pass these to every MCP tool call.
-- The issue goal (`Spec.Goal`).
-- The task branch (e.g. `tatara/task-<name>`). All your pushes target this branch. The branch is created from the default branch automatically. **Never commit or push to the default branch directly.**
-- Workspace root: `/workspace/<owner>/<repo>` (a two-level namespace from the repo slug, e.g. `/workspace/szymonrychu/tatara-cli`). Every repo in scope is cloned here under its own `owner/repo` subdirectory. Changes you commit and push to the task branch are restored on the next run; uncommitted edits are discarded.
-- Optionally: a `## Re-entry context` block (from a previous partial run), or a `## Resume from handover` block (when you were handed over from a prior agent that hit the context limit). Read these before doing anything else.
-- On re-entry (issue-in-conversation, implement-after-review, or resuming mid-task), review
-  the prior subtask trail via `task_get` before continuing - `status.subtasks` carries every
-  prior subtask's title, phase, and result (including the synthetic "Planning" entry for turn
-  0), so you can pick up the reasoning where the last turn left off instead of re-deriving it.
+- The Task and project. Every `tatara` tool auto-scopes to them from the pod
+  environment - omit the `task`/`project` args and the tool fills them in.
+- Your assignment, rendered by the operator.
+- The task branch (`task/<task-name>`). All your pushes target it. It is created
+  from the default branch for you. **Never commit or push to the default branch.**
+- Workspace root: `/workspace/<owner>/<repo>` - every repo in scope, cloned under
+  its own `owner/repo` subdirectory. Changes you commit and push to the task
+  branch are restored on the next run; uncommitted edits are discarded.
 
-The operator injects the FULL cross-repo umbrella context for this Task at
-turn 0 (every linked issue and its comment thread, every open PR/MR under
-this Task with its description, branch, and CI/mergeability state, across
-every repo in the project scope - Decision 7 of the locked task-kind design).
-This is everything a human maintainer would see. Do not re-crawl SCM
-(list-issues/list-comments loops) to reconstruct history already in your
-prompt; reserve MCP/SCM calls for things not already there (fresh code
-investigation, posting, opening PRs).
+The bundle carries the FULL cross-repo context for this Task: every Issue it owns
+with its comment thread, every MR it owns with its body, branch, head SHA, CI
+state and mergeability, and every prior `<note>` - including the handoff note from
+whichever pod ran before you. **Read the notes first.** They are the continuation
+state; there is nothing else (see `handoff`). This is everything a human
+maintainer would see. Do not re-crawl the forge to reconstruct history already in
+your prompt; reserve `scm_read` for what is genuinely not there (fresh CI state,
+a comment thread on an issue you do not own).
+
+If the `<notes>` element reports a nonzero `elided` count, pull the rest with
+`task_context(notes="all")`.
 
 ---
 
-## 1. Decide: direct implementation vs subtask decomposition
+## 1. Plan, then work the plan
 
-**Criterion:** If the objective fits comfortably in one turn (single focused change, no multi-step sequencing needed), implement it directly now. Otherwise decompose.
+**Criterion:** if the objective fits comfortably in one turn (a single focused
+change, no multi-step sequencing), implement it directly. Otherwise decompose.
 
-**Decompose** by creating ordered subtasks:
-
-```
-subtask_create(task="<TATARA_TASK>", title="<step title>", detail="<what to do>", order=1)
-subtask_create(task="<TATARA_TASK>", title="<step title>", detail="<what to do>", order=2)
-...
-```
-
-Required args: `title`. Optional: `detail` (recommended - give enough context for execution), `order` (integer, lower runs first).
-
-List subtasks at the start of each subsequent turn to find the next pending one:
+There is no subtask CRD and no subtask tool. Decompose with your own TodoWrite
+list for the turn, and persist the plan across turns with a note:
 
 ```
-subtask_list(task="<TATARA_TASK>")
+task_note(kind="plan", body="1. operator: guard the reaper on podStartedAt. 2. cli: ...")
 ```
 
-Mark each subtask done when complete:
+Notes are the ONLY thing that survives your pod. A plan you keep in your head is
+lost the moment your pod is stopped. Update the note as steps land, and read the
+prior notes out of your bundle at the start of every turn rather than re-deriving
+the plan.
 
-```
-subtask_update(subtask="<subtask-id>", phase="Completed", result="<brief result>")
-```
-
-Work through subtasks in order across turns. Each turn ends with a git push; the branch is restored on the next turn.
+Each turn ends with a git push; the branch is restored on the next turn.
 
 ---
 
@@ -88,136 +81,160 @@ signal to re-dispatch to `architect`, not to guess and proceed with `builder`.
 
 ## 2. Multi-repo work
 
-If the prompt includes `**This issue spans repos: ...**`, each listed repo has a clone at `/workspace/<owner>/<repo>`. Edit and push every repo you change. Each repo with a committed change gets its own PR. If a listed repo genuinely needs no change, state that explicitly in your result summary.
+Every repo your Task's Issues span has a clone at `/workspace/<owner>/<repo>`.
+Edit and push every repo you change. Each repo with a committed change gets its
+own MR. If a repo in scope genuinely needs no change, say so explicitly in your
+outcome body.
 
 ---
 
-## 3. Systemic group leadership
+## 3. Several issues under one Task
 
-If the prompt includes `**You lead systemic improvement group ...**`, you are the lead agent for a group of related issues in this repo. Resolve all listed sibling issues in one combined PR. Each sibling needs its OWN maintainer approval (its own `tatara-approved` label, verified against `MaintainerLogins`) to be closed by this PR - an unapproved or declined sibling is never force-closed alongside the approved ones. In the PR body: reference an approved sibling with `Closes #N`; reference an unapproved or declined sibling with `refs #N` instead (never `Closes`). Do not open separate PRs per sibling.
+A Task can own several Issues, across several repos. They were approved together
+and they ship together: resolve all of them in this Task's MRs. Do not open a
+separate Task or a separate stream per issue.
 
-For cross-repo siblings listed under "Related work in OTHER repos": those are handled by separate agents. Do not edit those repos here.
+The issue-closing directive in your MR body is filtered by an operator-side
+ALLOWLIST: `Closes #N` survives only for an Issue this Task actually owns. Write
+`Closes #N` for an owned issue and `refs #N` for anything else - a directive that
+would close an issue outside your Task's mandate is stripped, and writing it
+anyway just produces a body that does not say what you think it says.
+
+You do not decide which issues are approved. The operator ran the approval gate
+on EVERY live Issue this Task owns before your pod was admitted; if it is your
+Task, it is approved.
 
 ---
 
 ## 4. Commit discipline
 
-- Commit and push to the task branch at the end of each turn (the harness does this automatically via a post-turn hook, but make sure your changes are staged).
+- Commit and push to the task branch at the end of each turn (the harness does
+  this via a post-turn hook, but make sure your changes are staged).
 - Commits must not go to the default branch. The task branch was created for you.
-- Each repo with a change gets its own push and its own PR.
+- Each repo with a change gets its own push and its own MR.
+- `git push --force` and `--force-with-lease` are hard-denied in this pod.
 
 ---
 
-## 5. Call change_summary before finishing (happy path)
+## 5. Open the MR, then submit the outcome (happy path)
 
-When implementation is complete and you are about to end your final turn with a PR ready, call `change_summary`. This populates the MR title and body used by the operator.
+When the FULL agreed scope is implemented, pushed, and green, open one MR per
+changed repo:
 
 ```
-change_summary(
-  task="<TATARA_TASK>",
-  pr_title="<concise imperative title>",        # required - becomes the MR title
-  pr_body="<markdown body>",                     # required - becomes the MR description
-  delivered_scope="<what was implemented>",      # required - appended as ## Delivered block
-  remaining_scope="",                            # MUST be empty - see below
-  most_problematic="<gotchas / dead-ends>"       # optional - recorded in MR body and docs
+mr_write(action="open", repo="tatara-operator", title="...", body="...")
+```
+
+`open` is IDEMPOTENT - if your Task already has an open MR for that repo on
+`task/<task-name>`, you get it back with `"existing": true` and the forge is not
+called. If your Task already MERGED an MR for that repo, `open` is REFUSED: you
+are about to open a duplicate MR for work that already shipped. See
+`tatara-mcp-scm`.
+
+Then end the turn:
+
+```
+submit_outcome(
+  action="submitted",
+  title="<concise imperative title>",     # required
+  body="<markdown body>",                 # required
+  change_significance="major"|"minor"|"patch",   # required
+  merge_order=["tatara-operator", "tatara-cli"] # required when >1 repo
 )
 ```
 
-**Field guidance:**
-
 | Field | What to write |
 |---|---|
-| `pr_title` | Short imperative: `fix: <thing>`, `feat: <thing>`. No trailing period. |
-| `pr_body` | Motivation + approach. Enough for a reviewer to understand without reading code. |
-| `delivered_scope` | Bullet list of concrete changes made (files, behaviors, tool names). |
-| `remaining_scope` | **MUST be left empty.** Full-scope-or-decline: implement the FULL agreed scope in this PR, or call `decline_implementation` instead of opening a partial PR. A non-empty `remaining_scope` no longer files a follow-up issue - it HARD-FAILS the task (`Phase=Failed`, reason `IncompleteImplementation`) so an incomplete implementation is never silently accepted. |
-| `most_problematic` | The single biggest gotcha or surprise (dead-end explored, tricky integration point, non-obvious constraint). Leave blank if nothing notable. |
+| `title` | Short imperative: `fix: <thing>`, `feat: <thing>`. No trailing period. |
+| `body` | Motivation, approach, and what was delivered. Enough for a reviewer to understand without reading the code. Name the gotchas: the dead-end you explored, the tricky integration point, the non-obvious constraint. |
+| `change_significance` | `major` = backward-incompatible, `minor` = backward-compatible feature, `patch` = fix. **YOU own this level.** A reviewer may RAISE it; nobody can lower it. It becomes the release tag. |
+| `merge_order` | See below. |
 
-**There is no "ship most of it, follow up on the rest" path.** If part of the
-agreed scope cannot be delivered this turn (a hard blocker, a dependency that
-does not exist, work genuinely outside this task), that is a
-`decline_implementation` situation (section 6a), not a partial PR with
-`remaining_scope` filled in. Never open a PR you know is incomplete.
+**`merge_order` is the single most consequential field you fill in.** It is
+REQUIRED the moment this Task's MRs span more than one repo: the Repository CR
+names, first-merged first. **There is no default.** Get it wrong and a downstream
+repo ships against an API that has not merged yet. With exactly one repo you may
+omit it - there is one order and nothing to get wrong. Omit it on a multi-repo
+change and you get a 400; omit a repo that has an owned open MR and you get a 400
+naming it.
+
+**Full scope or decline. There is no partial MR.** If part of the agreed scope
+cannot be delivered (a hard blocker, a dependency that does not exist, work
+genuinely outside this Task), that is `action="declined"` (section 6), not an MR
+you already know is incomplete.
 
 ---
 
 ## 6. Terminal escape hatches
 
-A silent finish (no PR, no tool call) is **never allowed**. Every implement run must end with one of: a pushed branch that opens a PR (happy path), `decline_implementation`, or `already_done`.
+A silent finish is **never allowed**. A Task that receives no outcome does not
+quietly stop: it ages out at `stageReason=no-outcome`, the pod is deleted, and
+the work is lost. Every implement run ends with `submit_outcome`.
 
-### 6a. decline_implementation - explicit refusal
+There are exactly two actions.
 
-Use when, after investigation, you determine **no code change should be made**: the issue is out of scope, the approach is wrong, the work is blocked by an external dependency, or implementing it would be harmful.
-
-```
-decline_implementation(
-  task="<TATARA_TASK>",
-  reason="<what you investigated, why the change should not be made>"
-)
-```
-
-`reason` is required and must be non-empty. It is posted as a comment on the issue and the task is parked.
-
-**`decline_implementation` MUST NOT cite insufficient context, ambiguous
-scope, or "need more information" as its reason.** By construction (see
-section 0) you already have everything a human maintainer has: the full
-umbrella of linked issues, comments, and PR/MR state across every repo in
-scope. If a specific technical unknown remains, dispatch an `architect`
-subagent to resolve it, or make the best defensible engineering call and
-record the assumption in `pr_body` / `most_problematic` when you call
-`change_summary`. `decline_implementation` is reserved for: the change
-should NOT be made at all (wrong direction, harmful, genuinely
-out-of-platform-scope), or a hard external blocker outside the codebase (a
-third-party credential the platform cannot provide, a dependency that does
-not exist). A "this is ambiguous" decline is a protocol violation.
-
-Do **not** use this when the fix already exists - use `already_done` instead.
-
-### 6b. already_done - fix already present
-
-Use when, after reading the issue and the repository, you confirm the requested change already exists (e.g. another task committed it on the shared branch, or it was shipped in a prior PR).
+### 6a. action="declined"
 
 ```
-already_done(
-  task="<TATARA_TASK>",
-  reason="<where the fix already lives: commit, branch, or PR reference>"
-)
+submit_outcome(action="declined", decline_reason="<what you investigated, why no change should be made>")
 ```
 
-`reason` is required and must be non-empty. Posted as a comment; task is parked. This is not a refusal.
+Use when, after investigation, **no code change should be made**: the change is
+the wrong direction, harmful, genuinely out of platform scope, or blocked by a
+hard external dependency the platform cannot provide. Also use it when the fix
+**already exists** - another Task shipped it, or it landed in a prior MR - naming
+the commit or MR that already delivers it. There is no separate already-done
+tool; a decline with an honest reason IS that report.
+
+`decline_reason` is required and must be non-empty. The Task parks at
+`implement-declined`.
+
+**`decline_reason` MUST NOT cite insufficient context, ambiguous scope, or "need
+more information".** By construction (section 0) you already have everything a
+human maintainer has: every owned Issue, every comment thread, every MR's state,
+and every prior note. If a specific technical unknown remains, dispatch an
+`architect` subagent to resolve it, or make the best defensible engineering call
+and record the assumption in your outcome `body`. A "this is ambiguous" decline
+is a protocol violation.
 
 ### Decision table
 
 | Situation | Correct call |
 |---|---|
-| Implemented, branch pushed, FULL agreed scope delivered | `change_summary(...)` then finish turn |
-| Full scope cannot be delivered this turn (blocked, wrong approach, harmful, genuinely out of scope) | `decline_implementation(reason=...)` |
-| Fix already exists in the repo/branch | `already_done(reason=...)` |
-| None of the above (silent finish, or a PR with acknowledged remaining scope) | **FORBIDDEN** - will trigger a re-prompt or hard-fail the task |
+| FULL agreed scope implemented and pushed | `mr_write(open)` per repo, then `submit_outcome(action="submitted", ...)` |
+| Scope cannot be delivered (blocked, wrong approach, harmful, out of scope) | `submit_outcome(action="declined", decline_reason=...)` |
+| The fix already exists in the repo or on the default branch | `submit_outcome(action="declined", decline_reason="already delivered in <sha/MR>")` |
+| Neither (a silent finish, or an MR with acknowledged remaining scope) | **FORBIDDEN** - the Task ages out at `no-outcome` and the work is lost |
 
 ---
 
-## 7. Context-limit handover
+## 7. Running out of turns, or being stopped
 
-If you are approaching your context limit mid-implementation (many turns in, large codebase), call `submit_handover` before ending the turn. The operator will start a fresh agent with your handover as the `## Resume from handover` block.
+Your pod has a TTL and a turn budget. Before you stop for ANY reason - your
+outcome is submitted, your budget is spent, or the operator hands you a turn
+saying your pod is being stopped - write:
 
 ```
-submit_handover(
-  task="<TATARA_TASK>",
-  handover="<full context: what was done, what branch state looks like, what remains, where to pick up>"
-)
+task_note(kind="handoff", body="<state / done / next / blocked>")
 ```
 
-`handover` is required. Write it so a new agent with no prior conversation history can continue without re-investigation. Include: which subtasks are done/pending, which files were edited, what the outstanding issue is, and the next concrete step.
+See `handoff` for what a good one contains. Notes ARE the continuation state:
+there is no shared filesystem between pods, no chat, and no conversation to
+resume. If you write nothing, the operator synthesises a note from your last
+message and the repos you pushed - it knows what you DID and nothing about what
+you MEANT to do next.
 
 ---
 
 ## 8. Platform problems
 
-If you are blocked by a platform or tooling failure (MCP server error, missing credentials, a tatara tool returning an unexpected error):
+If you are blocked by a platform or tooling failure (an MCP server error, missing
+credentials, a tatara tool returning an unexpected error):
 
 ```
-report_internal_issue(task="<TATARA_TASK>", ...)
+report_internal_issue(...)
 ```
 
-This is the **only** correct channel. Do not open a tracker issue, do not post a normal output, do not treat a blocked tool as a reason to call `decline_implementation`. Report it and stop.
+This is the **only** correct channel. Do not open a tracker issue, do not post a
+normal output, and do not treat a blocked tool as a reason to decline. Report it
+and stop.

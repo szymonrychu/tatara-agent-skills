@@ -1,148 +1,147 @@
 ---
 name: tatara-clarify-conversation
-description: "TASK harness for the clarify task kind: on a new issue, run a targeted brainstorm to digest the human's ask and post clarifying questions; on a comment on an existing issue, continue the conversation or hand off to implement via the label swap. Live-polling pod with a 1h wall-clock wait; never answers its own last comment. Invoke FIRST on every clarify turn."
+description: "TASK harness for the clarify task kind: on a new issue, run a targeted brainstorm to digest the human's ask and post clarifying questions; on a comment on an existing issue, continue the conversation, close it, or report that a maintainer approved it. Ends every turn with submit_outcome(decision=...). Invoke FIRST on every clarify turn."
 profiles: ["clarify"]
 ---
 
 # tatara clarify conversation
 
 The disciplined shell for a `clarify` turn. `clarify` fires on two distinct
-triggers - a brand-new issue, or any new comment on an issue already in
-conversation - and both paths end in one of three outcomes: keep the
-conversation open (post + wait), close it, or hand off to `implement`. All
-conversation and lifecycle I/O is via the `tatara` MCP tools - never git or
-gh for that. You MAY check out the workspace, a branch, or an existing
-MR/PR to read code and verify whether the ask is already addressed or
-already coherent with what's on disk; this is read-only investigation, no
-different from what an `explorer` subagent would do. You never push code
-or open a PR (that is `implement`'s job after handoff) - checkout is for
-reading, not writing.
+triggers - a brand-new issue, or a new comment on an issue already in
+conversation - and both paths end in exactly one `submit_outcome`: keep the
+conversation open (`discuss`), close it (`close`), or report that a maintainer
+approved it (`implement`). All conversation I/O is via the `tatara` MCP tools -
+never git or gh for that. You MAY check out the workspace, a branch, or an
+existing MR to read code and verify whether the ask is already addressed or
+already coherent with what is on disk; this is read-only investigation, no
+different from what an `explorer` subagent would do. You never push code or open
+an MR (that is `implement`'s job) - checkout is for reading, not writing.
 
-The operator injects the FULL cross-repo umbrella context for this Task at
-turn 0 (every linked issue + its full comment thread, across every repo in
-the project scope, per Decision 7 of the locked task-kind design). Do NOT
-re-crawl SCM (looping `comment_on_issue`/list-style calls) to reconstruct
-history that is already in your prompt - use MCP calls for research and for
-posting, not for re-fetching what you already have.
+Your turn-0 bundle carries every Issue your Task owns, each with its full
+comment thread, plus every prior note. Do NOT re-crawl the forge to reconstruct
+history that is already in your prompt - reserve `scm_read` for what is not
+there, and `issue_write` for posting.
 
 ## Branch A - new issue (targeted brainstorm + digest)
 
-1. **Digest the human's ask.** Read the issue title, body, and (if any)
-   existing comments from the injected context. Identify: what outcome the
-   human wants, what is ambiguous, and what a reasonable engineer would need
-   to know before implementing this.
+1. **Digest the human's ask.** Read the issue title, body, and any existing
+   comments from the bundle. Identify: what outcome the human wants, what is
+   ambiguous, and what a reasonable engineer would need to know before
+   implementing this.
 2. **Targeted brainstorm, grounded in code.** Unlike `tatara-council-brainstorm`
    (which proposes NEW work from platform-wide scanning), this is narrow and
    reactive: use the code-graph tools (`code_search`, `code_explain`,
-   `code_related`) and, where the ask spans repos, one `explorer` subagent per
-   implicated repo (via the `Agent` tool, `model: haiku`, `effort: low`) to
-   confirm the ask is technically coherent and to surface the 1-3 real
-   ambiguities worth asking about. Do not ask questions answerable from the
-   code or the issue text.
-3. **Post clarifying questions** (or, if nothing is genuinely ambiguous, a
-   short confirmation of scope + your proposed approach) via
-   `issue_outcome(action="discuss", comment=...)` for the task's own issue,
-   or `comment_on_issue` for any other issue, per `tatara-mcp-scm-lifecycle`.
-   The task-scoped `comment` tool is issueLifecycle-only and 409s for
-   clarify - never call it. Apply
-   `tatara-triage-judgment`'s rubric to decide whether this issue is already
-   clear enough to hand off directly (skip to step 3 of Branch B) or genuinely
-   needs a round of human input (go to the wait step below).
-4. **Wait or hand off**, per the shared wait/handoff steps below.
+   `code_context(rel="related")`) and, where the ask spans repos, one `explorer`
+   subagent per implicated repo (via the `Agent` tool, `model: haiku`, `effort:
+   low`) to confirm the ask is technically coherent and to surface the 1-3 real
+   ambiguities worth asking about. Do not ask questions answerable from the code
+   or the issue text.
+3. **Post clarifying questions** (or, if nothing is genuinely ambiguous, a short
+   confirmation of scope plus your proposed approach) with
+   `issue_write(action="comment", repo=..., number=..., body=...)`, per
+   `tatara-mcp-scm`. Then apply `tatara-triage-judgment`'s rubric: is this issue
+   already clear enough and already approved (Branch B step 3), or does it
+   genuinely need a round of human input?
+4. **Submit your outcome**, per the shared section below.
 
 ## Branch B - comment on an existing issue
 
-1. **Read the full thread** (already in your turn-0 context) and determine:
-   has a human replied since clarify's last comment, and if so, what did they
-   say?
+1. **Read the full thread** (already in your bundle) and determine: has a human
+   replied since your last comment, and if so, what did they say?
 2. **Research and refine.** Delegate to `tatara-research-followup` for the
-   research-the-gaps / respond-in-thread / idle-discipline procedure. That
-   skill's silence-over-noise rule applies here without exception: if no
-   human has replied since your last comment, post nothing.
+   research-the-gaps / respond-in-thread / idle-discipline procedure. Its
+   silence-over-noise rule applies here without exception: if no human has
+   replied since your last comment, post nothing.
 3. **Decide the outcome** using `tatara-triage-judgment`'s rubric:
-   - A maintainer (per `MaintainerLogins`) has applied the `tatara-approved`
-     label directly on the issue -> hand off to `implement` (see below). A
-     comment is never sufficient by itself, no matter how explicit it reads -
-     see the hard rule below.
-   - Human has explicitly declined, or the issue is a duplicate / out of
-     scope -> close it per `tatara-mcp-scm-lifecycle`'s outcome recipe.
-   - Still ambiguous, or the `tatara-approved` label has not been applied by
-     a maintainer -> go to the wait step.
+   - A maintainer has posted a comment that CONSISTS OF an approval phrase ->
+     `decision="implement"` (see the approval section below).
+   - The human has explicitly declined, or the issue is a duplicate or out of
+     scope -> `decision="close"`.
+   - Still ambiguous, or no approval yet -> `decision="discuss"`.
 
-## Systemic-group siblings
+## Every Issue your Task owns, not just the one you were woken for
 
-If your turn-0 context includes a `## Related systemic-group issues` section,
-this issue is part of a multi-issue/cross-repo design and the human's answer
-here may affect - or depend on - decisions still open in a sibling. Before
-posting a question or a confirmation, check that section:
+A Task can own several Issues across several repos. The approval gate is scoped
+to ALL of them: the operator approves your Task only when EVERY live Issue it
+owns (state `open`, status not `done` or `rejected`) carries its own approval
+evidence. One `lgtm` on one issue does not approve a Task spanning four repos.
 
-- Any sibling listed as **still open**: remind the human, in your posted
-  comment, that part of the design lives in that sibling issue and is not
-  yet settled - name the specific `owner/repo#N` ref so they know where to
-  look. Do this whenever the topic you are asking about plausibly touches
-  that sibling's open scope; skip it for siblings that are clearly
-  unrelated to the current question.
-- A sibling listed as **not yet tracked**: no clarify conversation has
-  started there yet; note it the same way if relevant, without implying
-  it is blocked - it may simply not have been picked up.
+So before you report `decision="implement"`, walk every `<issue>` in your bundle
+and check that each has its own maintainer approval comment. If any is still
+open, say so in the thread - name the specific `<repo>#<number>` so the human
+knows where the remaining go-ahead has to be posted - and submit
+`decision="discuss"` instead.
 
-This reminder duty applies in addition to, not instead of, the normal
-digest/questions flow above - it is a one- or two-sentence addition to
-whatever you were already going to post, not a separate turn.
+The reverse also holds: acquiring a NEW issue after approval (via
+`issue_write(action="create")`) resets the Task out of `approved` and back to
+`clarifying`, because the gate's scope clause no longer holds. You cannot widen
+your own mandate by adopting work after the gate.
 
-## Shared: wait, or hand off to implement
+## Shared: submit exactly one outcome
 
-**Wait (up to 1h wall-clock).** `clarify` is a live-polling pod: the operator
-keeps it running and delivers new comments live via the existing
-`PendingInterjections` mechanism, and kills the pod on a 1h timeout with no
-reply. Follow `tatara-pipeline-waiting`'s heartbeat-poll pattern (the same
-survive-turn-inactivity mechanic that skill teaches for CI waits applies here
-for waiting on a human reply) rather than a single blocking wait. Do not
-invent your own polling cadence.
+    submit_outcome(decision="implement"|"close"|"discuss", reason="...")
 
-**Never answer your own last comment.** If the most recent comment on the
-issue is your own (bot-authored) with no human reply since, do not post
-again - this would be a self-triggering loop. The operator's permission layer
-also enforces this structurally (the MCP comment action and the webhook
-actor/mention checks refuse a bot-authored last comment) - this skill states
-the same invariant so your own judgment does not fight the permission layer.
-This clarify-conversation rule has no exception; `refine` is the ONLY kind in
-this repo permitted to comment under its own prior comment, and only for a
-narrow scope-change/already-delivered case.
+`reason` is REQUIRED on all three. There is no `comment` field on the outcome:
+anything you want the humans to read, you post yourself with
+`issue_write(action="comment")` BEFORE you submit.
 
-**Hand off to implement.** When the outcome is "implement": remove the
-`tatara-brainstorming` label and add the `tatara-implementation` label (per
-`tatara-writeback-discipline`'s label table) via
-`issue_outcome(action="implement", plan=...)`, documented in
-`tatara-mcp-scm-lifecycle` Section 2. Supply `plan` describing what will be
-implemented and how - this seeds `implement`'s turn-0 context and is posted
-as the implementation-start message.
+**You do not wait.** There is no polling loop and no wall-clock wait for a human
+reply. `decision="discuss"` parks the Task at `awaiting-human` and your pod
+stops. When a human comments, the operator un-parks the Task and spawns a fresh
+clarify pod with the new comment in its bundle. Sitting in a poll loop burns your
+turn budget and buys nothing.
 
-**Approval is the `tatara-approved` label, never a comment.** The gate the
-operator enforces is: a maintainer (a login listed in the project's
-`MaintainerLogins` config, bots excluded) applies the `tatara-approved`
-label directly on the issue. Do not treat any of the following as approval,
-and never imply in a posted comment that they unblock the pipeline: your own
-prior comment, the reporter's comment (unless the reporter is also a listed
-maintainer), a non-maintainer's comment, or a non-maintainer's/bot's label
-apply. A comment that reads as an explicit go-ahead is still not approval -
-only the verified label-apply is. If `MaintainerLogins` is unset or empty for
-the project, no comment or label ever satisfies the gate and this issue
-cannot advance to implement; treat that as a permanent `discuss`/wait state,
-not something to work around.
+**Never answer your own last comment.** If the most recent comment on an issue is
+your own (bot-authored) with no human reply since, do not post again - that is a
+self-triggering loop. The operator enforces the same invariant structurally: bot
+events are never enqueued, so your own comment can never wake your own Task.
+`refine` is the ONLY kind in this repo permitted to comment under its own prior
+comment, and only for a narrow scope-change / already-delivered case.
+
+## The approval gate: a comment, verified by the operator
+
+Your `decision="implement"` does NOT approve the work. It reports YOUR judgement
+that a maintainer approved it. The operator then independently re-reads the
+thread and checks BOTH the identity (a verified maintainer, never the bot) AND
+the wording (a whole line that CONSISTS of an approval phrase - "go ahead", not
+"I can't approve this until the tests pass") on EVERY issue the Task owns.
+
+So cite WHO and WHERE in your `reason`. If the operator's check disagrees with
+your report, the Task parks at `identity-unverified` and a human is told what was
+missing. This is not a dead end: a later comment from a verified maintainer that
+passes the same anchored whole-line grammar re-triggers the check and un-parks
+the Task on its own - nobody has to resubmit an outcome for it.
+
+You cannot set an issue's status. `issue_write` has no `status` parameter and no
+`labels` parameter. That is the gate, not an oversight.
+
+The phrases are the project's `approvalPhrases` (default: `lgtm`, `approve`,
+`approved`, `ship it`, `go ahead`, `go`, `implement it`), matched anchored
+against a whole normalised line - so when you ask for a go-ahead, ask for it as
+a line on its own, and never tell the thread that a discursive "sounds good to
+me, but check the tests first" is sufficient. It is not.
+
+## Seed the implement pod with a note
+
+Before `submit_outcome(decision="implement")`, write what you settled -
+`task_note(kind="handoff", body=...)`. Notes ARE the continuation state (see
+`handoff`); the implement pod that picks this Task up reads them in its bundle.
+Scope, the repos in play, the approach you agreed in-thread, the constraints the
+human named: that goes in the note, not in a `plan` argument (there is none).
 
 ## Anti-patterns
 
 - Asking a clarifying question answerable from the issue text or the code.
-- Re-posting a comment that only re-requests approval or restates prior
-  analysis when no human has replied (silence-over-noise violation).
+- Re-posting a comment that only re-requests approval or restates prior analysis
+  when no human has replied (silence-over-noise violation).
 - Answering under your own last comment.
-- Handing off to implement without a verified maintainer `tatara-approved`
-  label on the issue (per `tatara-triage-judgment`'s approval gate) - applies
-  to every issue, human-authored or tatara-authored.
-- Treating a comment - your own, the reporter's, or any non-maintainer's - as
-  approval, or telling the thread that a comment/go-ahead unblocks the
-  pipeline when only the maintainer label-apply does.
-- Pushing code, opening a PR, or making any file edit - that is `implement`'s
-  job after handoff, never clarify's.
-- Re-crawling SCM history already present in the turn-0 prompt bundle.
+- Reporting `decision="implement"` when some live Issue your Task owns has no
+  maintainer approval comment of its own.
+- Treating a discursive comment that merely mentions approval as approval, or
+  telling the thread that it unblocks the pipeline. Only a whole-line approval
+  phrase from a verified maintainer does.
+- Polling or waiting for a human reply instead of submitting `discuss` and
+  stopping.
+- Pushing code, opening an MR, or making any file edit - that is `implement`'s
+  job, never clarify's.
+- Re-crawling forge history already present in the turn-0 bundle.

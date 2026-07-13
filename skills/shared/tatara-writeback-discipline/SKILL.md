@@ -2,362 +2,251 @@
 name: tatara-writeback-discipline
 description: >
   Step-by-step procedure for every SCM egress action a tatara agent can take
-  (comments, PR/MR opening, label management, board moves, proposals, triage
-  outcomes, review verdicts): which MCP tool to call, when, and in what order,
-  with idempotency invariants and terminal-CRD survival rules. Invoke at the
-  start of any turn that touches the SCM - comments, opening PRs, closing
-  issues, posting verdicts, or filing proposals.
+  (issue comments, MR comments and opening, proposals, outcomes): which MCP
+  tool to call, when, and what the operator does with it - including which
+  writes are synchronous vs deferred, and the hard line between what you
+  write (conversation) and what only the operator ever writes (verdicts,
+  merges, labels, status). Invoke at the start of any turn that touches the
+  SCM - comments, opening MRs, or ending the turn with an outcome.
 profiles: ["*"]
 ---
 
 # Tatara Writeback Discipline
 
-## Overview
+## What you write, and what the operator writes
 
-All SCM egress flows through the operator's writeback reconciler. The agent
-never calls the SCM API directly; it calls MCP tools that set operator status
-fields, and the operator materialises them idempotently. This means:
+| Medium | Writer |
+|---|---|
+| An issue's comment thread | YOU, via `issue_write(action="comment")` |
+| An MR's comment thread | YOU, via `mr_write(action="comment"\|"reply")` |
+| The MR itself | YOU, via `mr_write(action="open")` |
+| **The SCM review, and its inline findings** | **THE OPERATOR**, from your `submit_outcome` |
+| **The merge** | **THE OPERATOR** |
+| **Every label** | **THE OPERATOR** |
+| **An issue's approved/rejected/done status** | **THE OPERATOR** |
+| **The issue close on delivery** | **THE OPERATOR** |
+| Your Task's stage, stats and conditions | THE OPERATOR |
 
-- Calling a tool twice with the same arguments is always safe.
-- The operator may requeue and re-run any step; it guards against re-posting
-  with idempotency checks on `Status.PrURL`, `Status.PendingComments`, and the
-  `WritebackPending` condition.
-- A status write that fails (RetryOnConflict exhausted) means the step will
-  retry on the next reconcile - the SCM verb has NOT been applied yet.
-- For non-idempotent verbs (`approve`, `request_changes`): the operator clears
-  `WritebackPending` even when the subsequent persistence step fails, to avoid
-  re-posting on requeue.
+One writer per medium. You write conversation. The operator writes verdicts,
+merges, labels and status. This is not a courtesy division of labour - it is
+what makes the platform's decisions auditable, because there is exactly one
+place each one can have come from.
 
----
-
-## Step 1: Identify the task kind
-
-The correct writeback path is determined by `spec.kind`. Never invoke a tool
-for the wrong kind.
-
-| `spec.kind`      | Allowed writeback tools                                                           | Notes                                              |
-|------------------|-----------------------------------------------------------------------------------|----------------------------------------------------|
-| `implement`      | `change_summary`, `decline_implementation`, `already_done`                        | Operator opens PR via `OpenChange`; agent does not |
-| `brainstorm`     | `propose_issue`, `skip_research`, `comment_on_issue`                              | Must call one of the first two; silent finish forbidden |
-| `clarify`        | `issue_outcome`, `comment_on_issue`                                               | Operator posts comment; implement handoff swaps the label. Task-scoped `comment` is issueLifecycle-only (409 for clarify) - use `issue_outcome(action="discuss", comment=...)` instead |
-| `review`         | `review_verdict`                                                                  | Operator posts approve/request_changes/comment; approve = label + native review, never a merge |
-| `incident`       | `propose_issue`, `comment_on_issue`, `change_summary`, `decline_implementation`   | Project-scoped; never opens its own PR             |
-| `documentation`  | `change_summary` (doc-relevant) or no tool call at all (no-op finish)             | Repo-scoped (docs repo); scheduled trigger          |
-| `refine`         | `list_issues`, `list_commits`, `close_issue`, `edit_issue`, `create_issue`, `comment_on_issue` | Project-scoped; grooms existing backlog only |
-
-`brainstorm`, `incident`, `clarify`, and `refine` never push code and never
-call a tool that implies opening a PR - the operator would error-loop on
-`writeBackOpenChange` for a WorkItem with no repo target. `implement` and
-`review` are also project-scoped Tasks (Decision 3 of the locked task-kind
-design: every kind operates under one project-level umbrella Task) but DO
-push code / act on PRs - scoped to the specific repo(s) named in the Task's
-WorkItem ledger, never a repo outside it.
+You never call anything that approves, merges, requests changes on, or labels
+an MR yourself. `mr_write` has no `merge`, `approve`, or `request_changes`
+action. `issue_write` has no `status` and no `labels` parameter. There is no
+way to accidentally do the operator's job - the tool shape does not permit it.
 
 ---
 
-## Step 2: Choose the right tool
+## Step 1: What your kind can write
 
-### Posting a comment on the task's linked issue
+Every writeback tool is gated per profile (contract D.6). Never assume a
+tool you do not see in `tools/list` will appear if you retry.
 
-Use `comment`. The body goes into `Status.PendingComments` and is drained by
-the operator's lifecycle reconciler in order.
+| `spec.kind` | `submit_outcome` shape | SCM write tools you own |
+|---|---|---|
+| `implement` | `action="submitted"\|"declined"` | `mr_write` (no `issue_write`) |
+| `documentation` | same as `implement` | `mr_write` (no `issue_write`) |
+| `brainstorm` | `action="propose"\|"skip"` | none - proposals go through `submit_outcome` only |
+| `incident` | `action="file_issue"\|"false_positive"` | none - same reason |
+| `clarify` | `decision="implement"\|"close"\|"discuss"` | `issue_write` (no `mr_write`) |
+| `review` | `verdict="approve"\|"request_changes"` | `mr_write`, comment/reply only in practice - you review an existing MR, you do not open one |
+| `refine` | `folds[]`, `closes[]`, `links[]` (any subset, at least one when acting) | `issue_write` and `mr_write` (`mr_write` restricted to `action="comment"` only) |
 
-```
-comment(body="...")
-```
+Full outcome schemas live in `tatara-mcp-outcome`; full `issue_write`/
+`mr_write` schemas live in `tatara-mcp-scm`. This skill is about sequencing
+and discipline, not the payload shapes.
 
-Rules:
-- Never post a blank or whitespace-only body. The operator skips it (422 guard)
-  but the slot is consumed, so subsequent comments may be reordered.
-- Do not use `comment` to set an outcome (triage result, refusal). Use the
-  appropriate outcome tool instead.
-
-### Posting on an existing issue by repo + number
-
-Use `comment_on_issue` when you want to extend or deduplicate an issue you did
-not open in this task.
-
-```
-comment_on_issue(repo="owner/repo", number=42, body="...")
-```
-
-### Proposing a new issue (brainstorm / incident)
-
-Use `propose_issue`. The operator creates the issue under the bot identity,
-places it in the "Proposed" board column, and records `Spec.Source`.
-
-```
-propose_issue(
-  repo="owner/repo",                    # repository slug, e.g. szymonrychu/tatara-operator
-  title="...",
-  body="... <!-- tatara-authored -->",  # embed the marker
-  kind="improvement"|"bug",            # required: bug or improvement
-  systemicId="..."                      # optional, shared id for systemic cross-repo group
-)
-```
-
-Rules:
-- Always embed `<!-- tatara-authored -->` in the body. The operator appends
-  it automatically, but including it yourself makes the intent explicit.
-- The operator enforces title-level dedup (C-guard): if an open issue with the
-  same exact title exists it is adopted instead of duplicated.
-- After `propose_issue` succeeds, `Spec.Source.URL` is set. Calling it again
-  on the same task is a no-op (A-guard).
-
-### Ending brainstorm with no proposal
-
-Use `skip_research` when, after genuine investigation, there is nothing novel
-to propose this cycle.
-
-```
-skip_research(reason="...")
-```
-
-A silent finish with no `propose_issue` and no `skip_research` is forbidden;
-the operator re-prompts or parks as `refused-no-explanation`.
-
-### Recording a clarify outcome (clarify kind)
-
-Use `issue_outcome`. The operator posts the comment and transitions state.
-
-```
-issue_outcome(action="implement"|"close"|"discuss", comment="...")
-```
-
-- `implement`: operator swaps `tatara-brainstorming` for `tatara-implementation`
-  and hands the Task to `implement`. This transition requires the operator to
-  already hold a verified `ApprovedByMaintainer` record for the issue - a
-  maintainer (a login listed in the project's `MaintainerLogins` config,
-  bots excluded) applied the `tatara-approved` label directly on the issue,
-  and the operator verified the label-event actor against that list. A
-  comment never satisfies this, including from the reporter or from a
-  non-maintainer, and a non-maintainer/bot applying the label does not
-  either. If `MaintainerLogins` is unset or empty for the project, this
-  record can never be created and the issue never advances (fail-closed).
-  For systemic-group siblings, each sibling needs its own
-  `ApprovedByMaintainer` record; an unapproved or declined sibling is not
-  force-closed by the group's lead implement PR - see
-  `tatara-implement-workflow` Section 3 for the `Closes #N` / `refs #N`
-  distinction.
-- `close`: operator calls `CloseIssue`. Forbidden when `Status.PrURL != ""`
-  (unmerged change guard).
-- `discuss`: operator posts the comment and keeps the clarify pod in
-  conversation (live-polling, up to 1h wall-clock).
-- A nil or whitespace comment for `discuss` is silently dropped (blank-body guard).
-
-### Declaring implementation refusal
-
-Use `decline_implementation` when you investigated and decided the change
-SHOULD NOT be made.
-
-```
-decline_implementation(reason="...")
-```
-
-Use `already_done` when the change IS ALREADY PRESENT (another task committed
-it, the fix is already in the codebase).
-
-```
-already_done(reason="...")
-```
-
-Both: operator posts the reason as a comment, applies the `declined` label, and
-parks the task. A silent finish with no PR and neither tool called is
-forbidden. The operator re-prompts up to 2 times, then parks as
-`refused-no-explanation`.
-
-### Describing the change being opened (implement kind)
-
-Use `change_summary` to provide the PR title, body, and scopes. Call it before
-the turn ends; the operator uses it for `OpenChange`.
-
-```
-change_summary(
-  pr_title="feat(scope): imperative summary",   # strong title, no passive voice
-  pr_body="...",                                 # markdown body
-  delivered_scope="...",                         # what is in this PR
-  remaining_scope="...",                         # optional follow-up scope
-  most_problematic="..."                         # optional
-)
-```
-
-PR title derivation priority (operator, from `derivePRTitle`):
-1. `change_summary.pr_title` (when not weak per `titlecheck.Weak`).
-2. `Source.Title` (the originating issue title).
-3. First 72 characters of `Spec.Goal`.
-4. Fallback: `"tatara automated change"`.
-
-Always call `change_summary` with a non-weak title to guarantee the PR title
-is correct.
-
-### Posting a review verdict (review kind)
-
-Use `review_verdict`. The operator posts it to the PR/MR via the SCM driver.
-
-```
-review_verdict(
-  decision="approve"|"request_changes"|"comment",
-  body="...",
-  suggestions=[]  # optional inline suggestions: [{path, line, body}]
-)
-```
-
-For `request_changes`: operator posts the verdict AND inline suggestions in
-one pass. For `comment`: operator uses the PR ref (not the issue ref) so the
-note lands on the MR, not on the issue.
-
-`pr_outcome` has no live caller under this design: `selfImprove` is retired,
-and merge/close now flow through `implement`'s `already_done` /
-`decline_implementation` (conflict-resolution path) or the operator's deploy
-supervisor (the sole merge caller, gated on green CI + `review` approval).
+`brainstorm` and `incident` never push code and never open an MR - the
+operator has no repo target for a project-scoped WorkItem with no branch.
+`implement` and `review` are also project-scoped Tasks but DO push code /
+act on MRs - scoped to the specific repo(s) named in the Task's WorkItem
+ledger, never a repo outside it.
 
 ---
 
-## Step 3: Idempotency invariants
+## Step 2: Comments - synchronous vs deferred
 
-These are not style preferences - violating them causes duplicate posts or
-stuck loops.
+**Only `issue_write(action="create")` and `mr_write(action="open")` are
+synchronous** and hand back something to read (an issue number, an MR
+number/url).
 
-1. **Check `Status.PrURL` before pushing code.** If it is already set, the
-   operator has already opened a PR on a prior reconcile. Do not push to the
-   same branch again; the operator will recover the existing PR via
-   `recoverExistingPRURL` on a 422 "already exists".
+**`issue_write(action="edit"|"close"|"comment")` and
+`mr_write(action="comment"|"reply")` are DEFERRED**: the call persists the
+intent and returns; a reconciler posts it to the forge afterward. This means:
 
-2. **`WritebackPending=False` is the idempotency gate.** The operator checks
-   `task.Status.PrURL != ""` at the top of `doWriteBack`; clearing that
-   condition is safe to repeat but never skip.
+- Do not `scm_read` immediately after one of these calls expecting to see
+  what you just wrote. It has not posted yet.
+- Do not chain an `mr_write(action="reply")` to a comment you wrote earlier
+  in the *same* turn - `reply` needs an `externalId` from
+  `scm_read(kind=comments)`, and your own just-written comment does not have
+  one yet.
+- `issue_write(action="close")` REQUIRES a `comment` - every close cites its
+  reason.
 
-3. **Do not post the same comment twice.** The `PendingComments` queue is
-   drained in order. If the reconciler requeues after posting comment N-1,
-   comment N is posted next - not N-1 again. But if you call `comment` twice
-   with the same body, both are enqueued and both will be posted.
+`mr_write(action="open")` is IDEMPOTENT: call it again for the same repo and
+you get the existing MR back with `"existing": true"`, no duplicate opened.
+If your Task already merged an MR for that repo, `open` is REFUSED - you are
+about to duplicate work that already shipped.
 
-4. **RetryOnConflict wraps every status write in the operator.** You do not
-   need to retry tool calls; the operator handles CAS conflicts. If a tool
-   call returns success, the intent was recorded - even if a subsequent status
-   persistence fails, it will be retried.
-
-5. **Clear WritebackPending after, not before.** The operator always sets
-   `WritebackPending=False` after the SCM verb lands (or is determined to be
-   a no-op), not before. If your code clears it before the verb, a requeue
-   will not retry the verb.
-
----
-
-## Step 4: Label management
-
-Labels are managed exclusively by the operator via `setLifecycleLabel`. Agents
-MUST NOT call any label-setting tool directly; the operator sets the correct
-label automatically when state transitions occur.
-
-Managed labels (defaults; overridable in `ScmSpec`):
-
-| Label name               | Meaning                        | Set on transition to...          |
-|--------------------------|--------------------------------|----------------------------------|
-| `tatara-brainstorming`   | Discovery / awaiting maintainer approval | brainstorm proposal, clarify discuss arm |
-| `tatara-approved`        | Maintainer approved (issue) / review approved (PR) | On the issue: applied directly by a maintainer (per `MaintainerLogins`, bots excluded) - NOT by the operator or by clarify - and is the precondition for the clarify implement arm, not a result of it. On the PR: applied by the operator when `review` calls `decision="approve"`. |
-| `tatara-implementation`  | Implementation in progress     | clarify/review handoff to implement |
-| `tatara-declined`        | Refused / not implemented      | decline_implementation, already_done |
-| `tatara-incident`        | Incident-originated proposal   | Operator sets automatically on proposals from `incident` kind tasks |
-
-Rules for `setLifecycleLabel`:
-- Sets EXACTLY ONE managed label and removes all others, EXCEPT `tatara-approved`
-  on an issue: that is maintainer-applied, not operator-managed, and is not
-  cleared by `setLifecycleLabel`'s single-label invariant.
-- `AddLabel` failure returns an error (requeue); `RemoveLabel` failure is
-  logged but tolerated.
-- Never set labels manually via git or direct SCM API calls. Agents never
-  apply `tatara-approved` to an issue themselves - only a maintainer's
-  label-apply, verified against `MaintainerLogins`, counts.
+Never post a blank or whitespace-only body. Never post the same comment
+twice deliberately - a retried identical call is not guaranteed to dedupe on
+the forge side the way `submit_outcome` is (Step 4).
 
 ---
 
-## Step 5: Board operations
+## Step 3: Ending the turn - `submit_outcome`
 
-Board moves are fire-and-forget after `propose_issue`. The operator calls
-`AddBoardItem` then `SetBoardColumn("Proposed")` automatically. Both failures
-are non-fatal and logged; do not retry them manually.
+`submit_outcome` is the ONE terminal tool, shaped from your kind (see
+`tatara-mcp-outcome` for full schemas and the review verdict's
+whose-MR-is-it branching). What follows is what the operator does with each
+shape, so you understand what your call actually causes downstream:
+
+- **`implement`/`documentation`, `action="submitted"`**: requires you to have
+  already opened at least one MR this task owns (`mr_write(action="open")`,
+  Step 2) - `action="submitted"` with zero owned open MRs is a 400. The
+  operator records `changeSignificance` on every owned MR's status and, once
+  the mergeOrder is satisfied, merges. `mergeOrder` is optional with exactly
+  one owned repo, required otherwise.
+- **`implement`/`documentation`, `action="declined"`**: covers BOTH "I
+  decided this should not be built" and "this is already done" - there is no
+  separate already-done tool. Put which one it is in `decline_reason`. The
+  operator posts the reason as a comment and declines the issue.
+- **`brainstorm`, `action="propose"`**: the operator creates the issue(s)
+  under the bot identity from your `proposals[]`, embeds the
+  `tatara-authored` marker, and enforces title-level dedup - a proposal
+  matching an already-open issue's exact title is adopted, not duplicated.
+- **`brainstorm`, `action="skip"`**: no proposal this cycle. A silent finish
+  with no `submit_outcome` call at all is forbidden and re-prompted.
+- **`incident`, `action="file_issue"`**: same issue-creation path as
+  brainstorm's propose, scoped to the alert rule(s) that fired.
+- **`incident`, `action="false_positive"`**: no issue filed; reason recorded.
+- **`clarify`, `decision="implement"`**: your `reason` must cite WHO approved
+  and WHERE. The operator independently re-reads the thread and re-verifies
+  both identity and wording against the C.6 approval grammar - your judgment
+  about scope is trusted, your report of consent is not. This can still fail
+  the gate if the evidence does not hold up; see `tatara-mcp-outcome`.
+- **`clarify`, `decision="close"`**: the operator closes the issue. Refused
+  if the Task owns an unmerged MR - close the loose end first.
+- **`clarify`, `decision="discuss"`**: the operator posts your `reason` as a
+  comment and parks the task awaiting a human. This is not a dead end - a
+  later maintainer comment that passes the approval grammar re-triggers the
+  check and un-parks the Task on its own.
+- **`review`, `verdict="approve"|"request_changes"`**: you never post the
+  review yourself. The operator posts a single `COMMENT`-event review
+  carrying your verdict and findings (the forge blocks a bot from
+  self-approving OR self-requesting-changes on its own PR; `COMMENT` is the
+  only event the platform ever sends). What happens next depends on whose MR
+  it is: on the platform's own MR, `approve` lets the operator merge and
+  `request_changes` loops back to `implementing`; on a human's PR, BOTH
+  verdicts end at `parked(awaiting-human)` - no implement pod ever spawns
+  from a `review`-kind Task. `reviewed_shas` must cover every owned MR, not
+  just the ones with findings - a missing entry is a 400, not a silent pass.
+- **`refine`, `folds`/`closes`/`links`**: the operator executes the
+  adoption/closing/linking you described. An empty call (all three omitted)
+  is a valid no-op turn when grooming finds nothing to act on.
 
 ---
 
-## Step 6: Terminal-CRD survival
+## Step 4: Idempotency
 
-When a Task CR is garbage-collected (owner deleted), the operator stops
-reconciling it. Partial writebacks may be orphaned. To survive:
+- **`submit_outcome` is idempotent per `(task, agentKind, stage)`.** A repeat
+  of an identical outcome returns 200 with the unchanged Task. This exists
+  specifically so a TTL-stopped pod's retry does not 409 the Task into
+  failure - you do not need to guard against calling it twice with the same
+  payload.
+- **`mr_write(action="open")` is idempotent** by repo + task branch, as in
+  Step 2 - calling it again is safe and returns the existing MR.
+  `issue_write(action="create")` has no such stated guarantee; do not call it
+  twice for the same intent.
+- **Deferred writes persist intent, not a confirmed post.** A crash or pod
+  recycle between your call and the reconciler's forge post is the
+  operator's problem to retry, not yours - but it also means you cannot
+  chain off a deferred write's result in the same turn (Step 2).
+- **A pushed branch survives a pod recycle; nothing else on disk does** (see
+  `tatara-platform-contract`). If your pod is TTL-killed after you pushed but
+  before `submit_outcome`, the next pod resumes from the pushed branch and
+  can call `submit_outcome` itself.
 
-- Always call `change_summary` before pushing code. If the task is GC'd mid-
-  writeback, `Status.ChangeSummary` is already recorded.
-- Always use the atomic PR URL persist: after the first `OpenChange` succeeds,
-  the operator immediately writes `Status.PrURL` under `RetryOnConflict`
-  before processing other repos. A crash between repos does not lose the
-  primary PR.
-- Terminal conditions (`WritebackFailed`) are sticky: once `failWritebackSkip4xx`
-  sets `WritebackFailed=True`, it persists even if `WritebackPending` is
-  re-armed. This means a task that hit the 4xx-skip cap (3 attempts) will NOT
-  be retried even after a re-activation. Escalate to a human.
+---
+
+## Step 5: What you never do
+
+Labels, review verdicts on the forge, and merges are entirely operator-owned
+- see the table at the top of this file. There is no tool call that sets a
+label, posts an APPROVE/REQUEST_CHANGES review, or merges an MR, because
+none exists in your tool surface. If you find yourself looking for one, you
+are trying to do the operator's job; stop and call the outcome tool instead
+so the operator can do it.
+
+Board placement (moving a proposed issue into its board column) is likewise
+fire-and-forget on the operator's side, driven automatically from your
+`submit_outcome(action="propose"|"file_issue")` call. You take no separate
+action for it.
 
 ---
 
 ## Anti-patterns
 
-| Do NOT do this                                   | Why                                                                                  |
-|--------------------------------------------------|--------------------------------------------------------------------------------------|
-| Call `comment` with an empty or whitespace body  | Operator silently drops it; the comment slot is consumed and later comments shift    |
-| Post a comment then call `issue_outcome("close")`| The close may trigger before the comment drains; close and comment are separate paths |
-| Call `propose_issue` more than once per task     | Operator enforces A-guard (Source.URL set) and C-guard (title dedup); second call is a no-op but logs ambiguity |
-| Push code and then call `decline_implementation` | The operator will see a pushed branch in `Status.HeadBranch` and refuse to close the issue via `hasUnmergedChange` guard |
-| Call `issue_outcome("close")` when there is a `Status.PrURL` | The operator's `hasUnmergedChange` guard blocks the close; the task parks in Conversation |
-| Rely on the `<!-- tatara-authored -->` marker absence to detect human issues | The marker is appended by the operator; authored status is read via `Source.AuthorLogin` vs `BotLogin` |
-| Call `review_verdict(decision="approve")` on an unmergeable PR/MR | Approve never merges; it only applies `tatara-approved` + a native review. Mergeability must be checked first (see `tatara-review-checklist`) |
+| Do NOT do this | Why |
+|---|---|
+| `scm_read` immediately after `issue_write(edit\|close\|comment)` or `mr_write(comment\|reply)` expecting to see it | These are deferred; the reconciler has not posted yet |
+| Chain `mr_write(action="reply")` to a comment you wrote earlier in the same turn | No `externalId` exists for it yet |
+| Call `mr_write(action="open")` a second time believing it will fail | It is idempotent; it returns the existing MR with `existing: true` |
+| Call `submit_outcome(action="submitted")` before opening any MR | 400 - the Task owns no open MR to attach the outcome to |
+| Look for an `mr_write` action to approve, request changes on, or merge | Does not exist. Reviews and merges are `submit_outcome` + the operator, never a direct tool call |
+| Look for an `issue_write` `status` or `labels` parameter | Does not exist. Approval and every lifecycle label are operator-owned |
+| Post an empty or whitespace-only comment body | The forge/operator will still consume the call; nothing useful lands |
+| Use `task_note` to try to reach a human | Notes are agent/operator continuity state, never rendered to the issue or MR thread - see `tatara-headless-decisions` |
 
 ---
 
 ## Worked examples
 
-### Implement run that produces a PR
+### Implement run that produces an MR
 
 ```
-1. Investigate, write code, push branch tatara/task-<task-name>.
-2. Call change_summary(
-     pr_title="fix(tatara-operator): correct 4xx skip loop cap",
-     pr_body="Bounds the un-triageable writeback skip loop...",
-     delivered_scope="writebackSkip4xxCap = 3 constant + recordSkip4xxAttempt",
-   ).
-3. Finish the turn (no further action needed).
-   Operator: WritebackPending triggers doWriteBack -> writeBackOpenChange ->
-   OpenChange (one per repo with the branch) -> Status.PrURL written ->
-   comment "Done - opened PR/MR: https://..." on issue.
+1. Investigate, write code, push branch task/<task-name>.
+2. mr_write(action="open", repo="tatara-operator",
+     title="fix(tatara-operator): correct 4xx skip loop cap",
+     body="Bounds the un-triageable writeback skip loop...")
+   -> {"number": 295, "url": "...", "existing": false}
+3. submit_outcome(
+     action="submitted",
+     title="fix(tatara-operator): correct 4xx skip loop cap",
+     body="Bounds the un-triageable writeback skip loop...",
+     change_significance="patch")
+   -> Task's owned MR now carries significance=patch; operator proceeds
+      toward merging once mergeOrder (implicit, single repo) is satisfied.
+4. task_note(kind="handoff", body="MR #295 open, awaiting review.")
 ```
 
 ### Clarify that decides to discuss
 
 ```
 1. Read the issue. Determine: needs human input before proceeding.
-2. Call issue_outcome(
-     action="discuss",
-     comment="The scope of this change is ambiguous. Is the goal X or Y?..."
-   ).
-3. Operator: posts comment on issue, transitions task to Conversation idle.
+2. issue_write(action="comment", repo="tatara-operator", number=291,
+     body="Decision needed: is the retry limit 3 or 10? ...")
+3. submit_outcome(decision="discuss",
+     reason="Posted a question about the retry limit; task parks awaiting reply.")
+   -> Operator posts the reason too and keeps the task in Conversation.
 ```
 
 ### Brainstorm that proposes two ideas
 
 ```
-1. Research the platform. Find two genuinely novel improvements.
-2. Call propose_issue(
-     repo="szymonrychu/tatara-operator",
-     title="feat: add adaptive pool sizing based on turn latency p95",
-     body="... <!-- tatara-authored -->",
-     kind="improvement",
-   ) for the first idea.
-3. Call propose_issue(
-     repo="szymonrychu/tatara-cli",
-     title="feat: streaming tool-call progress events via SSE",
-     body="... <!-- tatara-authored -->",
-     kind="improvement",
-   ) for the second.
-4. Finish the turn.
-   Operator: WritebackPending clears as BrainstormProposed (brainstormHasProposal=true).
+1. Research the platform. Find two genuinely novel improvements, each with
+   code-graph evidence (see tatara-evidence-and-citation).
+2. submit_outcome(
+     action="propose",
+     proposals=[
+       {repo: "tatara-operator", title: "feat: adaptive pool sizing based on turn latency p95",
+        body: "... code_graph(op='stats') showed ... (internal/agent/pool.go:44)", kind: "improvement"},
+       {repo: "tatara-cli", title: "feat: streaming tool-call progress events via SSE",
+        body: "...", kind: "improvement"},
+     ])
+   -> Operator creates both issues, embeds tatara-authored, applies dedup.
 ```
 
 ### Implement that concludes the change is already present
@@ -365,22 +254,29 @@ reconciling it. Partial writebacks may be orphaned. To survive:
 ```
 1. Investigate. Read the issue. Search the codebase.
 2. Find: the fix described in the issue was already committed in 6f657d2.
-3. Call already_done(
-     reason="The null-pointer guard in agent/pod.go line 142 was added in 6f657d2 (2026-06-23). The issue's proposed fix is already in the codebase."
-   ).
-   Operator: posts comment, applies tatara-declined label, parks task.
+3. submit_outcome(
+     action="declined",
+     decline_reason="The null-pointer guard in agent/pod.go line 142 was
+       already added in 6f657d2 (2026-06-23). The issue's proposed fix is
+       already in the codebase.")
+   -> Operator posts the reason as a comment and declines the issue. No MR
+      was ever opened, so there is nothing to close.
 ```
 
-### Review that requests changes with inline suggestions
+### Review that requests changes with inline findings
 
 ```
-1. Read the PR diff.
-2. Call review_verdict(
-     decision="request_changes",
-     body="Two blocking issues found:\n1. Missing error wrap...",
-     suggestions=[
-       {path: "internal/controller/writeback.go", line: 122, body: "return fmt.Errorf(\"writeback: %w\", err)"},
-     ]
-   ).
-   Operator: calls RequestChanges + Suggest on SCM in sequence.
+1. Read the MR diff at its current head SHA.
+2. submit_outcome(
+     verdict="request_changes",
+     reviewed_shas=[{repo: "tatara-operator", number: 295, sha: "abc1234"}],
+     findings=[
+       {repo: "tatara-operator", number: 295,
+        path: "internal/controller/writeback.go", line: 122,
+        body: "Missing error wrap: return fmt.Errorf(\"writeback: %w\", err)",
+        severity: "high"},
+     ])
+   -> Operator posts a single COMMENT review carrying the verdict and the
+      finding as an inline comment. This is the platform's own MR, so the
+      Task loops back to implementing for the fix.
 ```

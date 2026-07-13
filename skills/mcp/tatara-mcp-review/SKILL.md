@@ -1,282 +1,140 @@
 ---
 name: tatara-mcp-review
 description: >
-  Drive the two MCP tools available in the review agent profile
-  (review_verdict, submit_handover): exact arg shapes, decision rules,
-  sequencing, and the per-MR semver assignment carried on approve. Use
-  whenever you are running as a kind=review task and must deliver a verdict
-  on a human-authored PR/MR.
+  The review profile's tool-surface reference: what a kind=review Task may
+  call (submit_outcome's review schema, scm_read, mr_write comment/reply,
+  the code_* tools, memory_query/describe, plus the always-on set) and what
+  it must never do (post a review, merge, or open an MR). Use whenever you
+  are running as a kind=review task and must deliver a verdict on a PR/MR.
 profiles: ["review"]
 ---
 
 # tatara-mcp-review
 
-You are in a `kind=review` task. The PR/MR head branch is already checked
-out at `/workspace/<owner>/<repo>`. Two operator tools are available:
-`review_verdict` (required, call exactly once at the end) and
-`submit_handover` (optional, call any time to park your working notes).
+You are in a `kind=review` task. The PR/MR head is checked out at
+`/workspace/<owner>/<repo>`. This page lists every tool your profile has -
+D.6 grants review 15 tools total (6 always-on + `submit_outcome` + 8 gated) - and nothing else
+is available. Full schemas live in the cited skills; this page is the
+review-specific index and workflow.
 
-Do NOT commit, push, open a PR, or call any tool not listed in this skill.
-Communicate only through `review_verdict`.
+## Tool surface (complete)
 
----
+Always-on (every profile): `task_get`, `task_context`, `task_note`,
+`project_get`, `repo_list`, `report_internal_issue`. See
+`tatara-mcp-platform`.
 
-## Tool index
+Gated to `review`:
 
-| Tool | Required args | Optional args |
-|------|--------------|--------------|
-| `review_verdict` | `decision` | `task`, `body`, `suggestions`, `semver` |
-| `submit_handover` | `handover` | `task` |
+| Tool | Use |
+|------|-----|
+| `submit_outcome` | Required, exactly once. Your review verdict. Schema below; full detail in `tatara-mcp-outcome`. |
+| `scm_read` | Read issues, MR, comments, commits, CI. See `tatara-mcp-scm`. |
+| `mr_write` | `action=comment` or `action=reply` ONLY - answering a human's inline thread. No `open`. See below and `tatara-mcp-scm`. |
+| `code_search`, `code_context`, `code_graph`, `code_explain` | Full code-graph surface, all 4 tools. See `tatara-mcp-code-graph`. |
+| `memory_query`, `memory_describe` | Read-only recall. See `tatara-mcp-memory`. |
 
-`task` defaults to the `TATARA_TASK` env var in both tools. Omit it unless
-you are explicitly overriding which task you are filing against.
+**NOT available to `review`:** `task_list`, `issue_write`, `mr_write(action=open)`,
+`memory_write`, `memory_entity`, `memory_edges`. Do not call them; they are
+not registered for this profile and will fail.
 
----
+## The key behaviour: you never post, you never merge
+
+You form a verdict. The OPERATOR posts it and the OPERATOR merges. You have
+no `mr_write(action="open"|"merge"|"approve"|"request_changes")` - those
+actions do not exist on `mr_write` at all (D.2), and there is no merge tool
+anywhere in your profile.
+
+What the operator does with your verdict depends on whose PR you reviewed
+(contract C.5, F.3):
+
+- **The platform's own MR** (an implement Task cycling through `reviewing`):
+  the operator posts a `COMMENT` review carrying your verdict, then merges on
+  `approve` - **the merge is the approval of record**, not the review post.
+  `request_changes` loops the Task back to `implementing`.
+- **A human-authored PR** (you are a `review`-kind Task): the operator posts
+  the `COMMENT` review either way, but **BOTH `approve` and `request_changes`
+  end at `parked(awaiting-human)`.** A `review`-kind Task never spawns an
+  implement pod, by any path - the human fixes their own PR and the human
+  merges it. Write your findings for the person who opened the PR, not for a
+  bot that will act on them. If they push and comment, you may be re-invoked
+  on the new head, up to `maxHumanReviewRounds` (5).
+
+`GitHub` 422s a self-approve and a self-request-changes; only `COMMENT` is
+ever sent, on every verdict, on every PR. This is why there is no `approve`
+tool for you to call - the "approval" your verdict produces is a stage
+transition and, on the platform's own MRs, a merge - never a forge API call
+you make yourself.
 
 ## Workflow
 
-Follow these steps in order.
-
 ### Step 1 - Read and test the change
 
-The PR head is checked out. Do all of this before forming a verdict:
-
-1. Read the diff: `git -C /workspace/<owner>/<repo> diff main...HEAD`
-2. Inspect changed files.
+1. Read the diff: `git -C /workspace/<owner>/<repo> diff main...HEAD`.
+2. Inspect changed files. Use `code_context`/`code_graph`/`code_explain`
+   (`tatara-mcp-code-graph`) to trace impact before forming a verdict.
 3. Build and run tests/linters if the repo supports it. Note what you ran
    and the exit code.
-4. Check for correctness, security, and quality issues.
+4. Check CI state with `scm_read(kind="ci", repo=..., number=...)` -
+   `tatara-mcp-scm`. Do not approve an unmergeable or red-CI change.
+5. Record the exact head SHA you checked out for every MR your Task owns -
+   you need one entry per MR in `reviewed_shas` below.
 
 Nothing you write to disk is kept. The workspace is transient.
 
-### Step 2 - (Optional) Submit a handover before finishing
+### Step 2 - Call submit_outcome (required, exactly once)
 
-If your context is growing large, or if you want the next agent to have
-your investigation notes regardless of verdict, call `submit_handover`
-before the verdict:
+The review schema (full detail in `tatara-mcp-outcome`):
 
 ```
-submit_handover(
-  handover="<working notes, evidence gathered, tests run, findings>"
+submit_outcome(
+  verdict="approve"|"request_changes",
+  reviewed_shas=[{repo, number, sha}, ...],   # required, one per owned MR
+  findings=[{repo, number, path, line, body, severity}, ...],  # required (>=1) when request_changes
+  change_significance="major"|"minor"|"patch"  # optional, may only RAISE what the implementer declared
 )
 ```
 
-- `handover` is a plain string. Max 16 KB; the server truncates at a UTF-8
-  rune boundary silently if you exceed it. Keep it under 16 000 bytes.
-- Call at most once per task. A second call overwrites the first.
-- This is never required. Skip it if context is light.
+- `reviewed_shas` coverage is TOTAL - one entry per every MR your Task owns,
+  not just the ones with findings. The operator re-reads the live head and
+  REFUSES your verdict with a 409 if any MR moved since you checked it out;
+  re-read at the new head and resubmit.
+- `request_changes` needs at least one finding, or the human/implementer has
+  nothing to act on.
+- There is no `comment` verdict. Form a position: `approve` or
+  `request_changes`.
 
-### Step 3 - Call review_verdict (required)
+### Step 3 - (Optional) task_note before you finish
 
-Call exactly once before the session ends.
+If your context is growing large, or you want the next reviewer of this
+same PR (a human-PR re-invoke) to have your notes, write
+`task_note(kind="handoff", body=...)` before `submit_outcome`. See
+`tatara-mcp-platform`.
 
-```
-review_verdict(
-  decision="<approve | request_changes | comment>",
-  body="<narrative summary of findings>",
-  suggestions=[...],  # only when decision=request_changes
-  semver=[...]        # only when decision=approve; see below
-)
-```
+## Replying to a human's inline comment
 
-The operator's writeback controller reads `Status.ReviewVerdict` and posts
-it to SCM. After posting, the task transitions to "Reviewed" and the pod
-terminates. A missing verdict leaves the task stuck.
-
----
-
-## Decision table
-
-| Situation | decision | body | suggestions |
-|-----------|----------|------|-------------|
-| Change is correct, tests pass, no issues | `approve` | Summary of what you verified | omit |
-| Change has blocking issues that must be fixed before merge | `request_changes` | Explanation of each issue | include (see below) |
-| You have questions or non-blocking notes but no position to approve/reject | `comment` | Your questions or notes | omit |
-| PR/MR is unmergeable (conflict or failed required CI) | `request_changes` | State the mergeability problem plainly; this routes the Task back to `implement` | omit unless you also have code findings |
-
-Use `comment` sparingly. If you can form a clear position, use `approve`
-or `request_changes` instead.
-
-`approve` does not merge anything - it applies the `tatara-approved` label
-and posts a native approval; the operator's deploy supervisor is the sole
-merge caller, gated on green CI AND the approval. Never call `approve` on an
-unmergeable change even if the code itself looks correct; the mergeability
-check comes first.
-
----
-
-## Inline suggestions (request_changes only)
-
-`suggestions` is only sent to SCM when `decision=request_changes`. For
-`approve` and `comment`, any `suggestions` array you provide is silently
-ignored by the writeback controller.
-
-Each item in `suggestions`:
-
-```json
-{
-  "path": "internal/foo/bar.go",
-  "line": 42,
-  "body": "Consider wrapping the error: fmt.Errorf(\"context: %w\", err)"
-}
-```
-
-| Field | Type | Constraint |
-|-------|------|------------|
-| `path` | string | Repository-root-relative path to the file |
-| `line` | integer | Line number in the file (>= 1) |
-| `body` | string | The suggestion text; shown as a review comment |
-
-All three fields are required on every suggestion object. Omit the array
-entirely if you have no inline suggestions.
-
----
-
-## Semver assignment (approve only)
-
-`semver` is only sent to SCM when `decision=approve`. For `request_changes`
-and `comment`, any `semver` array you provide is silently ignored by the
-writeback controller - nothing merges on those decisions, so there is
-nothing to tag.
-
-When you approve, assign a release level to EVERY MR in the stream, not
-just the one you built/tested - each repo touched by this stream has its
-own PR/MR, and each one gets its own entry. This includes
-human/maintainer-authored MRs: review is the only point in the pipeline
-that ever stamps a release level on a human PR, since humans never call
-`change_summary`. Skip a human MR here and it merges with no release label
-- push-CD then has nothing to cut a tag from.
-
-Judge the level from each MR's diff:
-
-| Diff shape | `level` |
-|---|---|
-| Breaking change | `major` |
-| Backward-compatible feature | `minor` |
-| Fix, refactor, docs, chore, other | `patch` |
-
-Each item in `semver`:
-
-```json
-{
-  "repo": "acme/api-service",
-  "number": 142,
-  "level": "minor"
-}
-```
-
-| Field | Type | Constraint |
-|-------|------|------------|
-| `repo` | string | `owner/repo` slug of the MR's repo |
-| `number` | integer | PR/MR number in that repo |
-| `level` | string | one of `major`, `minor`, `patch` |
-
-All three fields are required on every `semver` item. If a member MR
-already carries a `semver:*` label (visible in the turn-0 bundle or via
-`task_get`), assign your best judgment anyway - the operator keeps an
-existing human-set label over your assignment, so there is no harm in
-always emitting one; it only fills the gap when the label is missing.
-
----
-
-## Worked examples
-
-### Approve a single human PR (one repo, one semver entry)
-
-The whole stream is one repo, one MR - `semver` still carries one entry for
-the source PR, human-authored or not.
-
-```
-review_verdict(
-  decision="approve",
-  body="Reviewed main.go and pkg/handler.go. Tests pass (go test ./... exit 0). Change is correct; error is wrapped and the nil check is safe.",
-  semver=[
-    {
-      "repo": "acme/api-service",
-      "number": 142,
-      "level": "patch"
-    }
-  ]
-)
-```
-
-### Approve a multi-repo umbrella (one entry per member PR)
-
-A stream spanning several repos gets one `semver` entry per member MR, each
-judged independently from its own diff - here the API repo shipped a
-backward-compatible new endpoint (`minor`) while the docs repo only updated
-prose (`patch`), even though both belong to the same approved stream.
-
-```
-review_verdict(
-  decision="approve",
-  body="All three member MRs build, test, and lint clean. api-service adds a new endpoint (backward compatible); docs and helm-chart are follow-on updates.",
-  semver=[
-    {
-      "repo": "acme/api-service",
-      "number": 142,
-      "level": "minor"
-    },
-    {
-      "repo": "acme/docs",
-      "number": 58,
-      "level": "patch"
-    },
-    {
-      "repo": "acme/helm-chart",
-      "number": 9,
-      "level": "patch"
-    }
-  ]
-)
-```
-
-### Request changes with inline suggestions
-
-```
-review_verdict(
-  decision="request_changes",
-  body="Two issues: unwrapped error in handler.go:42 and missing bounds check in parser.go:17.",
-  suggestions=[
-    {
-      "path": "pkg/handler/handler.go",
-      "line": 42,
-      "body": "Wrap the error: return fmt.Errorf(\"handle request: %w\", err)"
-    },
-    {
-      "path": "pkg/parser/parser.go",
-      "line": 17,
-      "body": "Add bounds check before indexing: if i >= len(tokens) { return nil, ErrShortInput }"
-    }
-  ]
-)
-```
-
-### Comment (questions only)
-
-```
-review_verdict(
-  decision="comment",
-  body="Why is the retry count hardcoded to 3? Should this come from config? Not blocking, but worth clarifying before merge."
-)
-```
-
----
+Use `mr_write(action="reply", repo, number, in_reply_to, body)` -
+`in_reply_to` is the `externalId` from `scm_read(kind="comments")`. This is
+the only write action review has besides a top-level `mr_write(action="comment")`.
+Full semantics (deferred posting, no `open`) in `tatara-mcp-scm`.
 
 ## Anti-patterns
 
-- Do NOT call `review_verdict` more than once. The second call overwrites
-  the first; the first SCM post may already have been made.
-- Do NOT include `suggestions` when `decision=approve` or `decision=comment`.
-  The writeback controller only calls `Suggest()` on `request_changes`.
-- Do NOT include `semver` on `request_changes` or `comment` - it is silently
-  ignored. Do NOT omit it on `approve` for a human MR just because a human
-  didn't call `change_summary` - your judgment is the only stamp it gets.
+- Do NOT call `submit_outcome` more than once. The operator's writeback acts
+  on the accepted call; a second call is not a retraction.
+- Do NOT omit `reviewed_shas`, or omit an entry for any owned MR. A missing
+  entry is a 400, not a silent skip.
+- Do NOT call `submit_outcome(verdict="request_changes")` with an empty
+  `findings` array.
+- Do NOT call `mr_write(action="open")`. Your profile does not have it -
+  opening MRs is `implement`'s job.
+- Do NOT call `issue_write`, `memory_write`, `memory_entity`, `memory_edges`,
+  or `task_list`. None are registered for `review`.
 - Do NOT commit or push changes. The workspace is read-only for review; no
   changes are kept.
-- Do NOT call `pr_outcome`, `issue_outcome`, `comment`, `comment_on_issue`,
-  or any other operator tool. The review profile only exposes `task_update`,
-  `subtask_list`, `review_verdict`, and `submit_handover`.
-- Do NOT finish without calling `review_verdict`. A silent exit leaves the
-  task in WritebackPending forever.
-- Do NOT set `line=0`. The `Suggestion.Line` field has a minimum of 1.
+- Do NOT expect a merge, an approve, or a request-changes event to land on
+  the forge. The operator sends `COMMENT` only, ever, on every verdict.
+- Do NOT treat `approve` on a human PR as a green light to keep working the
+  Task. It parks at `awaiting-human`, same as `request_changes` on a human
+  PR. There is no fix-up round for you to drive.
+- Do NOT finish without calling `submit_outcome`. A silent exit leaves the
+  Task parked at `no-outcome`.

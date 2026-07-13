@@ -3,16 +3,41 @@
 
 Mirrors the wrapper's install logic (a skill installs for profile P when its
 `profiles:` list contains P or "*", and absent/empty is treated as "*"). This
-guard locks each gated profile to its exact set of explicitly-tagged skills so
-an accidental over-tag (or a dropped tag) fails CI.
+guard locks EVERY gated profile (all seven: brainstorm, incident, clarify,
+implement, review, refine, documentation) to its exact set of
+explicitly-tagged skills, so an accidental over-tag or a dropped tag fails CI.
+`["*"]` skills are excluded from every set by definition (see the wildcard
+note below) - they are not a gap in this guard, they install everywhere and
+need no per-profile lock.
 
-The refine groomer is deliberately minimal: it must receive ONLY the dup/keep
-judgment rubric and the SCM close/edit-issue surface, never the dev/PR/research
-skills. Locking the refine set here is the load-bearing guard for that intent.
+Each locked set protects a specific profile's tool-surface boundary
+(contract D.6):
 
-The clarify profile is similarly locked: it is the live-polling issue-
-conversation kind and must receive exactly its conversation/handoff/wait
-toolkit, never the review or brainstorm-proposal skills.
+- `brainstorm`: the five brainstorming/research skills plus the code-graph
+  and SCM reference skills. Must never pick up issue_write/mr_write-heavy
+  skills - brainstorm files issues through submit_outcome, not issue_write.
+- `incident`: the two incident skills plus code-graph, SCM, and pipeline-
+  waiting references. Must never pick up brainstorm-proposal or refine
+  skills.
+- `clarify`: the live-polling issue-conversation kind. Must receive exactly
+  its conversation/triage/research-followup/pipeline-wait/SCM/code-graph
+  toolkit, never the review or brainstorm-proposal skills. `mr_write` and
+  `memory_write`/`memory_entity`/`memory_edges` heavy skills are out of
+  scope for this profile (D.6).
+- `implement`: the two implement skills plus code-graph, SCM, and pipeline-
+  waiting references. Must never pick up `task_list`-broad-context skills
+  (D.6: implement has no `task_list`).
+- `review`: the review-checklist and mcp-review skills plus code-graph, SCM,
+  and pipeline-waiting references. `mr_write` here is comment/reply-only
+  (never approve/merge) - see `validate_no_merge_instruction` in
+  `validate_skills.py` for the skill-body-level enforcement of that.
+- `refine`: deliberately minimal. It must receive ONLY the dup/keep judgment
+  rubric, the backlog-groomer skill, and the SCM reference (whose
+  `mr_write` for refine is comment-only) - never the dev/PR/research skills
+  and never `code_*` (D.6: code tools are denied to refine, a backlog
+  groomer reads issues, not code).
+- `documentation`: the documentation-workflow skill plus code-graph and SCM
+  references. Must never pick up incident/brainstorm-only skills.
 """
 
 import sys
@@ -21,23 +46,57 @@ import pathlib
 import yaml
 
 # Profile -> exact set of skill names that must EXPLICITLY tag the profile
-# (wildcard "*" skills are excluded; they install everywhere by definition).
+# (wildcard "*" skills are excluded; they install everywhere by definition,
+# and the dict-builder below skips every `p == "*"` entry - a `["*"]` skill,
+# e.g. `handoff` or `tatara-mcp-outcome`, can NEVER populate any set here).
 EXPECTED_PROFILE_SKILLS = {
-    "refine": {
-        "tatara-triage-judgment",
-        "tatara-mcp-scm-lifecycle",
-        "handoff",
-        "tatara-backlog-groomer",
+    "brainstorm": {
+        "tatara-brainstorm-guardrails",
+        "tatara-code-quality-proposal",
+        "tatara-council-brainstorm",
+        "tatara-deep-architectural-research",
+        "tatara-deep-research",
+        "tatara-mcp-code-graph",
+        "tatara-mcp-scm",
+    },
+    "incident": {
+        "tatara-incident-investigation",
+        "tatara-incident-sre",
+        "tatara-mcp-code-graph",
+        "tatara-mcp-scm",
+        "tatara-pipeline-waiting",
     },
     "clarify": {
         "tatara-clarify-conversation",
         "tatara-triage-judgment",
         "tatara-research-followup",
-        "tatara-mcp-scm-lifecycle",
-        "handoff",
-        "tatara-mcp-chat",
+        "tatara-mcp-scm",
         "tatara-pipeline-waiting",
         "tatara-mcp-code-graph",
+    },
+    "implement": {
+        "tatara-implement-conflict-resolution",
+        "tatara-implement-workflow",
+        "tatara-mcp-code-graph",
+        "tatara-mcp-scm",
+        "tatara-pipeline-waiting",
+    },
+    "review": {
+        "tatara-mcp-code-graph",
+        "tatara-mcp-review",
+        "tatara-mcp-scm",
+        "tatara-pipeline-waiting",
+        "tatara-review-checklist",
+    },
+    "refine": {
+        "tatara-triage-judgment",
+        "tatara-mcp-scm",
+        "tatara-backlog-groomer",
+    },
+    "documentation": {
+        "tatara-documentation-workflow",
+        "tatara-mcp-code-graph",
+        "tatara-mcp-scm",
     },
 }
 

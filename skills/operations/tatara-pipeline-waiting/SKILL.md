@@ -2,10 +2,10 @@
 name: tatara-pipeline-waiting
 description: >
   Use whenever a tatara turn must WAIT for a CI/CD pipeline - a component CI
-  build after a merge, a tatara-helmfile diff/apply run, or any `gh run` /
-  `gh pr checks`. Teaches the heartbeat-poll loop that survives the turn
-  inactivity timeout, how to tell an infra flap (re-run) from a real failure
-  (fix), and when to stop waiting. Read before watching any pipeline.
+  build after a merge, a tatara-helmfile diff/apply run, or any forge CI check
+  read via scm_read(kind=ci). Teaches the heartbeat-poll loop that survives the
+  turn inactivity timeout, how to tell an infra flap (retrigger) from a real
+  failure (fix), and when to stop waiting. Read before polling any pipeline.
 profiles: ["implement", "review", "incident", "clarify"]
 ---
 
@@ -22,103 +22,152 @@ or wastes it chasing a flap.
 every chunk of agent transcript output, and fails the turn only after the
 window elapses with NO activity.
 
-While a single bash tool call is BLOCKING, you emit zero transcript activity.
-So `gh run watch <id>` left to block for 20 minutes looks completely idle to the
-wrapper for those 20 minutes. One long enough blocking watch (or a bare
-`sleep 1800`) trips the inactivity timer and your turn is failed terminally
-(reason `TurnTimeout`, pod deleted, task Failed - not retried).
+So a single blocking call - a `sleep 1800`, a 20-minute `wait`, anything that
+does not print - looks completely IDLE to the wrapper. It cannot see the
+difference between "waiting on CI" and "hung". One long enough blocking call
+trips the inactivity timer and your turn is failed TERMINALLY (reason
+`TurnTimeout`, pod deleted, Task failed - not retried).
 
 **Therefore: never wait in one long blocking call. Poll in short cycles, and
-emit a heartbeat line each cycle.** Each returned poll + your next line is fresh
-activity that resets the timer, so you can wait through a pipeline of ANY length.
+print a heartbeat line each cycle.** Each returned poll plus your next line is
+fresh activity that resets the timer, so you can wait through a pipeline of ANY
+length.
 
-## The wait loop (use this)
+## The poll loop
 
-```bash
-RUN=<run-id>           # the run to wait on (see "pick the run" below)
-REPO=szymonrychu/<component>
-for i in $(seq 1 60); do            # ~60 cycles * 45s = up to 45 min
-  read -r ST CC < <(gh run view "$RUN" -R "$REPO" --json status,conclusion \
-                    -q '.status+" "+(.conclusion//"-")')
-  echo "[wait $i] $RUN $ST/$CC $(date -u +%H:%M:%S)"   # heartbeat -> resets timer
-  [ "$ST" = "completed" ] && break
-  sleep 45
-done
-echo "FINAL $RUN $ST/$CC"
-```
+Poll your own MR's CI state, never the repo's full run history and never a
+blocking watch:
 
-- Run this as ONE bash call per cycle is fine too, but the in-loop `echo`
-  heartbeat is what matters: keep output flowing. Do NOT replace the loop with a
-  bare `gh run watch` left to block silently, and never `sleep` more than ~60s
-  without printing.
-- Poll cadence: 30-60s. Tighter than ~15s just spams; slower than ~90s risks a
-  silent gap. Match the wait to the job: component build/image 15-22 min,
-  wrapper build 3-8 min, helmfile diff ~2 min, helmfile apply ~4 min.
-- Idle polling costs ZERO model tokens (no LLM call happens inside the bash
-  wait), so a long wait does not burn the token budget. It DOES hold a task
-  lane, so do not wait on work you could have batched.
+    while true:
+        ci = scm_read(kind="ci", repo="<repo>", number=<mr>)
 
-## Pick the run
+        print("heartbeat: ci=" + ci.status + " sha=" + ci.headSHA)   # <- this is what keeps your turn alive
 
-The run you want is the one for YOUR commit, triggered by the merge:
+        if ci.status in ("green", "red"):
+            break
+        if ci.status == "none" and elapsed > 3 minutes:
+            break        # no pipeline registered; see below
 
-```bash
-gh run list -R szymonrychu/<repo> --branch main -L 5 \
-  --json databaseId,headSha,event,status \
-  -q '.[]|select(.headSha[0:7]=="<merge-sha>" and .event=="push")|.databaseId'
-```
+        sleep 30
 
-Watch the PR checks before merge with the same loop over
-`gh pr checks <num> -R <repo>` (jobs flip pass/fail); watch the post-merge
-`push` run for the image/chart publish.
+`scm_read(kind="ci")` is a POINT READ. It never blocks. The operator paces it
+to one real forge fetch per 20 seconds per PR - poll faster than that and you
+get the last result back with `"cached": true`, which costs the platform
+nothing but also tells you nothing new. **30 seconds is the right interval.**
+It is above the pacing window, and it is far below any plausible inactivity
+timeout.
+
+`status` is one of `none`, `pending`, `running`, `green`, `red`.
+
+`checks[]` carries each check's name, status, conclusion and url. **For a
+check that FAILED, and only for one that failed, it also carries `logTail`:
+the last 4000 bytes of that job's log.** A green run's logs are never
+fetched. You do not need to go and get them; you cannot, and you do not have
+to.
+
+- The `print(...)` heartbeat each cycle is what matters, not the exact shape
+  of the loop: keep output flowing every cycle. Never replace the loop with
+  one long blocking wait and no output in between.
+- Poll cadence: 30s. Tighter just spams the pacing cache and comes back
+  `"cached": true`; much slower risks a wider silent gap between heartbeats.
+  Match the wait to the job: component build/image 15-22 min, wrapper build
+  3-8 min, helmfile diff ~2 min, helmfile apply ~4 min.
+- Idle polling costs ZERO model tokens (no LLM call happens inside the wait),
+  so a long wait does not burn the token budget. It DOES hold a task lane, so
+  do not wait on work you could have batched.
+
+## There is no separate "pick the run" step
+
+`scm_read(kind="ci", repo, number=<mr>)` always resolves to the CURRENT head
+of that MR - there is no run-id lookup and no separate call for pre-merge PR
+checks versus the post-merge publish run. Poll the same call before merge
+(the PR's checks flip pass/fail) and after merge (the push-triggered publish
+run); the tool tracks which SHA is current so you never have to hunt a run
+list for it.
 
 ## Flap vs real failure - decide before reacting
 
-A failed run is often INFRA, not your code. Re-run infra flaps; only fix real
-failures. Read the failed job log (`gh run view <id> -R <repo> --log-failed`)
-and classify:
+A failed run is often INFRA, not your code. Only fix real failures - never
+"fix" an infra flap by touching code. Read the failed check's `logTail` (it
+is already in the `scm_read(kind="ci")` response above - nothing more to
+fetch) and classify:
 
-**Infra flap -> `gh run rerun <id> -R <repo> --failed` (do NOT touch code):**
+| Old CLI-shaped idea | Now |
+|---|---|
+| list the repo's recent runs and filter by your commit's SHA | `scm_read(kind="ci", repo="<repo>", number=<mr>)` - you are watching YOUR MR, not the repo's run list |
+| list a PR's status checks | the `checks[]` array of the same response |
+| view a failed run's log | the `logTail` field of the failed check |
+| rerun a failed job | **NO EQUIVALENT. You cannot rerun a job - see below.** |
+
+**Infra flap (retrigger, do NOT touch code - see "You cannot rerun a job"):**
 - `Temporary failure in name resolution` / DNS / pip or npm or registry
   `Failed to establish a new connection` (egress flap).
-- `502 Bad Gateway`, `503`, connection reset talking to GitHub or a registry.
+- `502 Bad Gateway`, `503`, connection reset talking to the forge or a
+  registry.
 - `The operation was canceled` with a uniform ~18 min runtime across jobs =
   control-plane node eviction of the pinned CI runner (not a test failure).
-- `dial tcp buildkitd:1234 i/o timeout` = stale kube-proxy route; the build host
-  self-heals or a re-run lands on a good route.
-- ARC runner died on job pickup / `_work` EACCES = runner infra, re-run.
+- `dial tcp buildkitd:1234 i/o timeout` = stale kube-proxy route; a fresh run
+  self-heals or lands on a good route.
+- ARC runner died on job pickup / `_work` EACCES = runner infra, retrigger.
 
-**Real failure -> fix the code, then push again (re-run will NOT help):**
+**Real failure -> fix the code, then push again (retriggering will NOT
+help):**
 - compile error, `go vet`, golangci-lint finding, a failing test assertion,
   `helm template` / chart-validate error, a genuine secret-scan hit.
 
-Cap re-runs at 2 for the same run. If an infra flap persists past 2 re-runs,
-stop and report it (it is a platform incident, not your task) rather than
-looping.
+## You cannot rerun a job
+
+There is no rerun tool. If the failure is a genuine infra flap - a runner
+that died, a registry timeout, a network blip, with the signatures above -
+there are two options, and which ones are open to you depends on your
+profile:
+
+**implement / review only** - you hold `mr_write` and a git remote to push
+to. Push an empty commit to retrigger the pipeline:
+`git commit --allow-empty -m "chore: retrigger ci" && git push`
+
+**incident / clarify - always this one, never the push above.** These
+profiles are read/investigate-only (see `tatara-incident-investigation`
+HARD RAIL: no pushes) with no `mr_write` and no forge write credential.
+If you are running as incident or clarify and you hit an infra flap: say so
+in your outcome / issue body and let a human (or the implement/review pod
+that later owns this failure) push the retrigger. Never construct or run a
+`git push` for this.
+
+Both profiles: do NOT "fix" an infra flap by changing code. That is how a
+green pipeline gets a spurious commit in it and how a real bug gets buried
+under a workaround.
+
+Cap retrigger attempts at 2 for the same failure (implement/review only). If
+an infra flap persists past 2 retriggers, stop and report it (it is a
+platform incident, not your task) rather than looping.
 
 ## Publish + partial-publish awareness
 
-- A merge to a component `main` triggers the publish run. tatara-operator ships
-  TWO charts (tatara-operator + tatara-project) plus its image; its `chart` job
-  loops `charts/*/` and pushes each. Job `success` = all artifacts published; a
-  green `image` + green `chart` job means the helmfile bump will find them.
+- A merge to a component `main` triggers the publish run. tatara-operator
+  ships TWO charts (tatara-operator + tatara-project) plus its image; its
+  `chart` job loops `charts/*/` and pushes each. Job `success` = all
+  artifacts published; a green `image` + green `chart` job means the
+  helmfile bump will find them.
 - Do not bump a tatara-helmfile pin until the publish run is green, or
   `helmfile apply` fails chart-not-found and blocks every deploy.
 
 ## When to stop waiting
 
-- Pipeline `completed/success` -> proceed.
-- `completed/failure` -> classify (flap vs real) and act per above.
-- Still `in_progress` after the loop budget (~45 min) AND the job logs show no
-  progress -> the pipeline is genuinely stuck, not slow. Stop polling, report it
-  (incident), do not silently wait forever.
+- Pipeline `status="green"` -> proceed.
+- `status="red"` -> classify (flap vs real) and act per above.
+- Still `pending`/`running` after the loop budget (~45 min) AND the checks
+  show no progress -> the pipeline is genuinely stuck, not slow. Stop
+  polling, report it (incident), do not silently wait forever.
 
 ## Red flags - STOP
 
-- A bare `gh run watch <id>` or `gh pr checks --watch` left to block with no
-  heartbeat -> swap to the poll loop; the silent block can trip the inactivity
-  timeout.
-- `sleep` longer than ~60s without an echo -> shorten it; emit a heartbeat.
-- Re-running a run that failed on a real compile/test error -> fix the code; a
-  re-run repeats the failure and wastes ~20 min.
+- Any blocking call with no output - a bare `sleep 300`, a `wait` on a
+  background job, a poll loop that prints nothing -> swap to the heartbeat
+  poll loop; the silent block can trip the inactivity timeout.
+- `sleep` longer than ~60s without a print in between -> shorten it; emit a
+  heartbeat.
+- Retriggering a pipeline for a failure that is a real compile/test error ->
+  fix the code first; retriggering just repeats the failure and wastes ~20
+  min.
 - Bumping a helmfile pin before its publish run is green -> apply will fail.

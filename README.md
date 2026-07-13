@@ -48,7 +48,7 @@ skills/
   shared/             # superpowers-derived process skills, always relevant
   brainstorming/      # tatara brainstorm kind skills + guardrails
   clarify/            # tatara clarify kind conversation harness + judgment
-  investigation/      # tatara incident + refine kind skills (SRE workflow, evidence judgment, backlog groomer, research follow-up)
+  investigation/      # tatara incident kind SRE workflow + evidence judgment, refine kind backlog groomer, clarify kind research follow-up
   review/             # code review discipline skills
   implement/          # implementation workflow skills
   mcp/                # MCP tool discipline and writeback skills
@@ -62,6 +62,7 @@ docs/
     lint.yml          # SKILL.md frontmatter + JSON manifest validation
   scripts/
     validate_skills.py
+    validate_profiles.py
 ```
 
 ## Typed subagents (`.claude/agents/`)
@@ -80,7 +81,11 @@ context lean.
 
 ## Skill inventory
 
-### skills/shared/ (superpowers-derived, 16 skills)
+**42 skills** on disk (43 `SKILL.md` files under `skills/`; `template/SKILL.md`
+is the copy-me starter, has no `profiles:`, and does not count). Counted with
+`find skills -name SKILL.md | sed 's|skills/\([^/]*\)/.*|\1|' | sort | uniq -c`.
+
+### skills/shared/ (superpowers-derived + tatara-native process skills, 20 skills)
 
 | Skill | Type |
 |---|---|
@@ -100,14 +105,20 @@ context lean.
 | executing-plans | task |
 | handoff | task |
 | tatara-mise-tooling | task |
+| tatara-evidence-and-citation | reference |
+| tatara-headless-decisions | task |
+| tatara-platform-contract | reference |
+| tatara-writeback-discipline | task |
 
-### skills/brainstorming/ (tatara brainstorm kind, 3 skills)
+### skills/brainstorming/ (tatara brainstorm kind, 5 skills)
 
 | Skill | Type |
 |---|---|
+| tatara-council-brainstorm | task |
 | tatara-deep-research | task |
 | tatara-deep-architectural-research | task |
 | tatara-brainstorm-guardrails | reference |
+| tatara-code-quality-proposal | reference |
 
 ### skills/clarify/ (tatara clarify kind, 2 skills)
 
@@ -116,14 +127,14 @@ context lean.
 | tatara-clarify-conversation | task |
 | tatara-triage-judgment | reference |
 
-### skills/investigation/ (tatara incident + refine kinds, 4 skills)
+### skills/investigation/ (tatara incident, refine, and clarify kinds, 4 skills)
 
 | Skill | Type |
 |---|---|
 | tatara-incident-sre | task |
 | tatara-incident-investigation | reference |
 | tatara-backlog-groomer | task |
-| tatara-research-followup (brainstorm/incident/clarify) | task |
+| tatara-research-followup | task |
 
 ### skills/implement/ (tatara implement kind, 2 skills)
 
@@ -131,6 +142,23 @@ context lean.
 |---|---|
 | tatara-implement-workflow | task |
 | tatara-implement-conflict-resolution | task |
+
+### skills/mcp/ (the tool reference, 6 skills)
+
+| Skill | Type |
+|---|---|
+| tatara-mcp-platform | reference |
+| tatara-mcp-outcome | reference |
+| tatara-mcp-scm | reference |
+| tatara-mcp-code-graph | reference |
+| tatara-mcp-memory | reference |
+| tatara-mcp-review | reference |
+
+### skills/review/ (tatara review kind, 1 skill)
+
+| Skill | Type |
+|---|---|
+| tatara-review-checklist | task |
 
 ### skills/operations/ (shared pipeline-waiting mechanic, 1 skill)
 

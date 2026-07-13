@@ -1,6 +1,6 @@
 ---
 name: tatara-incident-investigation
-description: Use on a tatara incident task (kind=incident, fired by a Grafana alert) to gather read-only evidence from Grafana, form a diagnosis, and file exactly one well-evidenced issue via propose_issue - or declare a false positive and stop.
+description: Use on a tatara incident task (kind=incident, fired by a Grafana alert) to gather read-only evidence from Grafana, form a diagnosis, and file exactly one well-evidenced issue via submit_outcome(action=file_issue) - or declare a false positive with submit_outcome(action=false_positive) and stop.
 profiles: ["incident"]
 ---
 
@@ -16,37 +16,57 @@ when the evidence demands, but note why.
 
 You are running as an incident task agent. The operator injected an alert
 context block (group key, status, labels, annotations, generatorURL,
-externalURL) as your turn-0 goal. Your job: investigate live via the
+externalURL) as your assignment. Your job: investigate live via the
 `grafana` MCP server (read-only), form a diagnosis, and hand one
 evidence-backed issue to the team. Nothing else.
 
 Tool surface available in the incident profile:
+
 - Grafana MCP server: query Prometheus/Loki, read alert rules and
   dashboards, follow generatorURL - all read-only.
-- tatara operator tools: `propose_issue`, `comment_on_issue`,
-  `change_summary`, `submit_handover`, `task_list`, `task_update`,
-  `subtask_list`, `subtask_create`, `subtask_update`. Incident is
-  read-only/propose-only - it does NOT have `decline_implementation`
-  (that tool is implement-only; calling it from incident 409s against the
-  operator's implement_outcome gate).
-- Always-on: `report_internal_issue`, `project_get`, `repo_list`,
-  `task_get`.
-- Memory and code-graph tools (groupMemory, groupCodeGraph) for
-  cross-referencing platform context.
-- Chat tools (groupChat) available if coordination is needed.
+- `submit_outcome` - your ONE terminal tool, in the incident shape
+  (`tatara-mcp-outcome`).
+- `task_get`, `task_context`, `task_note`, `task_list`, `project_get`,
+  `repo_list`, `report_internal_issue`.
+- `scm_read` - read issues, MRs, comments, commits and CI
+  (`tatara-mcp-scm`).
+- The four code-graph tools and all five memory tools, for cross-referencing
+  platform context (`tatara-mcp-code-graph`, `tatara-mcp-memory`).
+
+**You have NO `issue_write` and NO `mr_write`.** You cannot comment on an issue,
+you cannot open an MR, and you cannot edit or close anything. Your only voice on
+the forge is the issue the OPERATOR creates from your accepted
+`submit_outcome(action="file_issue")`.
 
 ## Hard rails
 
-**[HARD RAIL]** `propose_issue` is called EXACTLY ONCE, or not at all
-(false positive). Two calls is a bug. The issue body MUST contain all
-four of: the alert summary, the queries/tools you ran with their actual
-results, your diagnosis, and the Grafana links (generatorURL and
-externalURL from the alert context). A proposal missing any of these
-will fail triage.
+**[HARD RAIL]** `submit_outcome` is called EXACTLY ONCE, and it is not optional.
+Two calls is a bug; zero calls ages the Task out at `stageReason=no-outcome`,
+deletes the pod, and loses the work. The two shapes:
+
+```
+submit_outcome(action="file_issue",
+               alert_rules=["<rule name>", ...],   # >=1, required
+               reason="<why this is real, in one or two lines>",
+               issue={"repo": "...", "title": "...", "body": "..."})
+
+submit_outcome(action="false_positive",
+               alert_rules=["<rule name>", ...],   # >=1, required
+               reason="<the evidence that says the alert is not real>")
+```
+
+`alert_rules` is REQUIRED on BOTH and needs at least one entry: the alert rule(s)
+your verdict covers, from the alert context.
+
+**[HARD RAIL]** The issue body MUST contain all four of: the alert summary, the
+queries/tools you ran with their actual results, your diagnosis, and the Grafana
+links (generatorURL and externalURL from the alert context). A proposal missing
+any of these will fail downstream.
 
 **[HARD RAIL]** This is a READ-ONLY investigation. Take no remediation,
 write, or corrective action on any system. Your only output is the issue
-(or a false-positive note). No `kubectl`, no helm, no config changes.
+(or a false-positive verdict). No `kubectl`, no helm, no config changes, no
+pushes.
 
 **[HARD RAIL]** Platform/tooling failures (Grafana 401, MCP server
 unreachable, missing credentials) are reported via `report_internal_issue`
@@ -55,15 +75,15 @@ That is the ONLY correct channel. Do NOT open a tracker issue asking a
 human to fix the platform. Do NOT treat a blocked tool as a reason to
 file your normal incident output.
 
-**[HARD RAIL]** The `repo` argument to `propose_issue` must be one of
-the repos listed in your task goal (the project's enrolled repositories).
-Pick the one the evidence implicates most directly. If evidence is
-cross-repo, pick the service that owns the failing component.
+**[HARD RAIL]** The `repo` in your `issue` must be a Repository CR name from
+`repo_list` - the project's enrolled repos. Pick the one the evidence implicates
+most directly. If the evidence is cross-repo, pick the service that owns the
+failing component.
 
-**[HARD RAIL]** False positives do not get an issue. If after
-investigation you can confirm the alert condition no longer holds and
-there is no real underlying problem, finish with a one-line note and
-stop.
+**[HARD RAIL]** False positives do not get an issue. If after investigation you
+can confirm the alert condition no longer holds and there is no real underlying
+problem, submit `action="false_positive"` with the evidence in `reason`. Do not
+just stop - a silent finish is not a false-positive verdict, it is a lost Task.
 
 ## Evidence gathering - heuristics, not a script
 
@@ -97,8 +117,8 @@ when did the condition start, is it trending, is it correlated with a
 recent deploy or cron job? The deploy timestamp is often in Prometheus
 deployment metrics or Loki structured logs - look for it.
 
-The memory graph (`query`, `search_entities`) and code graph
-(`code_search`, `code_entity`) are available for cross-referencing
+The memory graph (`memory_query`, `memory_entity(op="search")`) and code graph
+(`code_search`, `code_context(rel="entity")`) are available for cross-referencing
 platform context - e.g. which component owns a metric namespace, or
 what code path emits a specific log field. Use them when the Grafana
 evidence alone does not point clearly at a repo or cause.
@@ -145,26 +165,32 @@ Anti-patterns that produce bad incident issues:
 - Blaming infrastructure generically ("Ceph is slow", "the node was
   under load") without evidence of a specific failure mode or impact on
   the service.
-- Opening an issue for a false positive because you are uncertain. If
+- Filing an issue for a false positive because you are uncertain. If
   the firing condition has already resolved and you cannot find a root
-  cause, that is a false positive note, not an issue. The triage flow
-  is for real problems.
+  cause, that is `action="false_positive"`, not an issue.
 - Proposing remediation in the issue body. Diagnosis and evidence only;
   the implementing agent that picks up the issue decides how to fix it.
 
 ## Filing the issue
 
-Before filing, confirm via `task_list` (open incident Tasks) and `list_issues` that this
-is not already tracked - see `tatara-incident-sre`'s survey phase. A recurring alert on an
-already-tracked problem gets a `comment_on_issue` evidence update, never a new `propose_issue`.
+Before filing, read the open backlog in the implicated repo(s) with
+`scm_read(kind="issues", repo=..., state="open")`, and the open incident Tasks
+with `task_list` - see `tatara-incident-sre`'s survey phase.
 
-`propose_issue(repo, title, body, kind)`:
-- `repo`: the project repo most implicated by evidence.
+**You cannot add evidence to an existing tracker.** incident has no
+`issue_write`, so there is no comment path. If this alert is already tracked,
+still submit `action="file_issue"` with your fresh evidence, and say so in the
+first line of both `reason` and the issue body - name the existing
+`<repo>#<number>`. The operator dedups proposals against the open backlog, and a
+human reading either issue can see the connection. Do not go silent, and do not
+call it a false positive: an already-tracked real problem is not a false positive.
+
+The `issue` object:
+
+- `repo`: the Repository CR name most implicated by the evidence.
 - `title`: one line, concrete - name the alert and the apparent cause.
   Example: "TataraMemoryIngestErrors: 502s from /delete endpoint under
   concurrent load (lightrag busy-retry gap)".
-- `kind`: almost always "bug" for an incident. "improvement" only if
-  investigation reveals a design gap rather than a defect.
 - `body` must contain (in any order):
   1. Alert summary - name, status, labels, firing condition verbatim
      from the injected alert context.
@@ -175,11 +201,5 @@ already-tracked problem gets a `comment_on_issue` evidence update, never a new `
   4. Grafana links - the `generatorURL` (alert rule) and `externalURL`
      (dashboard/explore) from the alert context.
 
-Do not embed `<!-- tatara-authored -->` in an incident issue body. That
-marker is for brainstorm/discovery issues that need a maintainer to apply
-the `tatara-approved` label before the bot pursues them. Incident issues
-route through triage directly.
-
-Do not set a `systemicId` unless the alert is clearly one instance of a
-cross-repo pattern you have confirmed with evidence. If in doubt, leave
-it unset.
+Before you stop, write `task_note(kind="handoff", body=...)` - see `handoff`. The
+clarify pod that picks up your filed issue reads it.

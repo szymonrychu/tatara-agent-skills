@@ -1,7 +1,7 @@
 ---
 name: tatara-research-followup
-description: Use when continuing an existing discovery/research issue conversation on a clarify turn (or, more broadly, any turn re-engaging a discovery-phase issue). Read the issue thread and task state, research the gaps with the tatara-memory graph and on-disk code, post substantive design comments via the comment MCP tool, refine the proposal into a concrete design, and push toward human approval - never self-approving. Idle quietly when there is nothing new to add.
-profiles: ["brainstorm", "incident", "clarify"]
+description: Use when continuing an existing discovery/research issue conversation on a clarify turn. Read the issue thread and task context, research the gaps with the tatara-memory graph and on-disk code, post substantive design comments with issue_write, refine the proposal into a concrete design, and push toward human approval - never self-approving. Idle quietly when there is nothing new to add.
+profiles: ["clarify"]
 ---
 
 # tatara research follow-up
@@ -12,74 +12,92 @@ server. You never use git or gh.
 
 ## Hard constraints
 
-- NEVER self-approve. Only a maintainer applying the `tatara-approved` label
-  directly on the issue (verified by the operator against the project's
-  `MaintainerLogins`, bots excluded) may lead to implementation - a comment,
-  however explicit, does not. You only discuss and refine. End the turn with
-  `issue_outcome(discuss)`, never `issue_outcome(implement)` on an issue that
-  does not carry a maintainer-applied `tatara-approved` label.
+- NEVER self-approve. Approval is a comment, and it is the OPERATOR that verifies
+  it: a comment whose whole line CONSISTS OF one of the project's
+  `approvalPhrases`, from a login the operator can verify as a maintainer, never
+  the bot. Your `submit_outcome(decision="implement")` only REPORTS that such a
+  comment exists - it does not create the approval. So end this turn with
+  `submit_outcome(decision="discuss", reason=...)` unless a maintainer has
+  actually posted one.
 - Silence over noise - HARD RULE. When no human has replied since the
-  last bot message, post NOTHING and call `issue_outcome(discuss)`
-  immediately (silent hold). Do not re-post a comment that only
-  re-requests approval or restates prior analysis. The operator suppresses
-  repeated bot comments when no human replied; the skill must match that
-  behavior.
+  last bot message, post NOTHING and submit `decision="discuss"`
+  immediately (a silent hold). Do not re-post a comment that only
+  re-requests approval or restates prior analysis. The operator enforces the same
+  invariant structurally: bot events are never enqueued, so your own comment can
+  never wake your own Task.
 - One focused turn. Communication only via `tatara` MCP tools.
 
 The `tatara` tools auto-scope to your current task and project from the pod
 environment. Do NOT try to pass an environment variable as an argument
 (you cannot expand it) - just omit the `task`/`project` args and the tool
-fills them in. The few tools that require an id accept the names printed in
-your turn prompt.
+fills them in. `repo_list` gives you the Repository CR names the `code_*` and
+`scm_read` tools want as `repo=`.
 
 ## Workflow
 
 Create a TodoWrite item per numbered step.
 
-1. **Load context.** Your turn prompt already contains the issue title,
-   body, and the full conversation thread - read it. Extract: open
-   questions, maintainer asks, unresolved design decisions, and whether a
-   human has engaged. (For extra task status you may call `task_get`, but
-   the thread in the prompt is the primary source.)
+1. **Load context.** Your bundle already contains every Issue this Task owns -
+   title, body, and the full comment thread - plus every prior note. Read it.
+   Extract: open questions, maintainer asks, unresolved design decisions, and
+   whether a human has engaged. If the `<notes>` element reports a nonzero
+   `elided` count, pull the rest with `task_context(notes="all")`.
 
-2. **Research the gaps.** Use the memory MCP tools (`query`, `describe`,
-   and the `code_*` family incl. `code_cross_repo`, passing `repo=<slug>`)
-   plus the on-disk code to answer the specific questions raised and to
-   deepen any thin part of the proposal. The pod has one repo on disk; use
-   the graph for cross-repo facts.
+2. **Research the gaps.** Use the memory tools (`memory_query`,
+   `memory_describe`) and the code-graph tools (`code_search`, `code_explain`,
+   `code_context(rel="related"|"cross_repo"|"callers"|...)`, passing
+   `repo=<Repository CR name>`) plus the on-disk code to answer the specific
+   questions raised and to deepen any thin part of the proposal. Use the graph for
+   cross-repo facts.
 
-3. **Respond in-thread** with the `comment` MCP tool (just `body=...`; the
-   task is resolved for you). Post focused comments, not one wall of text:
-   - Answer each maintainer question with evidence (`file:line`, graph
-     findings).
-   - Refine the proposal into a concrete design: architecture,
-     components, data flow, error handling, testing, plus an
-     implementation outline.
-   - Surface remaining decisions for the maintainer.
+3. **Respond in-thread** with `issue_write(action="comment", repo=..., number=...,
+   body=...)`. Post focused comments, not one wall of text:
+   - Answer each maintainer question with evidence (`file:line`, graph findings).
+   - Refine the proposal into a concrete design: architecture, components, data
+     flow, error handling, testing, plus an implementation outline.
+   - Surface the remaining decisions for the maintainer.
 
-4. **Drive to approval.** When the design is converged AND a human has
-   engaged in the thread, post a short summary of the agreed design and
-   explicitly ask a maintainer to apply the `tatara-approved` label - that
-   label-apply is the only signal that satisfies the gate; a comment never
-   does, regardless of who posts it or how explicit it reads. Do not approve
-   it yourself, and do not tell the thread that a comment is sufficient.
+   `issue_write(action="comment")` is a DEFERRED write: the call persists the
+   intent and a reconciler posts it. You get nothing back to read, and
+   `scm_read(kind="comments")` will not show it back to you this turn. Do not
+   look for it.
 
-5. **Idle discipline.** Check the thread: has a human posted since the
-   last bot comment? If NO - go directly to step 6 without calling
-   `comment`. The silence-over-noise hard rule applies here.
+4. **Drive to approval.** When the design is converged AND a human has engaged,
+   post a short summary of the agreed design and ask a maintainer to reply with a
+   go-ahead **on a line of its own** - `lgtm`, `approve`, `go ahead`, `ship it`
+   (the project's `approvalPhrases`). The match is anchored to a whole line: a
+   comment that merely CONTAINS an approval word ("I can't approve this until the
+   tests pass") does not approve, and telling the thread otherwise is wrong. Do
+   not approve it yourself; you cannot.
 
-6. **Close the turn.** Call `issue_outcome` with action `discuss` (supply
-   a one-line status as `comment`) to hold the issue in Conversation. Use
-   action `close` ONLY if the idea is clearly dead AND a human concurred
-   in the thread. You MUST call `issue_outcome` before finishing.
+   If this Task owns SEVERAL Issues, every live one needs its own approval
+   comment. Say so, and name the `<repo>#<number>` that is still missing one.
+
+5. **Idle discipline.** Has a human posted since the last bot comment? If NO -
+   go straight to step 6 without calling `issue_write`. The silence-over-noise
+   hard rule applies here.
+
+6. **Close the turn.** `submit_outcome(decision="discuss", reason=...)` holds the
+   Task at `awaiting-human`; the next human comment un-parks it and a fresh
+   clarify pod picks it up. Use `decision="close"` ONLY if the idea is clearly
+   dead AND a human concurred in the thread. Use `decision="implement"` only when
+   a verified maintainer has posted a whole-line approval phrase on every live
+   Issue - cite WHO and WHERE in your `reason`.
+
+   You MUST submit an outcome. A turn that ends without one ages the Task out at
+   `stageReason=no-outcome` and the work is lost. Write a
+   `task_note(kind="handoff", body=...)` first (see `handoff`) - the design state
+   you carry is otherwise gone when your pod stops.
 
 ## Anti-patterns
 
-- Calling `issue_outcome(implement)` on an issue without a maintainer-applied
-  `tatara-approved` label - a human approval comment does not substitute.
+- Reporting `decision="implement"` on an issue with no whole-line approval phrase
+  from a verified maintainer - a discursive approval comment does not substitute.
 - Re-posting a comment that only re-requests approval or restates prior
   analysis when no human has replied. This is a HARD violation of the
   silence-over-noise rule.
 - Posting one giant comment instead of focused, answerable ones.
 - Commenting with no new research when the thread is waiting on the human.
-- Making code changes or opening PRs in this turn.
+- Looking for a label to apply, or a status to set. `issue_write` has neither
+  parameter, on purpose.
+- Making code changes or opening MRs in this turn.
