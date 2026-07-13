@@ -95,9 +95,14 @@ submit_outcome(
 ```
 
 - `reviewed_shas` coverage is TOTAL - one entry per every MR your Task owns,
-  not just the ones with findings. The operator re-reads the live head and
-  REFUSES your verdict with a 409 if any MR moved since you checked it out;
-  re-read at the new head and resubmit.
+  not just the ones with findings. The operator re-reads the live head before
+  accepting your verdict. If any MR moved since you checked it out, the
+  operator does NOT accept the review: it refreshes the mirror to the live
+  head and returns a normal, non-error result carrying `reason=head-moved`
+  and the new `liveSHA`. On that result: `git fetch && git checkout
+  <liveSHA>`, re-review the new diff, and resubmit `submit_outcome` with the
+  NEW sha - never the same stale sha, that just loops. Full mechanics in
+  `tatara-mcp-outcome`.
 - `request_changes` needs at least one finding, or the human/implementer has
   nothing to act on.
 - There is no `comment` verdict. Form a position: `approve` or
@@ -123,6 +128,9 @@ Full semantics (deferred posting, no `open`) in `tatara-mcp-scm`.
   on the accepted call; a second call is not a retraction.
 - Do NOT omit `reviewed_shas`, or omit an entry for any owned MR. A missing
   entry is a 400, not a silent skip.
+- Do NOT resubmit the same stale sha after a `reason=head-moved` result -
+  that loops forever. Fetch and check out the `liveSHA`, re-review the new
+  diff, resubmit with the new sha.
 - Do NOT call `submit_outcome(verdict="request_changes")` with an empty
   `findings` array.
 - Do NOT call `mr_write(action="open")`. Your profile does not have it -
