@@ -46,7 +46,7 @@ If you installed a tool via `mise use -g` that is NOT already in the target repo
 
 If mise itself fails, a tool download is blocked (egress or registry unreachable), or the toolchain is broken in a way you cannot work around:
 
-1. Call the `report_internal_issue` MCP tool with category `tooling/workspace` and severity `error`.
+1. Call the `report_internal_issue` MCP tool with category `workspace_broken` and severity `error`.
 2. Do NOT silently give up and proceed with incomplete tooling.
 3. Do NOT open a tracker issue for the platform failure.
 

@@ -121,20 +121,20 @@ git branch -d <feature-branch>
 
 #### Option 2: Push and Create PR
 
+Push the branch with git, then open the MR through the platform:
+
 ```bash
-# Push branch
 git push -u origin <feature-branch>
-
-# Create PR
-gh pr create --title "<title>" --body "$(cat <<'EOF'
-## Summary
-<2-3 bullets of what changed>
-
-## Test Plan
-- [ ] <verification steps>
-EOF
-)"
 ```
+
+    mr_write(action="open", repo="<repository-cr-name>", title="<title>", body="<body>")
+
+`mr_write(open)` is idempotent: if your Task already has an open MR for that repo
+on this branch, you get it back rather than a 422 from the forge. If your Task has
+already MERGED an MR for that repo, it is REFUSED - you would be opening a
+duplicate PR for work that has shipped.
+
+You do not have `gh`. The pod has no forge token, and it never will.
 
 **Do NOT clean up worktree** — user needs it alive to iterate on PR feedback.
 

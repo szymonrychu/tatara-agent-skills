@@ -201,9 +201,16 @@ You understand 1,2,3,6. Unclear on 4,5.
 ✅ "Understand 1,2,3,6. Need clarification on 4 and 5 before implementing."
 ```
 
-## GitHub Thread Replies
+## Inline Thread Replies
 
-When replying to inline review comments on GitHub, reply in the comment thread (`gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`), not as a top-level PR comment.
+Reply to an inline review comment IN ITS THREAD, not as a top-level MR comment:
+
+    scm_read(kind="comments", repo="<repo>", number=<mr>, is_pr=true)
+        -> each comment carries an externalId, and (for inline ones) a path and a line
+
+    mr_write(action="reply", repo="<repo>", number=<mr>, in_reply_to="<externalId>", body="...")
+
+A top-level comment answering an inline finding is an answer nobody can find.
 
 ## The Bottom Line
 

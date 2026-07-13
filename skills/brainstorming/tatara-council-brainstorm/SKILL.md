@@ -1,85 +1,108 @@
 ---
 name: tatara-council-brainstorm
-description: "TASK harness for the brainstorm task kind: a rotating seven-lens architect-council session that grounds one high-leverage proposal in real code and emits a single propose_issue or skip_research. Invoke FIRST on every brainstorm turn; it owns the whole turn end to end."
+description: "TASK harness for the brainstorm task kind: an architect-council session under the lens the operator selected for this cycle, grounding one high-leverage finding in real code and emitting a single submit_outcome (propose or skip). Invoke FIRST on every brainstorm turn; it owns the whole turn end to end."
 profiles: ["brainstorm"]
 ---
 
 # tatara council brainstorm
 
-The disciplined shell for a brainstorm turn. It imposes a rotating architectural lens so successive
-runs examine the platform from different angles, forces evidence before conclusion, and emits a
-single grounded proposal itself via `propose_issue`. All I/O is via the `tatara` MCP tools; you never
+The disciplined shell for a brainstorm turn. It works one architectural lens per
+cycle so successive runs examine the platform from different angles, forces
+evidence before conclusion, and emits a single grounded outcome via
+`submit_outcome`. All I/O is via the `tatara` MCP tools; you never
 use git or gh.
 
-## Lens rotation order
+## The lens
 
-failure-modes, fitness-functions, coupling, simplification, operability, product-growth, tech-radar.
+**The OPERATOR selects the lens and renders it into your assignment.** Read it
+there. There is no rotation register to read and no register to advance - the
+harness-state tools are gone, and the operator owns the rotation.
+
+The lenses in the rotation: failure-modes, fitness-functions, coupling,
+simplification, operability, product-growth, tech-radar.
 
 ## Procedure (execute the numbered phases in order)
 
-1. **Lens rotation read (state-assembly, HARD GATE).** Call `harness_state_get(key="LENS_CYCLE")`.
-   The value is the last lens used (or empty on first run / a stale register). Select the NEXT lens
-   after it in the rotation order above; on empty/unrecognized value, default to `failure-modes`.
-   Record the chosen lens and the `version` token you read - you will CAS it back in phase 8. Do NOT
-   proceed to any action before this read succeeds.
-2. **Pre-flight context assembly (HARD GATE).** For every enrolled repo cloned under
-   `/workspace/<owner>/<repo>`, read its on-disk `ROADMAP.md`, `MEMORY.md`, and `CLAUDE.md`. Then
-   `query` (mode global) the memory graph for "tatara platform goal" and "open roadmap themes".
-   Write a short summary of the platform goal + open themes to your scratchpad before continuing.
-3. **Early-exit dedup scan (do this cheaply, FIRST action-gate).** Review the injected
-   ISSUES / OPEN MRs / MAIN HEALTH state and `task_list`. If nothing clears the bar for a genuinely
-   novel, high-leverage proposal through your chosen lens this cycle, call `skip_research(reason)`
-   (naming the lens and why nothing qualified), advance the register (phase 8), and STOP. Silence
-   over noise.
-4. **Lens-specific evidence gathering.** When the current lens needs evidence from more than one
-   repo (failure-modes, coupling, and tech-radar routinely do; the others may), dispatch one
-   `explorer` subagent per implicated repo (via the `Agent` tool, `model: haiku`, `effort: low`) to
-   gather that repo's slice of the lens-specific evidence below, launched in a single message so
-   they run concurrently. This is what keeps your own Opus surface context under the ~50% budget
-   where reasoning quality degrades - synthesize the subagents' compact reports yourself rather than
+1. **Pre-flight context assembly (HARD GATE).** For every enrolled repo cloned
+   under `/workspace/<owner>/<repo>` (`repo_list` names them), read its on-disk
+   `ROADMAP.md`, `MEMORY.md`, and `CLAUDE.md`. Then `memory_query` (mode global)
+   for "tatara platform goal" and "open roadmap themes". Write a short summary of
+   the platform goal plus the open themes to your scratchpad before continuing.
+2. **Early-exit dedup scan (do this cheaply, FIRST action-gate).** Read the open
+   issues and MRs with `scm_read(kind="issues"|"mr", repo=..., state="open")`,
+   the `<task_index>` in your bundle, and `task_list`. If nothing clears the bar
+   for a genuinely novel, high-leverage proposal through this cycle's lens, call
+   `submit_outcome(action="skip", reason=...)` - naming the lens and why nothing
+   qualified - and STOP. Silence over noise.
+3. **Lens-specific evidence gathering.** When the lens needs evidence from more
+   than one repo (failure-modes, coupling and tech-radar routinely do; the others
+   may), dispatch one `explorer` subagent per implicated repo (via the `Agent`
+   tool, `model: haiku`, `effort: low`) to gather that repo's slice of the
+   evidence, launched in a single message so they run concurrently. This is what
+   keeps your own surface context under the ~50% budget where reasoning quality
+   degrades - synthesize the subagents' compact reports yourself rather than
    reading every repo's code inline. Prescribed tool calls per lens:
-   - failure-modes: `code_bridges` + `code_important`, then read the actual failure-path source.
-   - fitness-functions: read CI config on disk and run the real lint/test, cite numeric output.
-   - coupling: `code_cross_repo` + `code_communities`, report a concrete hop count.
-   - simplification: `code_stats` + `code_important` + a TODO/dead-code scan.
-   - operability: inspect `/metrics`, tracing, and on-disk runbooks.
+   - failure-modes: `code_graph(op="bridges")` + `code_graph(op="important")`,
+     then read the actual failure-path source.
+   - fitness-functions: read the CI config on disk and run the real lint/test,
+     cite numeric output.
+   - coupling: `code_context(rel="cross_repo")` + `code_graph(op="communities")`,
+     report a concrete hop count.
+   - simplification: `code_graph(op="stats")` + `code_graph(op="important")` plus
+     a TODO/dead-code scan.
+   - operability: inspect `/metrics`, tracing, and the on-disk runbooks.
    - product-growth: gap-analysis of the unbuilt roadmap (beyond current scope).
-   - tech-radar: Hold-list dependencies + hard-rule gaps.
-   If the current lens genuinely yields nothing but another does, you MAY override - but log the
-   override and the reason explicitly.
-5. **Options-with-tradeoffs scratchpad (HARD GATE).** Before any terminal action, write: a problem
-   statement grounded in a concrete `file:line`; a decomposition into sub-problems; for EACH
-   sub-problem 2-3 options with a one-line tradeoff and your recommended pick; a pre-mortem naming
-   >=2 concrete failure mechanisms. No terminal action without this artifact.
-6. **ADR-vs-scoped-issue decision, and repo scope (written).** Decide whether the finding warrants a
-   structural ADR (architectural, cross-cutting) or a single scoped issue, AND list every repo the
-   finding touches - even a one-repo finding still gets its own project Task per phase 7. Write both
-   as one-line answers.
-7. **Terminal action (you own it).** Emit `skip_research(reason)` when nothing clears the bar or the
-   finding duplicates an open issue/inflight Task (note the duplicate in the reason; do NOT comment on
-   it - brainstorm proposes new issues only). Otherwise, this turn's ONE project Task collects
-   one-or-many LINKED `propose_issue` calls - one per affected repo (a single-repo finding still gets
-   exactly one). Every issue body MUST:
-   - Ground itself per `tatara-code-quality-proposal` (concrete `file:line` evidence).
-   - Split the problem into >=2 concrete approaches, each with a one-line tradeoff, ONE explicitly
-     flagged "Recommended" - never a single-decision "approve or comment" framing.
-   - Carry the ADR sketch in the body when phase 6 said structural.
-   - Embed the `<!-- tatara-authored -->` marker (keeps the issue gated on a
-     maintainer applying the `tatara-approved` label - a comment never
-     satisfies this gate).
-   Share a single `systemicId` you generate across every linked issue in this Task (bounded, <=6) so
-   the operator correlates them under one umbrella and counts the group as ONE against
-   `maxOpenProposals`. You never implement, push, or open a PR.
-8. **Register update (HARD GATE, last).** Call
-   `harness_state_cas(key="LENS_CYCLE", value="<lens used>", version="<version from phase 1>")`.
-   On a 409 conflict another turn advanced the register concurrently - re-read with
-   `harness_state_get` and CAS again with the fresh version. This is best-effort bookkeeping: never
-   fail the whole turn on it, but always attempt it so the rotation advances.
+   - tech-radar: Hold-list dependencies and hard-rule gaps.
+
+   If the lens you were given genuinely yields nothing but another does, you MAY
+   override - but log the override and the reason explicitly in your outcome.
+4. **Options-with-tradeoffs scratchpad (HARD GATE).** Before any terminal action,
+   write: a problem statement grounded in a concrete `file:line`; a decomposition
+   into sub-problems; for EACH sub-problem 2-3 options with a one-line tradeoff
+   and your recommended pick; a pre-mortem naming at least 2 concrete failure
+   mechanisms. No terminal action without this artifact.
+5. **ADR-vs-scoped-issue decision, and repo scope (written).** Decide whether the
+   finding warrants a structural ADR (architectural, cross-cutting) or a single
+   scoped issue, AND list every repo the finding touches. Write both as one-line
+   answers.
+6. **Terminal action (you own it).** Exactly one `submit_outcome`.
+
+   Emit `submit_outcome(action="skip", reason=...)` when nothing clears the bar,
+   or when the finding duplicates an open issue or an in-flight Task (name the
+   duplicate in the reason - you have no `issue_write` and cannot comment on it).
+
+   Otherwise emit ONE call carrying every issue you want opened:
+
+       submit_outcome(action="propose",
+                      proposals=[{repo, title, body, kind}, ...])   # 1..5
+
+   **Each proposal becomes its own issue and its own clarify Task.** There is no
+   umbrella Task, no `systemicId`, and no linked-issue group: a finding that
+   touches three repos is three entries, and the clarify conversation on each is
+   where its scope is settled. The array is capped at 5.
+
+   Every proposal body MUST:
+   - Ground itself per `tatara-code-quality-proposal` (concrete `file:line`
+     evidence).
+   - Split the problem into at least 2 concrete approaches, each with a one-line
+     tradeoff, ONE explicitly flagged "Recommended" - never a single-decision
+     "approve or comment" framing.
+   - Carry the ADR sketch in the body when phase 5 said structural.
+   - Name the sibling proposals in this same call when the finding spans repos,
+     so the humans reading three new issues can see they are one design.
+
+   You never implement, push, or open an MR. Those tools are not in your profile.
+7. **Handoff note (last).** `task_note(kind="handoff", body=...)` before you
+   stop - see `handoff`. On a `skip` this is what tells the NEXT brainstorm cycle
+   what you already surveyed and ruled out.
 
 ## Anti-patterns
 
-- Taking any action before the phase-1 register read and the phase-2 context summary.
+- Taking any action before the phase-1 context summary.
+- Looking for a lens register to read or advance. The operator owns the lens.
 - A generic assertion with no `file:line` / SHA / graph finding behind it.
-- Calling `propose_issue` before the phase-5 scratchpad exists.
-- More than one terminal action (one proposal / one comment / one skip) per turn.
-- Silently skipping the register update, which strands the rotation on one lens forever.
+- Calling `submit_outcome(action="propose")` before the phase-4 scratchpad exists.
+- More than one `submit_outcome` per turn, or none at all (a Task with no outcome
+  ages out at `no-outcome` and the work is lost).
+- Trying to comment on an existing issue instead of skipping. brainstorm has no
+  `issue_write`.
