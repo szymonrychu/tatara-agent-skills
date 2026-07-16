@@ -48,26 +48,33 @@ or 4), not speculatively before you have Grafana evidence pointing anywhere.
 6. **Fix-target identification.** Name the repo (a Repository CR name from `repo_list`) plus the
    file or config key, precisely enough to seed an implement Task. If you fanned out `explorer`
    subagents in phase 3/4, their `file:line` reports are exactly what phase 6 needs.
-7. **Survey for an existing tracker.** Before filing: list open incident Tasks (`task_list`) and the
-   open backlog in the implicated repo(s) with
-   `scm_read(kind="issues", repo=..., state="open")`. If this alert-group or problem is already
-   tracked, you STILL file - you have no comment tool - but you name the existing `<repo>#<number>`
-   in the first line of both your `reason` and the issue body, and you lead the body with the
-   evidence DELTA (queries run, results, what changed since). The operator dedups proposals against
-   the open backlog. Going silent is not an option: a Task with no outcome ages out at
-   `no-outcome` and the work is lost.
+7. **Survey for a RELATED tracker.** A same-rule duplicate of THIS alert never reaches you - the
+   operator suppresses it at admission before a Task is even created - so you are always
+   investigating a genuinely-new firing. Before filing: list open incident Tasks (`task_list`) and
+   the open backlog in the implicated repo(s) with `scm_read(kind="issues", repo=..., state="open")`
+   to check whether a DIFFERENT-but-related tracker already exists (e.g. a wider incident this is a
+   symptom of, or a shared root cause). Going silent is not an option: a Task with no outcome ages
+   out at `no-outcome` and the work is lost.
 8. **File exactly one outcome.**
 
-   ```
-   submit_outcome(action="file_issue",
-                  alert_rules=["<rule>", ...],       # >=1, required
-                  reason="<why it is real>",
-                  issue={"repo": ..., "title": ..., "body": ...})
-   ```
+   - Genuinely-new-but-RELATED to an open tracker you found in the survey:
 
-   The body is a postmortem: exec summary, verbatim alert context, timeline, signal evidence (with
-   snippets), contributing factors, root cause, immediate mitigation (as a human instruction), fix
-   target, action items.
+     ```
+     submit_outcome(action="file_issue",
+                    alert_rules=["<rule>", ...],       # >=1, required
+                    reason="<why it is real, and why it relates to <repo>#<number>>",
+                    issue={"repo": ..., "title": ..., "body": ...,
+                           "parent": {"repo": ..., "number": ...}})
+     ```
+
+     The operator links your new issue as a GitHub sub-issue under `issue.parent` and
+     cross-references both. Name the existing `<repo>#<number>` in the first line of your `reason`.
+
+   - Genuinely-new-and-UNRELATED: the same `file_issue` call, with no `parent` key.
+
+   In both cases the body is a postmortem: exec summary, verbatim alert context, timeline, signal
+   evidence (with snippets), contributing factors, root cause, immediate mitigation (as a human
+   instruction), fix target, action items.
 
    OR, when the alert is not real:
 
@@ -86,8 +93,9 @@ or 4), not speculatively before you have Grafana evidence pointing anywhere.
 - Any remediation / write / `kubectl` / corrective action - this turn is read-only.
 - An RCA before the phase-3 signal correlation, or without a Loki snippet on the non-exempt path.
 - Submitting `false_positive` when a Grafana tool was actually blocked (that is a platform bug ->
-  `report_internal_issue`), or when the problem is real but already tracked (that is still
-  `file_issue`, with the duplicate named).
+  `report_internal_issue`), or when the problem is real but a RELATED tracker already exists (that
+  is still `file_issue`, with `issue.parent` set to the existing tracker).
 - A generic diagnosis with no PromQL/LogQL result snippet, annotation, or `file:line` behind it.
 - More than one `submit_outcome` per turn - or none at all.
-- Trying to open an MR or comment on an issue. Neither tool exists in this profile.
+- Trying to open an MR, or trying to comment on / propose an issue directly. No such tool exists in
+  this profile - `submit_outcome` is the only way to file or link an issue.
