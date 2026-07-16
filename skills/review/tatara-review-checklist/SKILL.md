@@ -147,10 +147,21 @@ pod's context. You have no `mr_write(approve)`. You have no merge.
 `reviewed_shas` needs TOTAL COVERAGE: one entry per every MR your Task owns,
 not only the ones with findings. A missing entry is a 400, not a silent pass.
 Each entry is the head SHA you ACTUALLY CHECKED OUT AND READ. The operator
-re-reads the live head and REFUSES your verdict if it moved while you were
-reviewing: anything pushed after your checkout would otherwise merge unreviewed
-under your approval. If you get that refusal, re-read the MR at its new head and
-resubmit. It is not an error; it is the gate working.
+re-reads the live head before accepting your verdict: anything pushed after
+your checkout would otherwise merge unreviewed under your approval.
+
+If the head moved, the operator does NOT accept the review. It refreshes the
+mirror to the live head and hands back a normal, non-error result carrying
+`reason=head-moved` and the new `liveSHA` - text like "the head of <repo>#<n>
+moved from <reviewed> to <live> ... was NOT submitted". On that result:
+
+1. `git fetch && git checkout <liveSHA>` - resync your workspace to the live
+   head, not the sha you already reviewed.
+2. Re-review the NEW diff. The head moved, so the code under it changed.
+3. Resubmit `submit_outcome` with the NEW sha in `reviewed_shas`.
+
+Never resubmit the same stale sha - that just loops. Full mechanics in
+`tatara-mcp-outcome`.
 
 `severity` is `critical`, `high`, `medium` or `low`. A `request_changes` with
 zero findings is refused - it tells the next pod nothing to fix, and it will

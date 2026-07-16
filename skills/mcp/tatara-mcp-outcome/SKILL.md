@@ -43,9 +43,23 @@ submit_outcome(verdict="approve"|"request_changes", reviewed_shas[], findings[],
   entry is a 400, not a silent pass - a partial review that quietly approves an
   MR you never read is exactly the hole this field exists to close. Each entry
   is the head SHA you ACTUALLY CHECKED OUT AND READ. The operator re-reads the
-  live head of every MR and REFUSES your verdict with a 409 ("head moved since
-  you reviewed it") if any has moved since you checked it out. **That is not a
-  failure** - re-read the MR at its new head and resubmit.
+  live head of every MR before accepting your verdict.
+
+  If any MR moved since you checked it out, the operator does NOT accept the
+  review. It refreshes the mirror to the new (live) head and returns a
+  normal, non-error tool result carrying `reason=head-moved` and the new
+  `liveSHA` - text like "the head of <repo>#<n> moved from <reviewed> to
+  <live> since you checked out. Your review was of stale code and was NOT
+  submitted; the mirror is refreshed to the new head." **That is not a
+  failure, it is the gate working** - but you must act on it, not just retry
+  the same call:
+  1. `git fetch && git checkout <liveSHA>` - resync your workspace to the
+     `liveSHA` in the result, not the sha you already reviewed.
+  2. Re-review the new diff. The head moved, so the code under it changed;
+     old findings may no longer apply and new ones may exist.
+  3. Call `submit_outcome` again with the NEW sha in `reviewed_shas`.
+  Never resubmit the same stale sha - the operator refuses it again for the
+  same reason and you loop forever.
 - `verdict=request_changes` needs at least one finding. A verdict with no
   findings tells the next implement pod nothing to fix, and it will resubmit
   the same code.
