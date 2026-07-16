@@ -42,6 +42,35 @@ Report it and stop.
 *Source: `platformProblemGuidance` constant in `tatara-operator/internal/controller/turnloop.go`,
 appended to every turn-0 directive.*
 
+### Same failure recurring across turns is the same signal, not a reason to retry again
+
+The guidance above covers a failure you catch within one turn. The same channel also covers a
+failure that recurs across turns of the same Task: you notice the identical blocker on a later
+turn that you already hit (or already reported) on an earlier one - the same tool error, the
+same rejected-submission reason, the same "cannot make progress" state - and your own actions
+are not changing the outcome. That recurrence is exactly the systematic-problem signal
+`report_internal_issue` exists for. Call it, or call it again.
+
+**Do NOT** just keep repeating the same action a 4th, 5th, 6th time hoping it resolves itself -
+that loop is what this channel exists to break.
+
+`category=tool_error` is usually the right fit for a recurring platform-tooling problem. If the
+specific recurring symptom matches `directive_contradiction`, `workspace_broken`, or another
+category in the decision table in `tatara-mcp-platform` better, use that one instead - it is
+still the same single tool, not a parallel mechanism.
+
+Make the description concrete: name the task/resource, what keeps recurring, and how many turns
+or attempts it has spanned.
+
+```
+report_internal_issue(
+  category="tool_error",
+  description="Reviewing MR !123: same 'head moved since you reviewed it' rejection on every
+    submit for 4 turns running. Mirror looks stale; re-reviewing the same SHA each turn makes
+    no progress.",
+)
+```
+
 ### KISS - always
 
 Prefer simplicity over cleverness. Three similar lines are better than a premature abstraction.
