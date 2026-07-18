@@ -106,9 +106,18 @@ submit_outcome(action="skip", reason)
 ### incident
 
 ```
-submit_outcome(action="file_issue", alert_rules[], reason, issue={repo,title,body})
+submit_outcome(action="file_issue", alert_rules[], reason, issue={repo,title,body,parent?})
+submit_outcome(action="comment_issue", alert_rules[], reason, comment={repo,number,body})
 submit_outcome(action="false_positive", alert_rules[], reason)
 ```
+
+- `issue.parent={repo,number}` is optional: set it when your finding is
+  genuinely-new-but-RELATED to an open tracker you surveyed. The operator
+  links the new issue as a GitHub sub-issue under it.
+- `action="comment_issue"` appends fresh evidence to an open incident tracker
+  issue for the SAME incident instead of filing a near-duplicate - gated
+  server-side to incident tracker issues only. See `tatara-incident-sre` /
+  `tatara-incident-investigation` for the survey-then-decide protocol.
 
 ### refine
 
