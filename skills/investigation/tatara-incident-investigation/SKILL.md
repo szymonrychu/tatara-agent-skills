@@ -1,6 +1,6 @@
 ---
 name: tatara-incident-investigation
-description: Use on a tatara incident task (kind=incident, fired by a Grafana alert) to gather read-only evidence from Grafana, form a diagnosis, and file exactly one well-evidenced issue via submit_outcome(action=file_issue) - or declare a false positive with submit_outcome(action=false_positive) and stop.
+description: Use on a tatara incident task (kind=incident, fired by a Grafana alert) to gather read-only evidence from Grafana, form a diagnosis, then finish with submit_outcome exactly once - file a new issue (action=file_issue, optionally linked under a related open tracker), comment fresh evidence onto an existing tracker for the SAME incident (action=comment_issue), or declare a false positive (action=false_positive) - and stop.
 profiles: ["incident"]
 ---
 
@@ -33,40 +33,69 @@ Tool surface available in the incident profile:
 - The four code-graph tools and all five memory tools, for cross-referencing
   platform context (`tatara-mcp-code-graph`, `tatara-mcp-memory`).
 
-**You have NO `issue_write` and NO `mr_write`.** You cannot comment on an issue,
-you cannot open an MR, and you cannot edit or close anything. Your only voice on
-the forge is the issue the OPERATOR creates from your accepted
-`submit_outcome(action="file_issue")`.
+**You have NO `issue_write` and NO `mr_write`.** You cannot open an MR, and you
+cannot edit or close anything directly, or comment via a general-purpose comment
+tool - none exists in this profile. Your voice on the forge is entirely mediated
+by `submit_outcome`: the OPERATOR files a new issue from an accepted
+`action="file_issue"`, or posts your evidence as a COMMENT on an existing open
+incident tracker issue from an accepted `action="comment_issue"`. The comment
+path is gated server-side to incident tracker issues only - you can never
+comment on an arbitrary human issue, only on a tracker your own survey found.
 
 ## Hard rails
 
 **[HARD RAIL]** `submit_outcome` is called EXACTLY ONCE, and it is not optional.
 Two calls is a bug; zero calls ages the Task out at `stageReason=no-outcome`,
-deletes the pod, and loses the work. The two shapes:
+deletes the pod, and loses the work. The three shapes:
 
 ```
 submit_outcome(action="file_issue",
                alert_rules=["<rule name>", ...],   # >=1, required
                reason="<why this is real, in one or two lines>",
-               issue={"repo": "...", "title": "...", "body": "..."})
+               issue={"repo": "...", "title": "...", "body": "...",
+                      "parent": {"repo": "...", "number": ...}})  # optional
+
+submit_outcome(action="comment_issue",
+               alert_rules=["<rule name>", ...],   # >=1, required
+               reason="<why this is the SAME incident as the tracker below>",
+               comment={"repo": "...", "number": ..., "body": "..."})
 
 submit_outcome(action="false_positive",
                alert_rules=["<rule name>", ...],   # >=1, required
                reason="<the evidence that says the alert is not real>")
 ```
 
-`alert_rules` is REQUIRED on BOTH and needs at least one entry: the alert rule(s)
-your verdict covers, from the alert context.
+`alert_rules` and `reason` are REQUIRED on ALL THREE: the alert rule(s) your
+verdict covers, from the alert context, and why you decided what you decided.
+
+`issue.parent` is OPTIONAL on `file_issue` - set it to `{repo, number}` when
+your finding is genuinely-new-but-RELATED to an open tracker you found in your
+survey (a distinct problem sharing context or root cause). The operator links
+your new issue as a GitHub sub-issue under `issue.parent` and cross-references
+both.
+
+Use `action="comment_issue"` instead of `file_issue` when your fresh evidence
+is about the SAME incident (the same underlying root problem, not merely the
+same alert firing) as an open tracker you found in your survey. It appends
+your evidence to that tracker as a comment; no new issue is filed. This is the
+tool for "I re-investigated and it's still the thing #<n> already tracks" -
+use it instead of filing a near-duplicate.
 
 **[HARD RAIL]** The issue body MUST contain all four of: the alert summary, the
 queries/tools you ran with their actual results, your diagnosis, and the Grafana
 links (generatorURL and externalURL from the alert context). A proposal missing
 any of these will fail downstream.
 
+**[HARD RAIL]** The `comment.body` on `comment_issue` carries the same evidence
+bar as a fresh issue: the queries you ran, their results, your (possibly
+updated) diagnosis, and the Grafana links. It is a comment, not a stub - the
+tracker's next reader must be able to see what changed since the last update
+without re-running your queries.
+
 **[HARD RAIL]** This is a READ-ONLY investigation. Take no remediation,
-write, or corrective action on any system. Your only output is the issue
-(or a false-positive verdict). No `kubectl`, no helm, no config changes, no
-pushes.
+write, or corrective action on any system. Your only output is the filed
+issue, the tracker comment, or a false-positive verdict. No `kubectl`, no
+helm, no config changes, no pushes.
 
 **[HARD RAIL]** Platform/tooling failures (Grafana 401, MCP server
 unreachable, missing credentials) are reported via `report_internal_issue`
@@ -78,7 +107,11 @@ file your normal incident output.
 **[HARD RAIL]** The `repo` in your `issue` must be a Repository CR name from
 `repo_list` - the project's enrolled repos. Pick the one the evidence implicates
 most directly. If the evidence is cross-repo, pick the service that owns the
-failing component.
+failing component. The `comment.repo`/`comment.number` on `comment_issue` are
+the tracker issue's OWN repo and number, exactly as your survey read them back
+- not a repo you are choosing, a tracker you found. The operator gates the
+call server-side to incident tracker issues only; a `comment_issue` aimed at
+anything else is refused.
 
 **[HARD RAIL]** False positives do not get an issue. If after investigation you
 can confirm the alert condition no longer holds and there is no real underlying
@@ -170,20 +203,53 @@ Anti-patterns that produce bad incident issues:
   cause, that is `action="false_positive"`, not an issue.
 - Proposing remediation in the issue body. Diagnosis and evidence only;
   the implementing agent that picks up the issue decides how to fix it.
+- Filing a near-duplicate new issue when the survey already found an open
+  tracker for the SAME root problem. Use `action="comment_issue"` on that
+  tracker instead.
+- Using `action="comment_issue"` on a tracker whose root problem your evidence
+  shows is actually DIFFERENT from what you are investigating now. Comment
+  only onto the SAME incident; file (optionally `issue.parent`-linked) for
+  anything genuinely distinct, even under the same alert rule or workload.
 
-## Filing the issue
+## Filing or commenting
 
-Before filing, read the open backlog in the implicated repo(s) with
+Before deciding, SURVEY: read the open backlog in the implicated repo(s) with
 `scm_read(kind="issues", repo=..., state="open")`, and the open incident Tasks
-with `task_list` - see `tatara-incident-sre`'s survey phase.
+with `task_list` - see `tatara-incident-sre`'s survey phase. A same-rule
+duplicate of THIS alert never reaches you (admission dedup suppresses it
+before a Task is even created), so anything your survey turns up is a
+RELATED or CORRELATED tracker, not a mechanical repeat - decide what it
+actually is:
 
-**You cannot add evidence to an existing tracker.** incident has no
-`issue_write`, so there is no comment path. If this alert is already tracked,
-still submit `action="file_issue"` with your fresh evidence, and say so in the
-first line of both `reason` and the issue body - name the existing
-`<repo>#<number>`. The operator dedups proposals against the open backlog, and a
-human reading either issue can see the connection. Do not go silent, and do not
-call it a false positive: an already-tracked real problem is not a false positive.
+- **SAME incident** (your fresh evidence is about the same underlying root
+  problem as an open tracker you found): `action="comment_issue"`, with
+  `comment={repo, number, body}` naming that tracker. No new issue is filed;
+  the tracker gains your evidence as a comment.
+- **Genuinely-new-but-RELATED** to an open tracker (a distinct problem that
+  shares context or root cause): `action="file_issue"` with
+  `issue.parent={repo, number}` set to that tracker. The operator links your
+  new issue as a GitHub sub-issue and cross-references both.
+- **Genuinely-new-and-UNRELATED**: `action="file_issue"` with no `parent`.
+
+Do not go silent, and do not call an already-tracked real problem a
+`false_positive` just because it is not new - that verdict is reserved for
+alerts whose firing condition you can show no longer holds.
+
+**Re-fire / persistence escalation.** If the operator escalated a
+persistent or repeatedly-firing incident to you - the goal names the tracker
+it re-fired against (e.g. "re-fired N times against tracker #M" or "has
+persisted") - your job is specifically to RE-EXAMINE whether the root cause
+is still the one that tracker names, not to assume it is. Run the evidence
+fresh:
+- Root cause unchanged from the tracker: `comment_issue` with your fresh
+  evidence (the queries you re-ran, current values, confirmation it is the
+  same failure mode).
+- Root cause has CHANGED under the same alert (a different failure now
+  triggers the same rule - e.g. the tracker documents a password-drift and
+  your evidence now shows resource exhaustion instead): `file_issue` for the
+  new problem, optionally `issue.parent`-linked to the tracker for context.
+  Do not comment a different root cause onto a tracker that describes another
+  one - that buries the new failure mode inside the old thread.
 
 The `issue` object:
 
@@ -201,5 +267,13 @@ The `issue` object:
   4. Grafana links - the `generatorURL` (alert rule) and `externalURL`
      (dashboard/explore) from the alert context.
 
+The `comment` object (only for `action="comment_issue"`):
+
+- `repo`, `number`: the tracker issue you found in your survey - exactly as
+  read back, not re-derived.
+- `body`: your fresh evidence only - queries run and their results, the
+  updated diagnosis (confirm-same or note-what-changed), and the Grafana
+  links. Not a full postmortem restate; the tracker already has one.
+
 Before you stop, write `task_note(kind="handoff", body=...)` - see `handoff`. The
-clarify pod that picks up your filed issue reads it.
+clarify pod that picks up your filed issue or tracker comment reads it.
