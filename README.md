@@ -81,7 +81,7 @@ context lean.
 
 ## Skill inventory
 
-**43 skills** on disk (44 `SKILL.md` files under `skills/`; `template/SKILL.md`
+**44 skills** on disk (45 `SKILL.md` files under `skills/`; `template/SKILL.md`
 is the copy-me starter, has no `profiles:`, and does not count). Counted with
 `find skills -name SKILL.md | sed 's|skills/\([^/]*\)/.*|\1|' | sort | uniq -c`.
 
@@ -136,12 +136,13 @@ is the copy-me starter, has no `profiles:`, and does not count). Counted with
 | tatara-backlog-groomer | task |
 | tatara-research-followup | task |
 
-### skills/implement/ (tatara implement kind, 2 skills)
+### skills/implement/ (tatara implement kind, 3 skills)
 
 | Skill | Type |
 |---|---|
 | tatara-implement-workflow | task |
 | tatara-implement-conflict-resolution | task |
+| tatara-implement-takeover | reference |
 
 ### skills/mcp/ (the tool reference, 6 skills)
 
