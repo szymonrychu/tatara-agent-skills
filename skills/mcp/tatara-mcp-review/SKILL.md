@@ -13,7 +13,7 @@ profiles: ["review"]
 
 You are in a `kind=review` task. The PR/MR head is checked out at
 `/workspace/<owner>/<repo>`. This page lists every tool your profile has -
-D.6 grants review 15 tools total (6 always-on + `submit_outcome` + 8 gated) - and nothing else
+D.6 grants review 16 tools total (6 always-on + `submit_outcome` + 9 gated) - and nothing else
 is available. Full schemas live in the cited skills; this page is the
 review-specific index and workflow.
 
@@ -30,6 +30,7 @@ Gated to `review`:
 | `submit_outcome` | Required, exactly once. Your review verdict. Schema below; full detail in `tatara-mcp-outcome`. |
 | `scm_read` | Read issues, MR, comments, commits, CI. See `tatara-mcp-scm`. |
 | `mr_write` | `action=comment` or `action=reply` ONLY - answering a human's inline thread. No `open`. See below and `tatara-mcp-scm`. |
+| `mr_takeover_request` | Request to hand an external MR over to tatara for full agency. Maintainer-gated and re-validated server-side. Does not merge, approve, or push. See `tatara-mcp-scm`. |
 | `code_search`, `code_context`, `code_graph`, `code_explain` | Full code-graph surface, all 4 tools. See `tatara-mcp-code-graph`. |
 | `memory_query`, `memory_describe` | Read-only recall. See `tatara-mcp-memory`. |
 

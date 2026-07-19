@@ -87,6 +87,7 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-mcp-scm",
         "tatara-pipeline-waiting",
         "tatara-review-checklist",
+        "tatara-review-takeover",
     },
     "refine": {
         "tatara-triage-judgment",
