@@ -30,13 +30,18 @@ Before you push:
    merge the default branch to resolve conflicts, never rebase, never
    force-push).
 3. If the branch head has moved to a commit tatara did not push, STOP. Do not
-   push. A human took the branch back. End the turn and report that the branch
-   diverged - the operator will have flipped ownership to external and parked
-   this task. Do not try to force the change through.
+   push. A human took the branch back. Write a handoff note summarizing the
+   divergence, then decline the task:
+   - `task_note(kind="handoff", body="branch diverged: remote head no longer
+     matches lastBotHeadSHA - ownership flipped to external")`
+   - `submit_outcome(action="declined", decline_reason="branch diverged: remote
+     head no longer matches lastBotHeadSHA - ownership flipped to external")`
+   Do NOT retry with action=submitted (nothing was pushed) or force the change
+   through.
 
 ## Hard rules (unchanged)
 
-- Never `git push --force` (the pod denies it).
+- Never `git push --force` or `--force-with-lease` (the pod denies it).
 - Never rebase to resolve conflicts; merge origin/<default-branch> instead.
 - You never merge and never close the MR - the operator merges on an approved
   review once tatara owns the MR.
