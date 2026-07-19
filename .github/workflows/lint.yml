@@ -21,6 +21,9 @@ jobs:
           python3 -m pip install --quiet pyyaml
           python3 .github/scripts/validate_profiles.py
 
+      - name: Validate tool calls against tatara-cli tool manifest
+        run: python3 .github/scripts/validate_tool_calls.py
+
       - name: Validate plugin manifests (JSON)
         run: |
           python3 - <<'EOF'
