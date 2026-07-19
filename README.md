@@ -81,8 +81,7 @@ context lean.
 
 ## Skill inventory
 
-**44 skills** on disk (45 `SKILL.md` files under `skills/`; `template/SKILL.md`
-is the copy-me starter, has no `profiles:`, and does not count). Counted with
+**44 skills** on disk (45 `SKILL.md` files total including `template/SKILL.md`, which is the copy-me starter, has no `profiles:`, and does not count toward the skill inventory). Counted with
 `find skills -name SKILL.md | sed 's|skills/\([^/]*\)/.*|\1|' | sort | uniq -c`.
 
 ### skills/shared/ (superpowers-derived + tatara-native process skills, 20 skills)

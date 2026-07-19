@@ -23,9 +23,13 @@ work, and a non-force push onto a diverged branch fails at the git level anyway.
 
 Before you push:
 
-1. Check the branch head you are about to push onto against the platform's
-   last-pushed head (your task context reports it; it is the MR's recorded
-   lastBotHeadSHA).
+1. Get the platform's last-recorded bot-push head from one of two surfaces:
+   - `task_context()`: its `<merge_request>` element carries a `last_bot_head_sha`
+     attribute (present only when the platform has recorded a bot push/takeover).
+   - `scm_read(kind="mr", repo, number)`: returns the same value as
+     `lastBotHeadSHA`.
+   Compare the remote branch head (`git ls-remote origin <branch>`, returns the
+   commit SHA) against that value.
 2. If they match, push normally (see tatara-implement-conflict-resolution:
    merge the default branch to resolve conflicts, never rebase, never
    force-push).
@@ -33,11 +37,16 @@ Before you push:
    push. A human took the branch back. Write a handoff note summarizing the
    divergence, then decline the task:
    - `task_note(kind="handoff", body="branch diverged: remote head no longer
-     matches lastBotHeadSHA - ownership flipped to external")`
+     matches last_bot_head_sha - ownership flipped to external")`
    - `submit_outcome(action="declined", decline_reason="branch diverged: remote
-     head no longer matches lastBotHeadSHA - ownership flipped to external")`
+     head no longer matches last_bot_head_sha - ownership flipped to external")`
    Do NOT retry with action=submitted (nothing was pushed) or force the change
    through.
+
+**Fallback:** if `last_bot_head_sha` is absent or you are in any doubt, attempt a
+normal (non-force) `git push` anyway. A non-fast-forward rejection from the git
+server IS the divergence signal - treat it the same way as the check above. Then
+run the same handoff/decline sequence.
 
 ## Hard rules (unchanged)
 
