@@ -81,8 +81,7 @@ context lean.
 
 ## Skill inventory
 
-**42 skills** on disk (43 `SKILL.md` files under `skills/`; `template/SKILL.md`
-is the copy-me starter, has no `profiles:`, and does not count). Counted with
+**44 skills** on disk (45 `SKILL.md` files total including `template/SKILL.md`, which is the copy-me starter, has no `profiles:`, and does not count toward the skill inventory). Counted with
 `find skills -name SKILL.md | sed 's|skills/\([^/]*\)/.*|\1|' | sort | uniq -c`.
 
 ### skills/shared/ (superpowers-derived + tatara-native process skills, 20 skills)
@@ -136,12 +135,13 @@ is the copy-me starter, has no `profiles:`, and does not count). Counted with
 | tatara-backlog-groomer | task |
 | tatara-research-followup | task |
 
-### skills/implement/ (tatara implement kind, 2 skills)
+### skills/implement/ (tatara implement kind, 3 skills)
 
 | Skill | Type |
 |---|---|
 | tatara-implement-workflow | task |
 | tatara-implement-conflict-resolution | task |
+| tatara-implement-takeover | reference |
 
 ### skills/mcp/ (the tool reference, 6 skills)
 
@@ -154,11 +154,12 @@ is the copy-me starter, has no `profiles:`, and does not count). Counted with
 | tatara-mcp-memory | reference |
 | tatara-mcp-review | reference |
 
-### skills/review/ (tatara review kind, 1 skill)
+### skills/review/ (tatara review kind, 2 skills)
 
 | Skill | Type |
 |---|---|
 | tatara-review-checklist | task |
+| tatara-review-takeover | reference |
 
 ### skills/operations/ (shared pipeline-waiting mechanic, 1 skill)
 

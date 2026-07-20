@@ -72,6 +72,25 @@ only) reads the MR thread instead of the issue thread.
   comment in its own thread instead of shouting into the PR's top level.
 - `refine` may only use `action=comment`.
 
+## `mr_takeover_request` - request to take over an external MR
+
+    mr_takeover_request(repo, number, comment_external_id)
+
+A review-only MR (someone else's PR or Renovate) can be handed to tatara for full
+agency by a project maintainer. This tool requests the handover; it does not merge,
+does not approve, and does not push. The operator validates server-side that the
+comment author is an allowed maintainer and that the comment exists - you do not
+need to check membership yourself, but do not call this tool for a comment you did
+not judge to be a genuine hand-over request, as a rejected request wastes a turn.
+
+`comment_external_id` is the `externalId` you read from `scm_read(kind="comments",
+is_pr=true)`. If the takeover is accepted, a separate implement turn does the work;
+your review job continues.
+
+If a non-maintainer asks for a takeover, do not call this tool - reply in the thread
+instead that only a project maintainer can hand an MR over to tatara. The operator
+would reject it anyway; refusing conversationally is clearer and cheaper.
+
 ## Anti-patterns
 
 - Do NOT invoke `gh` or `glab`. They are not available to you and never will

@@ -76,6 +76,7 @@ EXPECTED_PROFILE_SKILLS = {
     },
     "implement": {
         "tatara-implement-conflict-resolution",
+        "tatara-implement-takeover",
         "tatara-implement-workflow",
         "tatara-mcp-code-graph",
         "tatara-mcp-scm",
@@ -87,6 +88,7 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-mcp-scm",
         "tatara-pipeline-waiting",
         "tatara-review-checklist",
+        "tatara-review-takeover",
     },
     "refine": {
         "tatara-triage-judgment",
