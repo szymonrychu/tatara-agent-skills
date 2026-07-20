@@ -1,6 +1,6 @@
 {
   "name": "tatara-agent-skills",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Single source of truth for tatara platform agent skills. Ships all 42 skills: 20 superpowers-derived + tatara-native process skills in skills/shared/, plus per-kind task harnesses, MCP tool-reference skills, and guardrail skills layered on top. Agents running inside the tatara autonomous loop load skills from this repo instead of from the wrapper image.",
   "author": {
     "name": "Szymon Richert",
