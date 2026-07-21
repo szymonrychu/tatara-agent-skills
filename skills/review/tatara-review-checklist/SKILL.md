@@ -27,14 +27,21 @@ Your turn-0 context bundle already carries every MR your Task owns: title, body,
 head branch, head SHA, CI state, mergeability, and the full comment thread. Do
 not re-crawl the forge for what is already in front of you.
 
-**Takeover check (do this FIRST, before any review work):** if this turn was
-triggered by a human comment on an external MR and that comment asks tatara to
-take the MR over - in any wording ("take over", "take it over and fix", "you
-handle this", similar intent) - do NOT proceed with a normal review round.
+**Takeover check (do this FIRST, before any review work, on EVERY review
+turn):** scan the FULL comment thread in your bundle - not just whatever
+triggered this specific turn - for any human comment on an external MR that
+asks tatara to take the MR over, in any wording ("take over", "take it over
+and fix", "you handle this", similar intent). This check does not depend on
+why this turn started: a takeover comment posted between turns, or alongside
+an unrelated CI/head-move event, still counts and must be handled the moment
+you see it in the thread. If such a comment exists and you have not already
+requested takeover for it, do NOT proceed with a normal review round and do
+NOT conclude it is "outside what a review agent can act on" - that is a
+platform capability you have via `mr_takeover_request`, not a limitation.
 Invoke the `tatara-review-takeover` skill now and follow it: it judges the
 intent and calls `mr_takeover_request` with that comment's external id. Only
-fall through to the review steps below when no delivered comment carries
-takeover intent.
+fall through to the review steps below when no comment in the thread carries
+unresolved takeover intent.
 
 ```
 task_get()
