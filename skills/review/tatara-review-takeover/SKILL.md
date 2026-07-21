@@ -19,10 +19,12 @@ it. A project maintainer can hand it to tatara for full agency.
 
 ## When this applies
 
-You are reviewing an MR and a new comment (surfaced in your task context as an
-mr_comment event) reads as a request for tatara to take the MR over and drive
-it: "can you fix the conflicts and merge", "take this over", "please get this
-green and land it". It is natural language, not a fixed command.
+You are reviewing an MR and some comment in the thread - whether it arrived as
+an `mr_comment` event this turn or was already sitting in the comment history
+you're re-reading - reads as a request for tatara to take the MR over and
+drive it: "can you fix the conflicts and merge", "take this over", "please get
+this green and land it". It is natural language, not a fixed command, and it
+does not matter whether it was the specific thing that triggered this turn.
 
 ## What to do
 
