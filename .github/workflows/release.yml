@@ -68,6 +68,34 @@ jobs:
               }
             ]
 
+      # mode=bump: the wrapper Dockerfile ENV above is only the baked DEFAULT.
+      # The operator overrides TATARA_SKILLS_REF on every agent pod from
+      # Project.Spec.Agent.SkillsRef, fed by tatara-helmfile's values - without
+      # this edge the deployed pin freezes while releases pile up unused
+      # (froze at v1.0.0 through v1.5.2; tatara-operator#421), so rewrite the
+      # helmfile pin for BOTH projects to the same freshly cut tag.
+      - name: Bump helmfile skillsRef pin
+        if: steps.tag.outputs.version != ''
+        uses: szymonrychu/tatara-helmfile/.github/actions/cd-release@main
+        with:
+          mode: bump
+          token: ${{ secrets.TATARA_CD_TOKEN }}
+          parent_repo: szymonrychu/tatara-helmfile
+          new_value: ${{ steps.tag.outputs.version }}
+          pins: |
+            [
+              {
+                "file": "values/project-tatara/common.yaml",
+                "pattern": "^(\\s*)skillsRef: .*$",
+                "value_template": "\\1skillsRef: {{version}}"
+              },
+              {
+                "file": "values/project-infrastructure/common.yaml",
+                "pattern": "^(\\s*)skillsRef: .*$",
+                "value_template": "\\1skillsRef: {{version}}"
+              }
+            ]
+
       # Self-pin: keep .claude-plugin/plugin.json's version in lockstep with
       # the tag we just cut, so it never freezes at its initial value.
       # main requires the "Validate skills and manifests" status check, and a
