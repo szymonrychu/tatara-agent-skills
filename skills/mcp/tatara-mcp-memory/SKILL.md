@@ -29,6 +29,40 @@ skill, and bulk ingest is the repo-ingester's job, not yours.
 | `memory_entity` | `op`* (`get`\|`search`\|`patch`) `id` `q` `patch` | One entity in the graph. `op="get"` needs `id`; `op="search"` needs `q`; `op="patch"` needs `id` and `patch`. |
 | `memory_edges` | `op`* (`list`\|`create`\|`delete`) `id` `from_entity` `to_entity` `relation` `properties` | Edges between entities. `op="delete"` needs `id`; `op="create"` needs `from_entity`, `to_entity`, `relation`; `op="list"` takes no required args. |
 
+## When memory is degraded (MEMORY_DEGRADED)
+
+The memory backend can be unhealthy while your pod runs. When it is, the nine
+memory-backed tools - `memory_query`, `memory_describe`, `memory_write`,
+`memory_entity`, `memory_edges` and the four code-graph tools `code_search`,
+`code_context`, `code_graph`, `code_explain` - return a structured result whose
+text begins with `MEMORY_DEGRADED:` instead of a payload or a raw transport
+error.
+
+**This is an expected platform state, not a stop condition.** The operator
+spawns your pod and submits your turn anyway, and says so in your assignment.
+Recall is off for this turn; the work is still yours to finish. Do this:
+
+1. Do NOT retry the memory-backed tools in a loop, and do NOT wait for recovery.
+   A second `MEMORY_DEGRADED` is the same answer as the first.
+2. Call `report_internal_issue(category="tool_error", severity="warn",
+   description="...", offending_tool="<the tool>")` ONCE for the turn, not once
+   per degraded call. `warn` is the right severity: you are degraded, not
+   blocked.
+3. Complete the work from the repository itself - symbol/LSP tools (Serena),
+   `git` log and diff, and direct reads of the on-disk clones. With recall
+   unavailable a raw file read IS the legitimate entry point, not a shortcut
+   past the graph, and the graph-before-raw-read rail in
+   `tatara-evidence-and-citation` does not apply for this turn.
+4. State the degradation in what you write back - your `submit_outcome`, any
+   comment you post, and your `task_note(kind="handoff")` - naming what you
+   could NOT verify because recall was off. That written statement plus the one
+   `report_internal_issue` IS the non-silent path the evidence rails ask for.
+5. Where a judgment genuinely depended on recall (a dedup check, an
+   already-implemented check, a cross-repo claim), take the more conservative
+   option and say why. Do NOT decline, skip, or abandon a turn merely because
+   memory was degraded - only when the specific judgment you were asked for is
+   impossible without it.
+
 ## Query mode decision table
 
 Choose `mode` for `memory_query` and `memory_describe` based on what you need:
@@ -162,3 +196,6 @@ Goal                                    -> Tool
 - Do NOT try to bulk-ingest content through this skill. That is the
   repo-ingester's job, not yours; use `memory_write` for one finding at a
   time.
+- Do NOT treat a `MEMORY_DEGRADED` result as a reason to stop the turn, retry
+  in a loop, or report the same outage on every call. Report once, fall back to
+  the repo, say so in your output.

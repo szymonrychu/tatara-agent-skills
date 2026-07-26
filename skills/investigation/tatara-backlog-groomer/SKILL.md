@@ -55,6 +55,12 @@ A turn that submits no outcome does not quietly stop: the Task ages out at
    concurrently, keeping your own surface lean. If any call errors such that you cannot see a repo's
    backlog, call `task_note(kind="handoff", body=...)` describing what you got and stop - do not
    groom on partial data.
+
+   **MEMORY_DEGRADED carve-out.** A `MEMORY_DEGRADED: ...` result from the memory tools is NOT that
+   stop condition. The backlog itself comes from `scm_read`; only the already-implemented check
+   loses its semantic match. That is an EXPECTED platform state, not a stop condition: call
+   `report_internal_issue` ONCE at `severity="warn"` and groom on. You stop only when you cannot
+   see a repo's ISSUES. Full contract in `tatara-mcp-memory`.
 2. **Priority-0 gave-up queue.** Select Tasks whose stage is `parked` with a stageReason that says
    an agent gave up: `implement-declined`, `review-loop-exhausted`, `stage-deadline`, `no-outcome`.
    **NEVER touch a Task in a live (non-terminal) stage** - that agent is running. For each gave-up
@@ -69,7 +75,11 @@ A turn that submits no outcome does not quietly stop: the Task ages out at
 3. **Already-implemented scan.** For each surviving open issue, judge implemented-ness via the memory
    graph semantic match FIRST (`memory_query`), then the `closes #N` / commit-message cross-reference
    from `scm_read(kind="commits")`. High-confidence done -> a `closes[]` entry citing the SHA.
-   Ambiguous -> leave it open.
+   Ambiguous -> leave it open. Under `MEMORY_DEGRADED` the memory step is unavailable and the
+   `closes #N` / commit-message cross-reference is the ACCEPTED fallback for this phase - keep the
+   bar for "high-confidence done" higher (an explicit `closes #N` or an unambiguous
+   commit/MR reference, not a title resemblance), and say in each `closes[]` reason that recall was
+   unavailable so the match rests on commit evidence alone.
 4. **Duplicate consolidation.** Pairwise title + lead-paragraph overlap. Fold any unique acceptance
    criteria into the survivor with `issue_write(action="edit")` BEFORE closing the duplicate, then put
    the newer / less-specific issue in `closes[]` citing the canonical one. When the duplicate has its
@@ -120,5 +130,7 @@ platform.
 - Folding a Task with a running pod. It is refused, and it is you trying to yank work out from under
   a live agent.
 - Regex-only implemented-ness detection: consult the memory graph first, commit messages second.
+  Exception: under `MEMORY_DEGRADED` there is no graph to consult, so commit evidence alone is the
+  correct path - state that limitation in the `closes[]` reason rather than skipping the phase.
 - Reading code. You have no code-graph tools; if a decision needs the code, escalate it to a human in
   a comment.

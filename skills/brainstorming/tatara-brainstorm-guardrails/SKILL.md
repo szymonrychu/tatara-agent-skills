@@ -73,7 +73,10 @@ A proposal must be:
 - **Not already tracked**: no open forge issue and no in-flight Task covering the
   same problem (checked in rail 1).
 - **Grounded**: supported by `file:line` evidence from the code graph and the code
-  you actually read, not general intuition.
+  you actually read, not general intuition. If the code-graph tools returned
+  `MEMORY_DEGRADED`, `file:line` evidence from the code you read on disk is
+  sufficient - say in the body that graph corroboration was unavailable (see
+  `tatara-mcp-memory`).
 - **Actionable**: scoped so a maintainer can approve it, or redirect it with a
   comment, without further back-and-forth. Not "improve X generally."
 - **Platform-compatible**: consistent with the platform rules (KISS,

@@ -37,10 +37,22 @@ operator telemetry and an alert.
 
 **Do NOT** open, propose, or comment on a tracker issue asking a human to fix the platform.
 **Do NOT** treat a blocked tool as a reason to file your normal output.
-Report it and stop.
+Report it and stop - when you are genuinely BLOCKED. Degraded is not blocked; see the
+carve-out below.
 
 *Source: `platformProblemGuidance` constant in `tatara-operator/internal/controller/turnloop.go`,
 appended to every turn-0 directive.*
+
+### MEMORY_DEGRADED carve-out - degraded is not blocked
+
+When the memory-backed tools (`memory_*`, `code_*`) return a `MEMORY_DEGRADED: ...`
+result, the memory backend is unhealthy for this turn. That is an EXPECTED platform
+state, not a stop condition: your pod was spawned and your turn submitted knowing it.
+Complete the work from the repository itself (symbol/LSP tools, `git`, direct file
+reads), call `report_internal_issue` ONCE at `severity="warn"`, and state the
+degradation - and what you could not verify because of it - in what you write back.
+Finish the turn; do not stall, loop, or decline on account of the degradation alone.
+Full contract in `tatara-mcp-memory`.
 
 ### Same failure recurring across turns is the same signal, not a reason to retry again
 

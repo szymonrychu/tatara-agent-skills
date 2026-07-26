@@ -74,6 +74,19 @@ Create a TodoWrite item per numbered step.
    `memory_query` (mode global or hybrid) for "tatara platform goal" and
    "open roadmap themes" to situate the problem in context.
 
+   **MEMORY_DEGRADED carve-out.** When the memory-backed tools (`memory_*`,
+   `code_*`) return a `MEMORY_DEGRADED: ...` result, the memory backend is
+   unhealthy for this turn - an EXPECTED platform state, not a stop condition.
+   Scope and MAP INWARD from the on-disk files alone, treat step 3's prior-art
+   survey as unavailable (record it as an open question in the ADR alongside the
+   external-sources one), call `report_internal_issue` ONCE at `severity="warn"`,
+   and run the turn. With no graph you cannot make a cross-repo claim or a
+   reliable novelty check, so bias toward `submit_outcome(action="skip",
+   reason=...)` naming the degradation over proposing something you could not
+   dedup; propose only what you grounded in `file:line` evidence you read
+   yourself, and say in the body that recall was unavailable. Full contract in
+   `tatara-mcp-memory`.
+
 2. **MAP INWARD** - establish what tatara does today and where the
    coupling/debt lives. Use the code-graph tools: `code_graph(op="stats")`,
    `code_graph(op="important")` (high-PageRank load-bearing entities),
@@ -134,6 +147,8 @@ Create a TodoWrite item per numbered step.
 - Proposing a vague "improve X" issue with no `file:line` evidence.
 - Attempting WebSearch/WebFetch in Phase 1 (egress is not yet wired).
 - Proposing memory ranking work before the eval-harness gate exists.
-- Reading only the on-disk repo and ignoring the cross-repo graph.
+- Reading only the on-disk repo and ignoring the cross-repo graph - unless the
+  graph returned `MEMORY_DEGRADED`, in which case on-disk only is the fallback
+  and the missing cross-repo view is stated in your outcome.
 - Producing an issue body that lists open questions (they go in the ADR
   artifact; the issue body has one well-researched decision for approval).

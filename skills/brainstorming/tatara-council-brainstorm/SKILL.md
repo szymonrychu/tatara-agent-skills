@@ -28,6 +28,18 @@ simplification, operability, product-growth, tech-radar.
    `ROADMAP.md`, `MEMORY.md`, and `CLAUDE.md`. Then `memory_query` (mode global)
    for "tatara platform goal" and "open roadmap themes". Write a short summary of
    the platform goal plus the open themes to your scratchpad before continuing.
+
+   **MEMORY_DEGRADED carve-out.** When the memory-backed tools (`memory_*`,
+   `code_*`) return a `MEMORY_DEGRADED: ...` result, the memory backend is
+   unhealthy for this turn - an EXPECTED platform state, not a stop condition.
+   The gate is then satisfied by the on-disk files alone: summarise from them,
+   call `report_internal_issue` ONCE at `severity="warn"`, and run the turn.
+   A degraded brainstorm cannot check the graph for prior art or duplicates, so
+   bias hard toward `submit_outcome(action="skip", reason=...)` naming the
+   degradation rather than proposing something you could not dedup. Propose only
+   a finding you grounded in `file:line` evidence you read yourself this turn,
+   and say in its body that recall was unavailable. Full contract in
+   `tatara-mcp-memory`.
 2. **Early-exit dedup scan (do this cheaply, FIRST action-gate).** Read the open
    issues and MRs with `scm_read(kind="issues"|"mr", repo=..., state="open")`,
    the `<task_index>` in your bundle, and `task_list`. If nothing clears the bar
@@ -99,6 +111,9 @@ simplification, operability, product-growth, tech-radar.
 ## Anti-patterns
 
 - Taking any action before the phase-1 context summary.
+- Stalling, looping, or emitting no outcome because the memory tools returned
+  `MEMORY_DEGRADED`. The turn still runs; a degraded turn that ends in a
+  well-reasoned `skip` is a correct outcome, no outcome is not.
 - Looking for a lens register to read or advance. The operator owns the lens.
 - A generic assertion with no `file:line` / SHA / graph finding behind it.
 - Calling `submit_outcome(action="propose")` before the phase-4 scratchpad exists.
