@@ -52,6 +52,8 @@ Before dispatching per-repo subagents:
      re-propose it, and do not propose a restatement of it under a new title. A
      declined proposal's forge issue is CLOSED, so a scan of open issues will not
      show it to you - this block is the only place you can see it.
+   This block is bounded by recent history, not a permanent archive - absence
+   from it is not proof an idea was never raised or declined.
 2. Read the open issues and MRs: `scm_read(kind="issues", repo=..., state="open")`
    and `scm_read(kind="mr", repo=..., state="open")` across the repos in scope
    (`repo_list`). Any idea that duplicates or is merely a sub-aspect of one of
