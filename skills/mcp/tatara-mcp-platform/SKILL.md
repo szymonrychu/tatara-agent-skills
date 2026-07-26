@@ -177,9 +177,11 @@ Call `task_context()` again if a note you wrote earlier this turn should now
 be visible in your own bundle, or if you need the freshest render before your
 final `task_note(kind=handoff)`.
 
-Call `project_get()` again if you need to recheck the proposal cap
-(`spec.maxOpenProposals`) before including more than one proposal in a
-`submit_outcome(action="propose", ...)` call.
+The proposal ceiling is no longer an agent-side check against
+`project_get()`. The operator computes a per-session quota from the project's
+backlog target and states it in your `<goal>` as `PROPOSAL QUOTA: file AT MOST
+N proposal(s)`, then truncates anything beyond N. Read the goal, not the
+Project spec.
 
 ---
 

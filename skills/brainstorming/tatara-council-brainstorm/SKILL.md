@@ -40,12 +40,17 @@ simplification, operability, product-growth, tech-radar.
    a finding you grounded in `file:line` evidence you read yourself this turn,
    and say in its body that recall was unavailable. Full contract in
    `tatara-mcp-memory`.
-2. **Early-exit dedup scan (do this cheaply, FIRST action-gate).** Read the open
-   issues and MRs with `scm_read(kind="issues"|"mr", repo=..., state="open")`,
-   the `<task_index>` in your bundle, and `task_list`. If nothing clears the bar
-   for a genuinely novel, high-leverage proposal through this cycle's lens, call
-   `submit_outcome(action="skip", reason=...)` - naming the lens and why nothing
-   qualified - and STOP. Silence over noise.
+2. **Early-exit dedup scan (do this cheaply, FIRST action-gate).** Read the
+   `<proposal_history>` block in your bundle FIRST: it carries this project's
+   recent proposals with their verdict (`open`, `approved`, `declined`) and the
+   maintainer comments behind each one. A `declined` entry is a killed idea - its
+   forge issue is closed, so no open-issue scan will surface it, and re-proposing
+   it (or a reworded slice of it) is the single most common way this loop wastes
+   a maintainer's attention. Then read the open issues and MRs with
+   `scm_read(kind="issues"|"mr", repo=..., state="open")` and `task_list`. If
+   nothing clears the bar for a genuinely novel, high-leverage proposal through
+   this cycle's lens, call `submit_outcome(action="skip", reason=...)` - naming
+   the lens and why nothing qualified - and STOP. Silence over noise.
 3. **Lens-specific evidence gathering.** When the lens needs evidence from more
    than one repo (failure-modes, coupling and tech-radar routinely do; the others
    may), dispatch one `explorer` subagent per implicated repo (via the `Agent`
@@ -83,15 +88,17 @@ simplification, operability, product-growth, tech-radar.
    or when the finding duplicates an open issue or an in-flight Task (name the
    duplicate in the reason - you have no `issue_write` and cannot comment on it).
 
-   Otherwise emit ONE call carrying every issue you want opened:
+   Otherwise emit ONE call carrying every issue you want opened, up to the
+   session quota stated in your `<goal>`:
 
        submit_outcome(action="propose",
-                      proposals=[{repo, title, body, kind}, ...])   # 1..5
+                      proposals=[{repo, title, body, kind}, ...])   # 1..quota
 
    **Each proposal becomes its own issue and its own clarify Task.** There is no
-   umbrella Task, no `systemicId`, and no linked-issue group: a finding that
-   touches three repos is three entries, and the clarify conversation on each is
-   where its scope is settled. The array is capped at 5.
+   umbrella Task, no linked-issue group: a finding that touches three repos is
+   three entries, and the clarify conversation on each is where its scope is
+   settled. The operator truncates the array to the quota in payload order, and
+   the schema ceiling is 5 regardless - so order your entries best-first.
 
    Every proposal body MUST:
    - Ground itself per `tatara-code-quality-proposal` (concrete `file:line`
@@ -121,3 +128,7 @@ simplification, operability, product-growth, tech-radar.
   ages out at `no-outcome` and the work is lost).
 - Trying to comment on an existing issue instead of skipping. brainstorm has no
   `issue_write`.
+- Re-proposing something `<proposal_history>` shows as `declined`, or ignoring
+  the maintainer comment that explains why it was declined.
+- Treating the open-issue scan as a complete dedup surface. It is not: a
+  discarded proposal is closed.
