@@ -72,7 +72,11 @@ you make yourself.
 
 1. Read the diff: `git -C /workspace/<owner>/<repo> diff main...HEAD`.
 2. Inspect changed files. Use `code_context`/`code_graph`/`code_explain`
-   (`tatara-mcp-code-graph`) to trace impact before forming a verdict.
+   (`tatara-mcp-code-graph`) to trace impact before forming a verdict. If they
+   return `MEMORY_DEGRADED`, trace impact from the repo itself (symbol/LSP
+   tools, `git`, direct reads), report it ONCE, and note in your verdict what
+   the missing graph left unverified - review the change anyway (see
+   `tatara-mcp-memory`).
 3. Build and run tests/linters if the repo supports it. Note what you ran
    and the exit code.
 4. Check CI state with `scm_read(kind="ci", repo=..., number=...)` -

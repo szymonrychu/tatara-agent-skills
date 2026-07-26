@@ -77,6 +77,8 @@ These apply to every agent kind in every profile. Violating them produces unveri
 
 **`report_internal_issue` for tool failures; do not mask them.** If a graph tool returns an error or empty result that you did not expect, call `report_internal_issue(category="tool_error", description="...", offending_tool="...")` and note the gap explicitly in your output. Do not silently proceed as if the tool succeeded.
 
+**MEMORY_DEGRADED carve-out.** When the memory-backed tools (`memory_*`, `code_*`) return a `MEMORY_DEGRADED: ...` result, the memory backend is unhealthy for this turn. That is an EXPECTED platform state, not a stop condition. The two rails above bend, and only for that case: a raw file read IS the legitimate entry point while recall is off (graph-before-raw-read does not apply), and calling `report_internal_issue` ONCE at `severity="warn"` plus stating the degradation - and what you could not verify because of it - in what you write back IS the non-silent path the rail asks for. Cite `file:line` from what you actually read on disk, finish the turn, and do not stall, loop, or decline on account of the degradation alone. Full contract in `tatara-mcp-memory`. None of this loosens either rail while the backend is healthy.
+
 ## Judgment calls (left to the agent)
 
 The following are open; the agent applies its own judgment:

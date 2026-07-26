@@ -35,7 +35,9 @@ there, and `issue_write` for posting.
    subagent per implicated repo (via the `Agent` tool, `model: haiku`, `effort:
    low`) to confirm the ask is technically coherent and to surface the 1-3 real
    ambiguities worth asking about. Do not ask questions answerable from the code
-   or the issue text.
+   or the issue text. If the code-graph tools return `MEMORY_DEGRADED`, read the
+   on-disk repos directly instead, report it ONCE, and continue the turn (see
+   `tatara-mcp-memory`).
 3. **Post clarifying questions** (or, if nothing is genuinely ambiguous, a short
    confirmation of scope plus your proposed approach) with
    `issue_write(action="comment", repo=..., number=..., body=...)`, per

@@ -48,7 +48,10 @@ Create a TodoWrite item per numbered step.
    `code_context(rel="related"|"cross_repo"|"callers"|...)`, passing
    `repo=<Repository CR name>`) plus the on-disk code to answer the specific
    questions raised and to deepen any thin part of the proposal. Use the graph for
-   cross-repo facts.
+   cross-repo facts. If those tools return `MEMORY_DEGRADED`, research from the
+   on-disk repos instead, report it ONCE, and say in your comment which
+   cross-repo facts you could not confirm - do not stall the turn (see
+   `tatara-mcp-memory`).
 
 3. **Respond in-thread** with `issue_write(action="comment", repo=..., number=...,
    body=...)`. Post focused comments, not one wall of text:

@@ -60,6 +60,14 @@ tool requires it; it scopes results to one repository's code graph.
 
 Run both before reading any files. These establish the map.
 
+**MEMORY_DEGRADED carve-out.** All four `code_*` tools are served by the memory
+backend. When they return a `MEMORY_DEGRADED: ...` result that backend is
+unhealthy for this turn - an EXPECTED platform state, not a stop condition.
+Skip the orientation step, work from the repository itself (symbol/LSP tools,
+`git`, direct file reads), call `report_internal_issue` ONCE at
+`severity="warn"`, and state the degradation in what you write back. Full
+contract in `tatara-mcp-memory`.
+
 ```
 1. code_graph(repo="szymonrychu/<repo>", op="stats")
    -> Read: total entity count, entity type breakdown (function, file, type, etc.),
@@ -320,7 +328,9 @@ Open files only for the specific functions you need to read or change.
   Start at 2-3; deep traversal on high-degree nodes produces enormous noisy
   results.
 - Do NOT skip orientation (`code_graph(op="stats")` + `code_graph(op="important")`)
-  before exploring. Without it you have no map and will wander.
+  before exploring. Without it you have no map and will wander. The one exception
+  is a `MEMORY_DEGRADED` result - then there is no map to fetch, and reading the
+  repo directly is the correct move.
 - Do NOT assume `code_graph(op="path")` finds the only path. It returns the
   SHORTEST path along any relation. There may be other paths; check
   `code_context(rel="neighbors")` if you need completeness.

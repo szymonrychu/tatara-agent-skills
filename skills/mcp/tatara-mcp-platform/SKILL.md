@@ -140,18 +140,27 @@ A tool call to `memory_query` returns HTTP 502 three times in a row:
 ```
 report_internal_issue(
   category       = "tool_error",
-  severity       = "error",
-  description    = "tatara-memory query endpoint returned 502 on three consecutive calls with mode=hybrid. Memory retrieval is unavailable.",
+  severity       = "warn",
+  description    = "tatara-memory query endpoint returned 502 on three consecutive calls with mode=hybrid. Memory retrieval is unavailable; continuing from the on-disk repo.",
   offending_tool = "memory_query",
   resource_id    = "szymonrychu/tatara-cli"
 )
 ```
 
+That is the memory-degraded case, and its modern shape is a
+`MEMORY_DEGRADED: ...` result rather than a raw transport error - see
+"When memory is degraded" in `tatara-mcp-memory`. Report it ONCE, at
+`severity="warn"`, and carry on.
+
 After calling `report_internal_issue`, do NOT keep retrying blindly.
-Either adapt (use an alternative tool or approach), or write a
-`task_note(kind=handoff)` and call `submit_outcome` with the shape your
-profile owns (see `tatara-mcp-outcome`) - most profiles have a decline or
-skip path for exactly this situation.
+**Adapt first.** Use an alternative tool or approach - for a memory or
+code-graph outage that means symbol/LSP tools, `git`, and direct reads of the
+on-disk clones - and state the degradation in what you write back. Only when
+the specific judgment you were asked for is genuinely impossible without the
+failed tool do you write a `task_note(kind=handoff)` and call `submit_outcome`
+with your profile's decline or skip shape (see `tatara-mcp-outcome`). A
+degraded memory backend on its own is NOT that case: it is an adapt, not a
+decline.
 
 ---
 
