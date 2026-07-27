@@ -59,7 +59,9 @@ any of them; it cannot read your mind.
   scope decision is the one way this journal turns four cycles into the same
   cycle four times. If your work genuinely spans cycles, say what is UNFINISHED
   and why, concretely - that is a fact about the work, not a decision about
-  someone else's scope.
+  someone else's scope. Ruling out every option but one is narrowing by another
+  name: if your rule-outs leave a single candidate standing, say what you did
+  not examine, so the next agent knows your survey was not the whole territory.
 
 ## Reading the other side of it
 

@@ -130,6 +130,12 @@ simplification, operability, product-growth, tech-radar.
    on one project once inherited a single narrow target this way, each re-deriving
    it, each skipping, none of them wrong on its own.
 
+   **Ruling everything out is still narrowing.** A note that rules out every
+   candidate but one hands over a target just as firmly as naming one, and every
+   step of it looks permitted. If your rule-outs leave a single option standing,
+   say so plainly, and say what you did NOT examine this cycle, so the next cycle
+   knows the territory is wider than your survey was.
+
    **Name the target and the repetition explicitly.** If you skipped, say which
    target you examined, in plain words. If the prior cycle's note shows it
    examined the SAME target and also skipped, say that too. The next cycle is
@@ -158,3 +164,5 @@ simplification, operability, product-growth, tech-radar.
 - Inheriting a target from a prior handoff instead of re-deriving it from your
   own MANDATE, or re-confirming a target that the last two cycles both skipped.
   Your goal tells you to widen; widen.
+- Ruling out every candidate but one. An exhaustive rule-out list is a target
+  handoff wearing a survey's clothes. Say what you left unexamined.
