@@ -13,10 +13,13 @@ alongside the agent's own reasoning; never a script.
 
 ## What you have
 
-Your bundle carries your Task, the compact project-wide index of prior
-brainstorms (`<task_index>`), and your assignment - including the architectural
-LENS the operator selected for this cycle. Pull any indexed Task's full bundle on
-demand with `task_context(task=<name>)`.
+Your bundle carries your Task, your assignment - including the architectural LENS
+the operator selected for this cycle - and a `<proposal_history>` block: the
+project's most recent brainstorm proposals, newest first, each with a
+`status` of `open`, `approved` or `declined`, its body, and the maintainer
+comments that explain the verdict. Pull the full project Task index on demand
+with `task_context(index=true)`, and any indexed Task's bundle with
+`task_context(task=<name>)`.
 
 Your tool surface (per `tatara-mcp-platform`, `tatara-mcp-scm`,
 `tatara-mcp-code-graph`, `tatara-mcp-memory`, `tatara-mcp-outcome`):
@@ -40,14 +43,25 @@ creates it.
 
 Before dispatching per-repo subagents:
 
-1. Read the open issues and MRs: `scm_read(kind="issues", repo=..., state="open")`
+1. Read `<proposal_history>` in your bundle. It is the authoritative record of
+   what this project has already been asked. Three rules follow from it:
+   - `status="open"`: the maintainer has not decided yet. Do not re-propose it
+     and do not propose a narrower slice of it.
+   - `status="approved"`: it is being implemented. Do not re-propose it.
+   - `status="declined"`: **the idea is dead.** Read the comments for why. Do not
+     re-propose it, and do not propose a restatement of it under a new title. A
+     declined proposal's forge issue is CLOSED, so a scan of open issues will not
+     show it to you - this block is the only place you can see it.
+   This block is bounded by recent history, not a permanent archive - absence
+   from it is not proof an idea was never raised or declined.
+2. Read the open issues and MRs: `scm_read(kind="issues", repo=..., state="open")`
    and `scm_read(kind="mr", repo=..., state="open")` across the repos in scope
    (`repo_list`). Any idea that duplicates or is merely a sub-aspect of one of
    these must NOT be proposed.
-2. Read the `<task_index>` in your bundle, and `task_list`, for work already
-   queued or in flight on the same domain. If it is there, treat it as covered.
+3. Read `task_list` for work already queued or in flight on the same domain. If
+   it is there, treat it as covered.
 
-Both checks are cheap. Do them before the expensive fan-out, not after.
+All three checks are cheap. Do them before the expensive fan-out, not after.
 
 ### 2. XOR terminal action
 
@@ -56,7 +70,7 @@ A brainstorm turn ends with exactly ONE `submit_outcome`, in one of two shapes:
 | Action | When |
 |---|---|
 | `submit_outcome(action="skip", reason=...)` | No genuinely novel candidate clears the bar this cycle |
-| `submit_outcome(action="propose", proposals=[{repo, title, body, kind}, ...])` | One or more genuinely novel opportunities - between 1 and 5 proposals, one entry per issue you want opened |
+| `submit_outcome(action="propose", proposals=[{repo, title, body, kind}, ...])` | One or more genuinely novel opportunities - between 1 and your session quota (rail 7), one entry per issue you want opened |
 
 No combinations. No silent exits. **A turn that ends without an outcome does not
 quietly stop:** the Task ages out at `stageReason=no-outcome`, the pod is
@@ -108,10 +122,21 @@ operator** - and it happens on the clarify Task the operator mints from your
 proposal, long after your pod is gone. Nothing you write in a proposal body
 advances that gate; do not pretend otherwise in the prose.
 
-### 7. Concurrency and cap (enforced externally)
+### 7. The session quota (enforced externally)
 
-The operator gates how many Tasks a project may have open (`maxOpenTasks`) and
-how many agents may run at once (`maxConcurrentAgents`). If your turn was
+Your `<goal>` carries a line of the form:
+
+    PROPOSAL QUOTA: file AT MOST <K> proposal(s) in this session. The operator truncates anything beyond <K>.
+
+`<K>` is the operator's computed deficit against the project's backlog target.
+File at most `<K>`, keeping the first `<K>` in payload order, so a longer array
+does not get you more issues - it silently discards your best-ranked-last
+ideas. Order your proposals best-first.
+
+If the goal carries no quota line, the schema ceiling of 5 applies.
+
+The operator also gates how many Tasks a project may have open (`maxOpenTasks`)
+and how many agents run at once (`maxConcurrentAgents`). If your turn was
 triggered, the operator already cleared those gates - do not re-check them or
 apply a lower cap of your own.
 
@@ -154,9 +179,10 @@ worth proposing.
 **Good `skip` reason:**
 Names the specific barrier with enough detail that a human reading the outcome
 understands why the cycle yielded nothing. For example: "Surveyed tatara-operator
-and tatara-cli through the coupling lens; all three candidate gaps duplicate open
-issues tatara-operator#N, #M and tatara-cli#P. No novel high-leverage opportunity
-this cycle."
+and tatara-cli through the coupling lens; two candidate gaps duplicate open
+issues tatara-operator#N and tatara-cli#P, and the third restates the proposal
+declined at tatara-operator#K ('too speculative for now'). No novel high-leverage
+opportunity this cycle."
 
 ## Anti-patterns
 
@@ -164,7 +190,11 @@ this cycle."
 - Proposing something that duplicates or merely restates an open forge issue or
   an in-flight Task.
 - Proposing vague "improve X" issues with no grounded `file:line` evidence.
-- Emitting more than 5 proposals, or more than one `submit_outcome`.
+- Emitting more proposals than your session quota, or more than one `submit_outcome`.
+- Re-proposing an idea that `<proposal_history>` shows as declined, or a
+  reworded restatement of one.
+- Treating "no open issue covers this" as proof the idea is novel. A killed idea
+  leaves no open issue behind.
 - Ending the turn without calling `submit_outcome`.
 - Trying to comment on an issue, open an MR, or label anything. You have none of
   those tools.

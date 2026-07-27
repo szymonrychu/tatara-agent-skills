@@ -105,9 +105,16 @@ Create a TodoWrite item per numbered step.
    work before the memory retrieval-quality eval harness exists. Pick the
    single highest-leverage, well-scoped item.
 
-4. **Dedup - and there is no comment path.** Before acting, call `task_list`,
-   read the `<task_index>` in your bundle, and read the open backlog with
-   `scm_read(kind="issues", repo=..., state="open")`:
+4. **Dedup - and there is no comment path.** Read `<proposal_history>` in your
+   bundle FIRST: it carries this project's recent proposals with `open`,
+   `approved` or `declined` status and the maintainer comments behind each. A
+   `declined` entry is a killed idea - its forge issue is CLOSED, so no
+   open-issue scan will surface it, and re-proposing it (or a reworded slice
+   of it) is not acceptable. Then call `task_list`, pull the full Task index
+   on demand with `task_context(index=true)` if you need it, and read the open
+   backlog with `scm_read(kind="issues", repo=..., state="open")`:
+   - **Declined** in `<proposal_history>` -> the idea is dead. Do NOT re-propose
+     it or a restatement of it under a new title.
    - **Duplicate** of an already-open issue, or of an in-flight Task -> do NOT
      propose it. Either pick the next-best novel candidate, or
      `submit_outcome(action="skip", reason=...)` naming the duplicate.
@@ -144,6 +151,8 @@ Create a TodoWrite item per numbered step.
 - Submitting more than one outcome in a run, or none at all.
 - Trying to comment on an existing issue. brainstorm has no `issue_write`; the
   right move is a `skip` that names the issue.
+- Re-proposing an idea that `<proposal_history>` shows as `declined`, or a
+  reworded restatement of one.
 - Proposing vague "improve X" issues with no `file:line` evidence.
 - Requesting implementation, or claiming a proposal body can approve itself.
 - Proposing memory ranking work before the eval-harness gate.

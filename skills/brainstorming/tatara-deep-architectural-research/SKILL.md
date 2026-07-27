@@ -112,12 +112,15 @@ Create a TodoWrite item per numbered step.
    with explicit tradeoffs. Prefer strangler-fig approaches (behavior-
    preserving, reversible, incrementally shippable) over big-bang rewrites.
 
-5. **NOVELTY + LEARN** - OMNI-style gate. Is this genuinely novel vs past
-   proposals (`task_list`, the `<task_index>` in your bundle, and
-   `scm_read(kind="issues", repo=..., state="open")`)? And is it shippable now given the
-   repo state? If neither - call `submit_outcome(action="skip", reason=...)` and
-   stop. A near-duplicate, or a proposal blocked by an unmet prerequisite, does
-   not advance the platform.
+5. **NOVELTY + LEARN** - OMNI-style gate. Read `<proposal_history>` in your
+   bundle FIRST: a `declined` entry there is a killed idea - its forge issue is
+   CLOSED, so no open-issue scan will surface it - do not re-propose it or a
+   reworded restatement of it. Then check genuine novelty vs past proposals
+   (`task_list`, `task_context(index=true)` for the Task index on demand, and
+   `scm_read(kind="issues", repo=..., state="open")`). Is it shippable now given
+   the repo state? If neither - call `submit_outcome(action="skip", reason=...)`
+   and stop. A near-duplicate, a declined idea, or a proposal blocked by an
+   unmet prerequisite, does not advance the platform.
 
 6. **SYNTHESIZE** - produce an ADR artifact following the template in
    [`adr-template.md`](adr-template.md): problem statement, evidence
@@ -145,6 +148,8 @@ Create a TodoWrite item per numbered step.
 - Looking for a label or a status to set. `issue_write` is not in your profile,
   and it has no `labels` and no `status` parameter anywhere on the platform.
 - Proposing a vague "improve X" issue with no `file:line` evidence.
+- Re-proposing an idea that `<proposal_history>` shows as `declined`, or a
+  reworded restatement of one.
 - Attempting WebSearch/WebFetch in Phase 1 (egress is not yet wired).
 - Proposing memory ranking work before the eval-harness gate exists.
 - Reading only the on-disk repo and ignoring the cross-repo graph - unless the

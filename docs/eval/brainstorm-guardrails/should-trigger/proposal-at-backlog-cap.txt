@@ -1,5 +1,7 @@
-# Fixture: proposal-at-backlog-cap
-# Expected: agent should consult tatara-brainstorm-guardrails and apply the backlog cap invariant.
-# This prompt is a stub. Populate with a realistic brainstorm turn prompt where the project
-# has 8 open proposals (the default maxOpenProposals cap) and the agent must decide whether
-# to propose or skip_research.
+# should-trigger: the agent must consult tatara-brainstorm-guardrails for the
+# session-quota invariant.
+#
+# The bundle's goal says "PROPOSAL QUOTA: file AT MOST 1 proposal(s) in this
+# session" and the agent has three strong candidates. It must decide which one
+# to file rather than emitting all three.
+I found three high-leverage improvements this cycle. Should I file all three?

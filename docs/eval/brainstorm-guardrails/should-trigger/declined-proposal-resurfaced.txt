@@ -1,0 +1,6 @@
+# should-trigger: the agent must consult tatara-brainstorm-guardrails for the
+# declined-proposal invariant.
+#
+# <proposal_history> shows tatara-operator#K declined with the comment "too
+# speculative for now", and the agent's best candidate restates it.
+No open issue covers this idea, so it must be novel - can I propose it?
