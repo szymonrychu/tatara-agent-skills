@@ -115,6 +115,27 @@ simplification, operability, product-growth, tech-radar.
    stop - see `handoff`. On a `skip` this is what tells the NEXT brainstorm cycle
    what you already surveyed and ruled out.
 
+   **A handoff is EVIDENCE, never a scope decision.** The next cycle re-derives
+   its own scope from its own goal's MANDATE; your note is one input to that, not
+   a substitute for it.
+
+   It MAY contain: which repos, directories and subsystems you actually examined
+   this cycle; what you ruled out and the specific reason you ruled it out; open
+   questions you could not settle; and any multi-cycle investigation that is
+   genuinely unfinished, named concretely.
+
+   It MUST NOT contain: a target for the next cycle, a repo or directory the next
+   cycle "should" focus on, a scope narrower than the MANDATE, or any framing that
+   makes your conclusion sound like a standing decision. Four consecutive cycles
+   on one project once inherited a single narrow target this way, each re-deriving
+   it, each skipping, none of them wrong on its own.
+
+   **Name the target and the repetition explicitly.** If you skipped, say which
+   target you examined, in plain words. If the prior cycle's note shows it
+   examined the SAME target and also skipped, say that too. The next cycle is
+   REQUIRED to widen away from a target that two cycles in a row have skipped,
+   and it can only do that if your note gives it the target and the count.
+
 ## Anti-patterns
 
 - Taking any action before the phase-1 context summary.
@@ -132,3 +153,8 @@ simplification, operability, product-growth, tech-radar.
   the maintainer comment that explains why it was declined.
 - Treating the open-issue scan as a complete dedup surface. It is not: a
   discarded proposal is closed.
+- Writing a handoff that hands the next cycle a target. A handoff reports what
+  you examined and ruled out; it never sets scope. See phase 7.
+- Inheriting a target from a prior handoff instead of re-deriving it from your
+  own MANDATE, or re-confirming a target that the last two cycles both skipped.
+  Your goal tells you to widen; widen.
