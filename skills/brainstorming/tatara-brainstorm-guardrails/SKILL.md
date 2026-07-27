@@ -126,12 +126,12 @@ advances that gate; do not pretend otherwise in the prose.
 
 Your `<goal>` carries a line of the form:
 
-    PROPOSAL QUOTA: file AT MOST N proposal(s) in this session.
+    PROPOSAL QUOTA: file AT MOST <K> proposal(s) in this session. The operator truncates anything beyond <K>.
 
-N is the operator's computed deficit against the project's backlog target. File
-at most N. **The operator truncates anything beyond N**, keeping the first N in
-payload order, so a longer array does not get you more issues - it silently
-discards your best-ranked-last ideas. Order your proposals best-first.
+`<K>` is the operator's computed deficit against the project's backlog target.
+File at most `<K>`, keeping the first `<K>` in payload order, so a longer array
+does not get you more issues - it silently discards your best-ranked-last
+ideas. Order your proposals best-first.
 
 If the goal carries no quota line, the schema ceiling of 5 applies.
 
