@@ -114,10 +114,12 @@ submit_outcome(decision="implement"|"close"|"discuss", reason, approval_citation
   instead. A benign newer comment ("thanks - ping me when the PR is up") leaves
   the approval standing, and you should still cite it.
 - A refusal is not an error. The task parks at `identity-unverified` and the
-  operator records it in its logs and metrics - but nothing is posted to the
-  issue thread, so the maintainer is not told what was missing. A refusal is
-  silent, which is why a citation you doubt is not a cheap thing to try; submit
-  `decision=discuss` instead. Do not retry the same citation.
+  operator records it in its logs and metrics - but nothing useful reaches the
+  issue thread (a parked Task draws a forge notice only after a week, naming the
+  stage and never what was missing), so the maintainer is not told. A refusal is
+  silent, which is why a citation is not a cheap thing to try: if you are not
+  confident in one, submit `decision=discuss` instead. Do not retry the same
+  citation.
 - Omit `approval_citations` only when NO human has commented at all - that is the
   auto-approve carve-out for tatara's own proposals, and there is no comment to
   cite.

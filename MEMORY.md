@@ -129,3 +129,42 @@ Deliberately NOT written: any claim that the operator will post a refusal
 comment. It will not today; whether it should is an open owner decision, and the
 skills get updated if it lands. `tatara-writeback-discipline:140` needed no edit
 - it states the park without claiming a notification.
+
+2026-07-29 (approval gate: no re-gate on adopted issues): `tatara-clarify-
+conversation` claimed that acquiring a NEW issue after approval "resets the Task
+out of `approved` and back to `clarifying`" and that "you cannot widen your own
+mandate by adopting work after the gate". Both false. The only implementer of
+that reset is `applyApprovalStage` (internal/controller/approval_grammar.go:525-554),
+whose sole caller is `VerifyApprovalDetailed`, which the operator's own comment
+at :418 says has no production caller either (tests only). The REST clarify path
+calls `stage.Enter(StageApproved)` directly (internal/restapi/outcome.go:1351) and
+never reaches it; `appendTaskRef` (internal/restapi/handlers_v2.go:1171-1182)
+appends an IssueRef with no re-gate. The stage edge exists at
+internal/stage/stage.go:330 and nothing triggers it. This is the dangerous shape:
+an agent told it CANNOT widen its own mandate stops guarding against doing so.
+Rewritten to put the duty where it actually sits - adopting does not re-run the
+gate, the scope you leave behind is the scope that ships, and if you are adopting
+because you expect a second check there is none, so submit `discuss` first. No
+invented mechanism and no claim the operator re-gates.
+
+Also this pass: matched `tatara-mcp-outcome` and `tatara-triage-judgment` to
+`tatara-clarify-conversation`'s stricter "not confident in a citation" bar (both
+said "a citation you doubt", a lower bar satisfiable almost every turn, which
+over-steers toward `discuss`). And softened the round-3 absolute: "nothing is
+posted back to the issue thread" was slightly overstated - a Task parked at
+identity-unverified DOES draw a forge notice from the reaper
+(internal/controller/reaper.go:864-880), but only after ParkRetention = 7 days,
+only if no un-park fires first, and its body names only the Stage and StageReason
+enums, never what was missing. All three sites now say "nothing USEFUL reaches
+the issue thread" with that qualifier; the behavioural conclusion is unchanged.
+
+Standing note after two rounds of this: every "the operator will ..." sentence in
+this skill set should be treated as unverified until someone reads the operator
+for it. Three such claims have now been found false (the recency check, the
+refusal notification, this re-gate). The audit that found this one also flagged
+five more in OTHER skills - tatara-headless-decisions' bot-comment-on-park
+promise, and tatara-writeback-discipline's claims about a comment on clarify
+discuss, a comment on implement declined, clarify close being refused with an
+unmerged MR, and brainstorm propose enforcing title dedup. All pre-existing, all
+out of scope here, all the owner's call as separate work. Recorded so they are
+not lost.

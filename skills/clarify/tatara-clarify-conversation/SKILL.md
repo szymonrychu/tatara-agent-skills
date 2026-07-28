@@ -80,10 +80,14 @@ so in the thread - name the specific `<repo>#<number>` so the human knows where
 the remaining go-ahead has to be posted - and submit `decision="discuss"`
 instead.
 
-The reverse also holds: acquiring a NEW issue after approval (via
-`issue_write(action="create")`) resets the Task out of `approved` and back to
-`clarifying`, because the gate's scope clause no longer holds. You cannot widen
-your own mandate by adopting work after the gate.
+**Adopting an issue after the gate does NOT re-run the gate.** An issue you add
+to an approved Task (via `issue_write(action="create")`) is simply in scope from
+then on - nothing sends the Task back to `clarifying` and nothing re-checks the
+new issue for its own approval. So the scope you leave behind is the scope that
+ships: every issue this Task ends up citing for must be one you actually read
+and judged. If you find yourself adopting work into an approved Task because you
+expect a second check on it, there is no second check - submit
+`decision="discuss"` and get the go-ahead on it first.
 
 ## Shared: submit exactly one outcome
 
@@ -164,9 +168,10 @@ have started work a maintainer told you to stop.
 
 So: read the whole thread, decide, then cite. If the operator's check disagrees,
 the Task parks at `identity-unverified`. The operator records the refusal in its
-own logs and metrics, but **nothing is posted back to the issue thread**, so the
-maintainer just sees the Task stop. Nobody is going to tell them what was
-missing and ask them to fix it.
+own logs and metrics, but **nothing useful reaches the issue thread**: a parked
+Task draws a forge notice only after a week, and that notice names the stage it
+parked in, never what was missing. So the maintainer just sees the Task stop.
+Nobody is going to tell them what you needed and ask them to fix it.
 
 That is why a citation you are unsure of is not a cheap thing to try. A refusal
 is silent, not self-correcting: it does not bounce back to you with an
