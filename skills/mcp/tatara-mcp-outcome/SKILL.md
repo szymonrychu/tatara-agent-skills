@@ -89,12 +89,29 @@ submit_outcome(verdict="approve"|"request_changes", reviewed_shas[], findings[],
 ### clarify
 
 ```
-submit_outcome(decision="implement"|"close"|"discuss", reason)
+submit_outcome(decision="implement"|"close"|"discuss", reason, approval_citations)
 ```
 
-- For `decision=implement`, cite WHO approved and WHERE. The operator
-  independently re-reads the thread and verifies both the identity and the
-  wording. Your judgement about scope is trusted; your report of consent is not.
+- `reason` is required on all three. For `decision=implement`, say in plain
+  words WHO approved and WHY you read their comment as approval.
+- `approval_citations` is required for `decision=implement` whenever a human has
+  commented on the issue: ONE entry per issue this task owns, each
+  `{id, quote}`.
+  - `id` is that issue's MOST RECENT maintainer comment's `external_id`. It is
+    already in your turn-0 bundle, on the `<comment external_id="...">`
+    attribute. Copy it. Do not re-crawl to find it.
+  - `quote` is a VERBATIM substring of that same comment's body. Copy it
+    exactly, including punctuation and case.
+- YOU judge whether the comment approves. The operator does not read intent and
+  has no wordlist. It re-reads the comment itself and REFUSES if the author is
+  not a verified maintainer, if the author is the bot, if it is not the most
+  recent maintainer comment, if your quote does not occur in it, or if that
+  comment already approved this issue once.
+- A refusal is not an error. The task parks at `identity-unverified` and a human
+  is told what was missing. Do not retry the same citation.
+- Omit `approval_citations` only when NO human has commented at all - that is the
+  auto-approve carve-out for tatara's own proposals, and there is no comment to
+  cite.
 
 ### brainstorm
 

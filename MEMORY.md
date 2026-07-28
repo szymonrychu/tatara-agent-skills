@@ -43,3 +43,23 @@ repo-wide grep confirms no other exclusive two-action framing remains.
 (up from 3) for the same reason as the entry above - expected and
 self-resolving on tatara-cli's next release. `validate_skills.py` and
 `validate_profiles.py` both still pass.
+
+2026-07-28 (approval is judged, not matched): the operator's `approvalPhrases`
+wordlist is gone (paired tatara-operator change). The clarify agent now READS a
+maintainer's comment, judges whether it approves, and CITES it back as
+`approval_citations=[{id, quote}]` - `id` copied off the `external_id` attribute
+the turn-0 bundle already renders on every `<comment>`, `quote` a verbatim
+substring of the body. The operator re-verifies WHO and WHEN only (verified
+non-bot maintainer, most-recent maintainer comment, not already consumed, quote
+really occurs in the body it holds); a failed citation is an HTTP 200 that parks
+the Task at `identity-unverified`, not an error. Two non-obvious calls: (a) the
+"do not re-crawl the forge" anti-pattern was KEPT and the fix was to SAY the id
+is already in the bundle - licensing a re-crawl would have traded one bug for a
+worse one; (b) added the repo's FIRST `decision="implement"` worked example
+(`tatara-writeback-discipline`), modelled on the `reviewed_shas` idiom in
+`tatara-mcp-outcome`, because a required server-re-verified field with no worked
+example is the shape of a field agents omit. `approval_citations` is not an enum
+value, so `validate_tool_calls.py` cannot see it in either direction - the
+operator-side parity test is the only mechanical guard. No `profiles:` change and
+no new skill, so `validate_profiles.py`'s clarify hard-lock is untouched.
+`.claude-plugin/plugin.json` left alone (CI-owned).

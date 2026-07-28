@@ -18,14 +18,16 @@ Your turn-0 bundle carries every Issue your Task owns - title, body, author, and
 the full comment thread, per repo - plus every prior note on the Task. The
 operator assembles it from tatara's own mirror of the forge, so you do not need
 to re-crawl anything to read the conversation. Use `scm_read` for what is NOT in
-the bundle, and `issue_write` to post.
+the bundle, and `issue_write` to post. Every `<comment>` element carries an
+`external_id` attribute - that is the id you cite when you report an approval,
+and it is already in front of you.
 
 Every turn must end with exactly one `submit_outcome` (see `tatara-mcp-outcome`).
 The shape depends on your kind:
 
 | your kind | the outcome |
 |---|---|
-| `clarify` | `submit_outcome(decision="implement"\|"close"\|"discuss", reason)` |
+| `clarify` | `submit_outcome(decision="implement"\|"close"\|"discuss", reason, approval_citations)` |
 | `refine` | `submit_outcome(folds=[...], closes=[...], links=[...])` - a close is an entry in `closes[]`, with its `reason` |
 
 ## The judgment rubric
@@ -33,25 +35,42 @@ The shape depends on your kind:
 Read the issue AND the full conversation thread before deciding. The thread is
 the authoritative record of human intent.
 
-**implement** (clarify only) when a maintainer has posted a comment that CONSISTS
-OF an approval phrase - a whole line matching one of the project's
-`approvalPhrases` (default: `lgtm`, `approve`, `approved`, `ship it`, `go ahead`,
-`go`, `implement it`), from a login the operator can verify as a maintainer, and
-never the bot.
+**implement** (clarify only) when, in YOUR reading, a maintainer's most recent
+comment on the issue gives the go-ahead. There is no wordlist and no required
+form of words. "go ahead, I approve!", "continue", "yep, do it" all approve;
+"hold on, this is wrong" and "not until the tests pass" do not. You are the only
+reader of intent in this loop, so read the comment, not a pattern.
 
-**Your decision is a REPORT, not the approval.** The operator independently
-re-reads the thread and re-runs the same check on EVERY live Issue the Task owns.
-So cite WHO approved and WHERE in your `reason`. Two ways to get this wrong:
+**Your decision is a REPORT, and it must carry evidence.** Along with `reason`,
+submit `approval_citations`: one `{id, quote}` per live Issue the Task owns,
+where `id` is that issue's most recent maintainer comment's `external_id` (an
+attribute in your bundle) and `quote` is a VERBATIM substring of that comment's
+body.
 
-- A comment that CONTAINS an approval word but does not CONSIST of one ("I can't
-  approve this until the tests pass") is NOT approval. The match is anchored to a
-  whole line.
+**The operator judges WHO and WHEN, never WHAT IT MEANT.** For each citation it
+re-reads that comment from its own mirror and refuses if the author is not a
+verified maintainer, if the author is the bot, if it is not the most recent
+maintainer comment on that issue, if that comment already approved this issue
+once, or if your quote does not occur in the body it holds. Three ways to get
+this wrong:
+
+- Paraphrasing the quote. It is substring-matched; a paraphrase is
+  indistinguishable from a fabrication and is refused.
+- Citing a comment that declines or defers, because it happened to be the most
+  recent one. A later maintainer comment always overrides an earlier one - that
+  is how a maintainer vetoes.
 - One approval on one issue does not approve a Task that owns four. Every live
-  Issue (state `open`, status not `done`/`rejected`) needs its own.
+  Issue (state `open`, status not `done`/`rejected`) needs its own comment and
+  its own citation.
+
+Omit `approval_citations` only when NO human has commented on the issue at all -
+that is the auto-approve carve-out for tatara's own proposals, and there is
+nothing to cite. Never invent an entry.
 
 If your report fails the operator's check, the Task parks at
-`identity-unverified`. That is not terminal: the next comment from a verified
-maintainer that passes the grammar un-parks it automatically.
+`identity-unverified` (an HTTP 200, not an error) and a human is told what was
+missing. That is not terminal: a fresh clarify turn can cite a later maintainer
+comment. Do not resubmit the same citation.
 
 **close** when:
 - A human has explicitly declined or closed the issue in the thread.
@@ -92,9 +111,10 @@ need answered.
 
 ## Judgment anti-patterns
 
-- Reporting `implement` on an issue whose thread has no whole-line approval
-  phrase from a verified maintainer - a discursive comment that merely mentions
-  approval does not substitute.
+- Reporting `implement` on an issue whose thread has no maintainer comment you
+  can honestly read as a go-ahead, or reporting it without citing that comment.
+- Citing a comment that hedges, defers, or declines because it is the newest one.
+- Paraphrasing an `approval_citations` quote instead of copying it verbatim.
 - Reporting `implement` when only SOME of the Task's live Issues are approved.
 - Reporting `discuss` when a maintainer has clearly approved, or when a human has
   clearly declined.

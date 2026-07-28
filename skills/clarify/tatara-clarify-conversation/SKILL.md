@@ -20,7 +20,9 @@ an MR (that is `implement`'s job) - checkout is for reading, not writing.
 Your turn-0 bundle carries every Issue your Task owns, each with its full
 comment thread, plus every prior note. Do NOT re-crawl the forge to reconstruct
 history that is already in your prompt - reserve `scm_read` for what is not
-there, and `issue_write` for posting.
+there, and `issue_write` for posting. The `external_id` you need for
+`approval_citations` is already in your bundle - every `<comment>` element
+carries it as an attribute. There is nothing to fetch.
 
 ## Branch A - new issue (targeted brainstorm + digest)
 
@@ -55,8 +57,8 @@ there, and `issue_write` for posting.
    silence-over-noise rule applies here without exception: if no human has
    replied since your last comment, post nothing.
 3. **Decide the outcome** using `tatara-triage-judgment`'s rubric:
-   - A maintainer has posted a comment that CONSISTS OF an approval phrase ->
-     `decision="implement"` (see the approval section below).
+   - A maintainer's comment reads, to you, as a go-ahead -> `decision="implement"`,
+     citing that comment (see the approval section below).
    - The human has explicitly declined, or the issue is a duplicate or out of
      scope -> `decision="close"`.
    - Still ambiguous, or no approval yet -> `decision="discuss"`.
@@ -65,14 +67,16 @@ there, and `issue_write` for posting.
 
 A Task can own several Issues across several repos. The approval gate is scoped
 to ALL of them: the operator approves your Task only when EVERY live Issue it
-owns (state `open`, status not `done` or `rejected`) carries its own approval
-evidence. One `lgtm` on one issue does not approve a Task spanning four repos.
+owns (state `open`, status not `done` or `rejected`) carries its own cited
+approval evidence. One go-ahead on one issue does not approve a Task spanning
+four repos, and one citation does not cover four issues.
 
 So before you report `decision="implement"`, walk every `<issue>` in your bundle
-and check that each has its own maintainer approval comment. If any is still
-open, say so in the thread - name the specific `<repo>#<number>` so the human
-knows where the remaining go-ahead has to be posted - and submit
-`decision="discuss"` instead.
+and check that each has its own maintainer comment you read as approval, and
+that you have an `approval_citations` entry for each. If any is still open, say
+so in the thread - name the specific `<repo>#<number>` so the human knows where
+the remaining go-ahead has to be posted - and submit `decision="discuss"`
+instead.
 
 The reverse also holds: acquiring a NEW issue after approval (via
 `issue_write(action="create")`) resets the Task out of `approved` and back to
@@ -81,9 +85,12 @@ your own mandate by adopting work after the gate.
 
 ## Shared: submit exactly one outcome
 
-    submit_outcome(decision="implement"|"close"|"discuss", reason="...")
+    submit_outcome(decision="implement"|"close"|"discuss", reason="...",
+                   approval_citations=[{"id": "...", "quote": "..."}])
 
-`reason` is REQUIRED on all three. There is no `comment` field on the outcome:
+`reason` is REQUIRED on all three. `approval_citations` is required for
+`decision="implement"` whenever a human has commented (see the approval gate
+section below). There is no `comment` field on the outcome:
 anything you want the humans to read, you post yourself with
 `issue_write(action="comment")` BEFORE you submit.
 
@@ -100,28 +107,50 @@ events are never enqueued, so your own comment can never wake your own Task.
 `refine` is the ONLY kind in this repo permitted to comment under its own prior
 comment, and only for a narrow scope-change / already-delivered case.
 
-## The approval gate: a comment, verified by the operator
+## The approval gate: a comment you judge, a citation the operator verifies
 
-Your `decision="implement"` does NOT approve the work. It reports YOUR judgement
-that a maintainer approved it. The operator then independently re-reads the
-thread and checks BOTH the identity (a verified maintainer, never the bot) AND
-the wording (a whole line that CONSISTS of an approval phrase - "go ahead", not
-"I can't approve this until the tests pass") on EVERY issue the Task owns.
+Your `decision="implement"` does NOT approve the work. It reports YOUR reading of
+a maintainer's comment, and you must CITE that comment.
 
-So cite WHO and WHERE in your `reason`. If the operator's check disagrees with
-your report, the Task parks at `identity-unverified` and a human is told what was
-missing. This is not a dead end: a later comment from a verified maintainer that
-passes the same anchored whole-line grammar re-triggers the check and un-parks
-the Task on its own - nobody has to resubmit an outcome for it.
+The split is: **you judge what the comment MEANS. The operator judges who wrote
+it and whether you quoted it honestly.** There is no wordlist. "go ahead, I
+approve!", "continue", "yep do it" - all of these are approvals if that is what
+the maintainer meant, and you are the one who decides.
+
+You carry the citation in `approval_citations`: one `{id, quote}` per issue the
+Task owns, where `id` is that issue's most recent maintainer comment's
+`external_id` and `quote` is a verbatim substring of that same comment's body.
+The `external_id` you need for `approval_citations` is already in your bundle -
+every `<comment>` element carries it as an attribute. There is nothing to fetch.
+Full schema in `tatara-mcp-outcome`.
+
+The operator then re-reads that exact comment from its own mirror and refuses if:
+
+- the author is not a verified maintainer, or is the bot;
+- it is not the MOST RECENT maintainer comment on that issue (a later comment
+  always overrides an earlier one - that is how a maintainer vetoes);
+- your `quote` does not occur in its body;
+- that comment already approved this issue once.
+
+So: read the whole thread, decide, then cite. If the operator's check disagrees,
+the task parks at `identity-unverified` and a human is told what was missing.
+That is not a dead end - a later comment from a verified maintainer, cited by a
+later clarify turn, clears the gate - but do not resubmit the same citation.
+
+**Do not paraphrase the quote.** Copy the substring exactly. A paraphrase is
+indistinguishable from a fabrication and will be refused.
+
+**Do not cite a comment that declines.** You are the only reader of intent in
+this loop; a maintainer writing "not until the tests pass" is a refusal, and
+citing it because it is the most recent comment is the single worst thing you
+can do here.
+
+Omit `approval_citations` only when NO human has ever commented on the issue -
+tatara's own auto-approved proposals have no maintainer comment, so there is
+nothing to cite. Never invent a citation to fill the field.
 
 You cannot set an issue's status. `issue_write` has no `status` parameter and no
 `labels` parameter. That is the gate, not an oversight.
-
-The phrases are the project's `approvalPhrases` (default: `lgtm`, `approve`,
-`approved`, `ship it`, `go ahead`, `go`, `implement it`), matched anchored
-against a whole normalised line - so when you ask for a go-ahead, ask for it as
-a line on its own, and never tell the thread that a discursive "sounds good to
-me, but check the tests first" is sufficient. It is not.
 
 ## Seed the implement pod with a note
 
@@ -138,12 +167,19 @@ human named: that goes in the note, not in a `plan` argument (there is none).
   when no human has replied (silence-over-noise violation).
 - Answering under your own last comment.
 - Reporting `decision="implement"` when some live Issue your Task owns has no
-  maintainer approval comment of its own.
-- Treating a discursive comment that merely mentions approval as approval, or
-  telling the thread that it unblocks the pipeline. Only a whole-line approval
-  phrase from a verified maintainer does.
+  maintainer approval comment of its own, or no citation for it.
+- Paraphrasing the `quote` instead of copying the substring verbatim.
+- Citing a comment that declines, defers, or makes the go-ahead conditional on
+  something that has not happened yet, just because it is the most recent one. A
+  go-ahead that merely carries a scope note ("yes, but keep it to one package")
+  IS an approval; "not until the tests pass" is not. Read what it MEANS.
+- Inventing an `approval_citations` entry for an issue no human has commented on.
+- Telling the thread that a go-ahead has to be worded a particular way, or posted
+  on a line of its own. It does not. There is no wordlist.
 - Polling or waiting for a human reply instead of submitting `discuss` and
   stopping.
 - Pushing code, opening an MR, or making any file edit - that is `implement`'s
   job, never clarify's.
-- Re-crawling forge history already present in the turn-0 bundle.
+- Re-crawling forge history already present in the turn-0 bundle. The
+  `external_id` for a citation is an attribute on the `<comment>` element you
+  were already given; there is nothing to fetch.

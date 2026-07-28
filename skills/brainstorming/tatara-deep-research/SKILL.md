@@ -31,10 +31,10 @@ under the bot identity, and mints a clarify Task for it.
   existing issue instead" path any more. An idea that only extends an open issue
   is a `skip` that names that issue, not a proposal and not a comment.
 - Stay in discovery. Do NOT request implementation. Approval happens later, on the
-  clarify Task the operator mints from your proposal, when a maintainer posts a
-  comment that CONSISTS OF one of the project's approval phrases and the operator
-  verifies both the identity and the wording. Nothing you write advances that
-  gate; never imply in a proposal body that it does.
+  clarify Task the operator mints from your proposal, when a maintainer comments,
+  a clarify agent reads that comment as a go-ahead and cites it, and the operator
+  verifies who wrote it. There is no approval wordlist. Nothing you write
+  advances that gate; never imply in a proposal body that it does.
 - Every proposal must respect the platform's hard rules (read the on-disk
   `CLAUDE.md`), or the loop that later implements it will reject it. KISS; no
   tech debt; charts cluster-agnostic; conventional commits; newest stable Go;
