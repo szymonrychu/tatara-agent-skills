@@ -50,7 +50,7 @@ tool you do not see in `tools/list` will appear if you retry.
 | `documentation` | same as `implement` | `mr_write` (no `issue_write`) |
 | `brainstorm` | `action="propose"\|"skip"\|"exhausted"` | none - proposals go through `submit_outcome` only |
 | `incident` | `action="file_issue"\|"false_positive"` | none - same reason |
-| `clarify` | `decision="implement"\|"close"\|"discuss"` (+ `approval_citations` on `implement`) | `issue_write` (no `mr_write`) |
+| `clarify` | `decision="implement"\|"close"\|"discuss"` (+ `approval_citations` on `implement`, none when no human has ever commented) | `issue_write` (no `mr_write`) |
 | `review` | `verdict="approve"\|"request_changes"` | `mr_write`, comment/reply only in practice - you review an existing MR, you do not open one |
 | `refine` | `folds[]`, `closes[]`, `links[]` (any subset, at least one when acting) | `issue_write` and `mr_write` (`mr_write` restricted to `action="comment"` only) |
 
@@ -127,15 +127,17 @@ shape, so you understand what your call actually causes downstream:
 - **`incident`, `action="false_positive"`**: no issue filed; reason recorded.
 - **`clarify`, `decision="implement"`**: YOU judged that a maintainer's comment
   approves the work, and you carry the evidence in `approval_citations` - one
-  `{id, quote}` per owned issue, the `id` copied off that comment's
-  `external_id` attribute in your bundle and the `quote` a verbatim substring
-  of its body. The operator does not read intent and has no wordlist: it
-  re-reads that exact comment from its own mirror and checks WHO wrote it (a
-  verified maintainer, never the bot), that it is the MOST RECENT maintainer
-  comment, that it has not already been consumed as approval, and that your
-  quote really occurs in it. Your judgment of meaning is trusted; your report
-  of who said it is not. A failed check is a 200, not an error - the Task parks
-  at `identity-unverified`. See `tatara-mcp-outcome`.
+  `{id, quote}` per live owned issue (none when no human has ever commented),
+  the `id` copied off that comment's `external_id` attribute in your bundle and
+  the `quote` a verbatim substring of its body. The operator does not read
+  intent and has no wordlist: it re-reads that exact comment from its own mirror
+  and checks that it is on that issue, WHO wrote it (a verified maintainer,
+  never the bot), that your quote really occurs in it, and that it has not
+  already been consumed as approval evidence. It does NOT check that you cited
+  the newest comment, so noticing that a later maintainer comment withdrew the
+  approval is YOUR job, not the operator's. Your judgment of meaning is trusted;
+  your report of who said it is not. A failed check is a 200, not an error - the
+  Task parks at `identity-unverified`. See `tatara-mcp-outcome`.
 - **`clarify`, `decision="close"`**: the operator closes the issue. Refused
   if the Task owns an unmerged MR - close the loose end first.
 - **`clarify`, `decision="discuss"`**: the operator posts your `reason` as a
@@ -248,26 +250,35 @@ action for it.
 The bundle carried:
 
 ```xml
-<comment author="szymonrychu" at="2026-07-28T09:14:00Z" bot="false" external_id="2154887301">
+<comment author="szymonrychu" at="2026-07-28T09:14Z" bot="false" external_id="2154887301">
 I looked at the failing case. Yeah, go ahead, I approve! Just keep the change to
 the one package.
 </comment>
+<comment author="szymonrychu" at="2026-07-28T09:21Z" bot="false" external_id="2154889044">
+thanks - ping me when the PR is up
+</comment>
 ```
 
-That is the most recent human comment and szymonrychu is a maintainer on this
-project. It reads as approval, so:
+szymonrychu is a maintainer on this project and the first comment reads as
+approval. The second is newer, but it is a benign follow-up, not a withdrawal,
+so the approval stands and the EARLIER comment is the one to cite:
 
 ```
 submit_outcome(
   decision="implement",
-  reason="szymonrychu approved on issue #13 - 'go ahead, I approve!' - with a scope note to keep the change to one package, which the goal already does.",
+  reason="szymonrychu approved on issue #13 - 'go ahead, I approve!' - with a scope note to keep the change to one package, which the goal already does. Their later 'ping me when the PR is up' is a follow-up, not a withdrawal.",
   approval_citations=[{"id": "2154887301", "quote": "go ahead, I approve!"}]
 )
 ```
 
 The `id` is copied off the `external_id` attribute. The `quote` is copied
 character for character out of the body. Note what is NOT here: no wordlist, no
-requirement that the approval be a line on its own, no re-crawl.
+requirement that the approval be a line on its own, no requirement that it be
+the newest comment, no re-crawl.
+
+Had that second comment said "actually hold off, let me think about this", the
+approval would NOT stand and the right outcome is `decision="discuss"`. The
+operator does not check recency, so that judgement is entirely yours.
 
 ### Brainstorm that proposes two ideas
 

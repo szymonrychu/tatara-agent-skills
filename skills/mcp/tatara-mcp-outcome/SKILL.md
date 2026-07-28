@@ -95,18 +95,24 @@ submit_outcome(decision="implement"|"close"|"discuss", reason, approval_citation
 - `reason` is required on all three. For `decision=implement`, say in plain
   words WHO approved and WHY you read their comment as approval.
 - `approval_citations` is required for `decision=implement` whenever a human has
-  commented on the issue: ONE entry per issue this task owns, each
+  commented on the issue: ONE entry per LIVE issue this task owns, each
   `{id, quote}`.
-  - `id` is that issue's MOST RECENT maintainer comment's `external_id`. It is
-    already in your turn-0 bundle, on the `<comment external_id="...">`
-    attribute. Copy it. Do not re-crawl to find it.
+  - `id` is the `external_id` of the maintainer comment you are citing as the
+    go-ahead. It is already in your turn-0 bundle, on the
+    `<comment external_id="...">` attribute. Copy it. Do not re-crawl to find it.
   - `quote` is a VERBATIM substring of that same comment's body. Copy it
     exactly, including punctuation and case.
 - YOU judge whether the comment approves. The operator does not read intent and
-  has no wordlist. It re-reads the comment itself and REFUSES if the author is
-  not a verified maintainer, if the author is the bot, if it is not the most
-  recent maintainer comment, if your quote does not occur in it, or if that
-  comment already approved this issue once.
+  has no wordlist. It re-reads the comment itself and REFUSES if that comment is
+  not on that issue, if the author is not a verified maintainer, if the author is
+  the bot, if your quote does not occur in the body it holds, or if that comment
+  has already been consumed as approval evidence.
+- **The cited comment does NOT have to be the newest one, and the operator does
+  not check that it is.** Withdrawal is YOUR call: read the WHOLE thread, and if
+  any maintainer comment newer than the one you want to cite takes the go-ahead
+  back ("actually hold off", "wait, let me think about this"), submit `discuss`
+  instead. A benign newer comment ("thanks - ping me when the PR is up") leaves
+  the approval standing, and you should still cite it.
 - A refusal is not an error. The task parks at `identity-unverified` and a human
   is told what was missing. Do not retry the same citation.
 - Omit `approval_citations` only when NO human has commented at all - that is the

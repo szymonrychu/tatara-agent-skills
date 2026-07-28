@@ -17,10 +17,12 @@ server. You never use git or gh.
   `submit_outcome(decision="implement")` only REPORTS your reading of it, with
   the comment CITED in `approval_citations` (`{id, quote}`; see
   `tatara-mcp-outcome`). The operator then re-reads that exact comment and
-  verifies WHO wrote it, that it is the most recent maintainer comment, and that
-  your quote really occurs in it. So end this turn with
-  `submit_outcome(decision="discuss", reason=...)` unless a maintainer has
-  actually posted something you can honestly read, and quote, as approval.
+  verifies WHO wrote it and that your quote really occurs in it - it does NOT
+  check that you cited the newest comment, so catching a later maintainer
+  comment that withdraws the approval ("actually hold off") is your job, not
+  its. So end this turn with `submit_outcome(decision="discuss", reason=...)`
+  unless a maintainer has actually posted something you can honestly read, and
+  quote, as approval, and nothing later in the thread takes it back.
 - Silence over noise - HARD RULE. When no human has replied since the
   last bot message, post NOTHING and submit `decision="discuss"`
   immediately (a silent hold). Do not re-post a comment that only
@@ -85,10 +87,11 @@ Create a TodoWrite item per numbered step.
    Task at `awaiting-human`; the next human comment un-parks it and a fresh
    clarify pod picks it up. Use `decision="close"` ONLY if the idea is clearly
    dead AND a human concurred in the thread. Use `decision="implement"` only when
-   every live Issue carries a maintainer comment you read as a go-ahead - say WHO
-   and WHY in your `reason`, and carry one `approval_citations` entry per issue,
-   its `id` copied from that comment's `external_id` attribute in your bundle and
-   its `quote` a verbatim substring of its body.
+   every live Issue carries a maintainer comment you read as a go-ahead, with
+   nothing later in the thread withdrawing it - say WHO and WHY in your `reason`,
+   and carry one `approval_citations` entry per live issue (none when no human
+   has ever commented), its `id` copied from that comment's `external_id`
+   attribute in your bundle and its `quote` a verbatim substring of its body.
 
    You MUST submit an outcome. A turn that ends without one ages the Task out at
    `stageReason=no-outcome` and the work is lost. Write a

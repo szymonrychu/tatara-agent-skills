@@ -49,10 +49,11 @@ wordlist is gone (paired tatara-operator change). The clarify agent now READS a
 maintainer's comment, judges whether it approves, and CITES it back as
 `approval_citations=[{id, quote}]` - `id` copied off the `external_id` attribute
 the turn-0 bundle already renders on every `<comment>`, `quote` a verbatim
-substring of the body. The operator re-verifies WHO and WHEN only (verified
-non-bot maintainer, most-recent maintainer comment, not already consumed, quote
-really occurs in the body it holds); a failed citation is an HTTP 200 that parks
-the Task at `identity-unverified`, not an error. Two non-obvious calls: (a) the
+substring of the body. The operator re-verifies four STRUCTURAL facts only (the
+comment is on that issue, its author is a verified non-bot maintainer, the quote
+occurs verbatim in the body it holds, that comment has not already been consumed
+as evidence); a failed citation is an HTTP 200 that parks the Task at
+`identity-unverified`, not an error. Two non-obvious calls: (a) the
 "do not re-crawl the forge" anti-pattern was KEPT and the fix was to SAY the id
 is already in the bundle - licensing a re-crawl would have traded one bug for a
 worse one; (b) added the repo's FIRST `decision="implement"` worked example
@@ -63,3 +64,28 @@ value, so `validate_tool_calls.py` cannot see it in either direction - the
 operator-side parity test is the only mechanical guard. No `profiles:` change and
 no new skill, so `validate_profiles.py`'s clarify hard-lock is untouched.
 `.claude-plugin/plugin.json` left alone (CI-owned).
+
+2026-07-28 (approval gate, review round 2 - NO recency check): the first pass of
+the entry above taught "the cited comment must be the MOST RECENT maintainer
+comment" and the operator briefly enforced it. That rule DEADLOCKS an ordinary
+thread and the owner removed it: given "go ahead, I approve!" followed by
+"thanks - ping me when the PR is up", consent is unambiguous but the newest
+maintainer comment is not itself a go-ahead, so the agent could never cite
+anything, would submit `discuss` every turn, and the Task would park at
+`awaiting-human` forever with no signal why. The operator now verifies four
+structural facts and NOT recency, which moves the withdrawal veto entirely onto
+the AGENT - it must read every maintainer comment newer than the one it cites and
+submit `discuss` if any takes the go-ahead back. Because nothing downstream
+backstops that any more, every site now states it explicitly and gives both
+signs: benign follow-up ("ping me when the PR is up") keeps the approval,
+withdrawal ("actually hold off") kills it. The `tatara-writeback-discipline`
+worked example was rebuilt around exactly the deadlock thread - two comments,
+cite the EARLIER one - since a single-comment example cannot teach a rule about
+what comes after. Also corrected there: bundle timestamps are MINUTE precision
+(`at="2026-07-12T10:02Z"`, see tatara-operator internal/prompt/testdata/full.golden:8),
+not seconds. Separately, an earlier concern that `external_id` was missing from
+ISSUE comments was WRONG and is recorded here so nobody re-derives it: issues and
+MRs share one comments template at internal/prompt/bundle.go:259 fed by one
+buildComments builder; bundle.go:222 is the `proposal_history` element, a
+different block entirely, and full.golden:8 shows an issue comment carrying
+`external_id`.

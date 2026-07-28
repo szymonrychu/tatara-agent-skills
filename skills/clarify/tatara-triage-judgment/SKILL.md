@@ -35,30 +35,47 @@ The shape depends on your kind:
 Read the issue AND the full conversation thread before deciding. The thread is
 the authoritative record of human intent.
 
-**implement** (clarify only) when, in YOUR reading, a maintainer's most recent
-comment on the issue gives the go-ahead. There is no wordlist and no required
-form of words. "go ahead, I approve!", "continue", "yep, do it" all approve;
-"hold on, this is wrong" and "not until the tests pass" do not. You are the only
-reader of intent in this loop, so read the comment, not a pattern.
+**implement** (clarify only) when, in YOUR reading, a maintainer has commented
+something you can honestly read as a go-ahead, and nothing later in the thread
+takes it back. There is no wordlist and no required form of words. "go ahead, I
+approve!", "continue", "yep, do it" all approve; "hold on, this is wrong" and
+"not until the tests pass" do not. You are the only reader of intent in this
+loop, so read the comment, not a pattern.
 
 **Your decision is a REPORT, and it must carry evidence.** Along with `reason`,
 submit `approval_citations`: one `{id, quote}` per live Issue the Task owns,
-where `id` is that issue's most recent maintainer comment's `external_id` (an
-attribute in your bundle) and `quote` is a VERBATIM substring of that comment's
-body.
+where `id` is the `external_id` of the maintainer comment you are citing as the
+go-ahead (an attribute in your bundle) and `quote` is a VERBATIM substring of
+that comment's body.
 
-**The operator judges WHO and WHEN, never WHAT IT MEANT.** For each citation it
-re-reads that comment from its own mirror and refuses if the author is not a
-verified maintainer, if the author is the bot, if it is not the most recent
-maintainer comment on that issue, if that comment already approved this issue
-once, or if your quote does not occur in the body it holds. Three ways to get
-this wrong:
+**The operator judges WHO, never WHAT IT MEANT.** For each citation it re-reads
+that comment from its own mirror and refuses if the comment is not on that
+issue, if the author is not a verified maintainer, if the author is the bot, if
+your quote does not occur in the body it holds, or if that comment has already
+been consumed as approval evidence. That is the whole check: four structural
+facts, no intent.
+
+**The veto is YOURS, because the operator does not check recency.** The comment
+you cite does not have to be the newest one on the thread. Requiring that would
+deadlock an ordinary conversation: a maintainer who writes "go ahead, I approve!"
+and then "thanks - ping me when the PR is up" has plainly consented, but their
+newest comment is not itself a go-ahead, so a recency rule would leave nothing
+citable and park the Task forever. So YOU are the one who has to notice a
+withdrawal: read every maintainer comment newer than the one you want to cite,
+and if any of them takes the go-ahead back, submit `discuss`, not `implement`.
+Nothing downstream will catch this for you.
+
+- Approval STANDS (cite it): "thanks - ping me when the PR is up", "one more
+  thing, the tests are flaky on main". Benign follow-up, not a reversal.
+- Approval does NOT stand (submit `discuss`): "actually hold off", "wait, let me
+  think about this", "stop, I misread the scope".
+
+Three more ways to get this wrong:
 
 - Paraphrasing the quote. It is substring-matched; a paraphrase is
   indistinguishable from a fabrication and is refused.
-- Citing a comment that declines or defers, because it happened to be the most
-  recent one. A later maintainer comment always overrides an earlier one - that
-  is how a maintainer vetoes.
+- Citing a comment that declines or defers, or one whose approval a later
+  maintainer comment already withdrew.
 - One approval on one issue does not approve a Task that owns four. Every live
   Issue (state `open`, status not `done`/`rejected`) needs its own comment and
   its own citation.
@@ -113,7 +130,8 @@ need answered.
 
 - Reporting `implement` on an issue whose thread has no maintainer comment you
   can honestly read as a go-ahead, or reporting it without citing that comment.
-- Citing a comment that hedges, defers, or declines because it is the newest one.
+- Citing a comment that hedges, defers, or declines, or one a later maintainer
+  comment took back. The operator does not check recency; you are the veto.
 - Paraphrasing an `approval_citations` quote instead of copying it verbatim.
 - Reporting `implement` when only SOME of the Task's live Issues are approved.
 - Reporting `discuss` when a maintainer has clearly approved, or when a human has

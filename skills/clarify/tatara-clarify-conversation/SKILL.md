@@ -117,20 +117,48 @@ it and whether you quoted it honestly.** There is no wordlist. "go ahead, I
 approve!", "continue", "yep do it" - all of these are approvals if that is what
 the maintainer meant, and you are the one who decides.
 
-You carry the citation in `approval_citations`: one `{id, quote}` per issue the
-Task owns, where `id` is that issue's most recent maintainer comment's
-`external_id` and `quote` is a verbatim substring of that same comment's body.
-The `external_id` you need for `approval_citations` is already in your bundle -
-every `<comment>` element carries it as an attribute. There is nothing to fetch.
-Full schema in `tatara-mcp-outcome`.
+You carry the citation in `approval_citations`: one `{id, quote}` per live issue
+the Task owns, where `id` is the `external_id` of the maintainer comment you are
+citing as the go-ahead and `quote` is a verbatim substring of that same comment's
+body. The `external_id` you need for `approval_citations` is already in your
+bundle - every `<comment>` element carries it as an attribute. There is nothing
+to fetch. Full schema in `tatara-mcp-outcome`.
 
 The operator then re-reads that exact comment from its own mirror and refuses if:
 
+- the comment is not on that issue;
 - the author is not a verified maintainer, or is the bot;
-- it is not the MOST RECENT maintainer comment on that issue (a later comment
-  always overrides an earlier one - that is how a maintainer vetoes);
-- your `quote` does not occur in its body;
-- that comment already approved this issue once.
+- your `quote` does not occur in the body it holds;
+- that comment has already been consumed as approval evidence.
+
+That is the whole check. Four structural facts, no intent, and - this is the
+part that matters most to you - **no recency check**.
+
+### The veto is yours
+
+The comment you cite does NOT have to be the newest one on the thread, and
+nothing downstream will notice if a later comment took the approval back. That
+is deliberate. Requiring the newest comment deadlocks an ordinary thread:
+
+    maintainer: "go ahead, I approve!"
+    maintainer: "thanks - ping me when the PR is up"
+
+Consent there is unambiguous, but the newest maintainer comment is not itself a
+go-ahead. Under a recency rule you could never cite anything, would submit
+`discuss` every turn, and the Task would sit at `awaiting-human` forever with
+nobody able to see why.
+
+So the withdrawal check is YOUR job. Read every maintainer comment newer than
+the one you want to cite and ask: does this take the go-ahead back?
+
+- **Benign follow-up - approval stands, cite it.** "thanks - ping me when the PR
+  is up". "one more thing, the tests are flaky on main."
+- **Withdrawal - approval does NOT stand, submit `discuss`.** "actually hold
+  off". "wait, let me think about this." "stop, I misread the scope."
+
+"Is this later comment a withdrawal?" is an intent question, and intent is
+always yours under this design. Get it wrong in the permissive direction and you
+have started work a maintainer told you to stop.
 
 So: read the whole thread, decide, then cite. If the operator's check disagrees,
 the task parks at `identity-unverified` and a human is told what was missing.
@@ -142,8 +170,9 @@ indistinguishable from a fabrication and will be refused.
 
 **Do not cite a comment that declines.** You are the only reader of intent in
 this loop; a maintainer writing "not until the tests pass" is a refusal, and
-citing it because it is the most recent comment is the single worst thing you
-can do here.
+citing it anyway - because it is the only maintainer comment on the thread, or
+because it contains agreeable-sounding words - is the single worst thing you can
+do here.
 
 Omit `approval_citations` only when NO human has ever commented on the issue -
 tatara's own auto-approved proposals have no maintainer comment, so there is
@@ -170,9 +199,11 @@ human named: that goes in the note, not in a `plan` argument (there is none).
   maintainer approval comment of its own, or no citation for it.
 - Paraphrasing the `quote` instead of copying the substring verbatim.
 - Citing a comment that declines, defers, or makes the go-ahead conditional on
-  something that has not happened yet, just because it is the most recent one. A
-  go-ahead that merely carries a scope note ("yes, but keep it to one package")
-  IS an approval; "not until the tests pass" is not. Read what it MEANS.
+  something that has not happened yet. A go-ahead that merely carries a scope
+  note ("yes, but keep it to one package") IS an approval; "not until the tests
+  pass" is not. Read what it MEANS.
+- Citing an approval a LATER maintainer comment took back. The operator does not
+  check recency - if you do not catch the withdrawal, nothing does.
 - Inventing an `approval_citations` entry for an issue no human has commented on.
 - Telling the thread that a go-ahead has to be worded a particular way, or posted
   on a line of its own. It does not. There is no wordlist.
