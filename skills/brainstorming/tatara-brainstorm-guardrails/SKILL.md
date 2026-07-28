@@ -65,12 +65,18 @@ All three checks are cheap. Do them before the expensive fan-out, not after.
 
 ### 2. XOR terminal action
 
-A brainstorm turn ends with exactly ONE `submit_outcome`, in one of two shapes:
+A brainstorm turn ends with exactly ONE `submit_outcome`, in one of three shapes:
 
 | Action | When |
 |---|---|
-| `submit_outcome(action="skip", reason=...)` | No genuinely novel candidate clears the bar this cycle |
+| `submit_outcome(action="skip", reason=...)` | Nothing clears the bar THIS cycle, but the idea space is not dry - expect something next time |
+| `submit_outcome(action="exhausted", reason=...)` | You have re-derived that nothing is worth proposing until the project itself changes - not just this cycle. **PAUSES brainstorming for this project** until a real change lands (a non-tatara commit to main, a tatara commit from real task work, or a maintainer acting on an issue/MR). One report is enough - there is no threshold |
 | `submit_outcome(action="propose", proposals=[{repo, title, body, kind}, ...])` | One or more genuinely novel opportunities - between 1 and your session quota (rail 7), one entry per issue you want opened |
+
+`skip` costs one more session soon; `exhausted` stops sessions until the
+project moves. Use `exhausted` only when you mean the conclusion to hold, not
+merely for this cycle - defaulting to it because "probably nothing next time
+either" is not grounds; re-derive, don't guess.
 
 No combinations. No silent exits. **A turn that ends without an outcome does not
 quietly stop:** the Task ages out at `stageReason=no-outcome`, the pod is
@@ -108,10 +114,10 @@ The array is capped at 5 by the schema.
 
 ### 5. No silent finish
 
-`skip` must carry a concrete `reason`: what you surveyed and why nothing clears
-the bar (all candidates duplicate open issues; no evidence of a high-leverage
-gap; the backlog already covers the lens you were given). A blank or one-word
-reason is not acceptable.
+`skip` and `exhausted` both require a concrete `reason`: what you surveyed and
+why nothing clears the bar (all candidates duplicate open issues; no evidence
+of a high-leverage gap; the backlog already covers the lens you were given).
+A blank or one-word reason is not acceptable for either.
 
 ### 6. Discovery only, never self-implement
 

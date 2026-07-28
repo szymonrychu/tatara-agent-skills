@@ -1,6 +1,6 @@
 ---
 name: tatara-council-brainstorm
-description: "TASK harness for the brainstorm task kind: an architect-council session under the lens the operator selected for this cycle, grounding one high-leverage finding in real code and emitting a single submit_outcome (propose or skip). Invoke FIRST on every brainstorm turn; it owns the whole turn end to end."
+description: "TASK harness for the brainstorm task kind: an architect-council session under the lens the operator selected for this cycle, grounding one high-leverage finding in real code and emitting a single submit_outcome (propose, skip, or exhausted). Invoke FIRST on every brainstorm turn; it owns the whole turn end to end."
 profiles: ["brainstorm"]
 ---
 
@@ -84,9 +84,16 @@ simplification, operability, product-growth, tech-radar.
    answers.
 6. **Terminal action (you own it).** Exactly one `submit_outcome`.
 
-   Emit `submit_outcome(action="skip", reason=...)` when nothing clears the bar,
-   or when the finding duplicates an open issue or an in-flight Task (name the
-   duplicate in the reason - you have no `issue_write` and cannot comment on it).
+   Emit `submit_outcome(action="skip", reason=...)` when nothing clears the bar
+   THIS cycle, or when the finding duplicates an open issue or an in-flight Task
+   (name the duplicate in the reason - you have no `issue_write` and cannot
+   comment on it). `skip` is transient: it costs one more session soon.
+
+   Emit `submit_outcome(action="exhausted", reason=...)` instead when you have
+   re-derived that nothing is worth proposing until the project itself
+   changes, not just this cycle - **this PAUSES brainstorming for the project**
+   until a real change lands. One report is enough; use it only when you mean
+   the conclusion to hold.
 
    Otherwise emit ONE call carrying every issue you want opened, up to the
    session quota stated in your `<goal>`:
