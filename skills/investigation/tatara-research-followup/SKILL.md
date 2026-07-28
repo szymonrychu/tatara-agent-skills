@@ -18,9 +18,11 @@ server. You never use git or gh.
   the comment CITED in `approval_citations` (`{id, quote}`; see
   `tatara-mcp-outcome`). The operator then re-reads that exact comment and
   verifies WHO wrote it and that your quote really occurs in it - it does NOT
-  check that you cited the newest comment, so catching a later maintainer
-  comment that withdraws the approval ("actually hold off") is your job, not
-  its. So end this turn with `submit_outcome(decision="discuss", reason=...)`
+  check that you cited the newest comment, so judging the later maintainer
+  comments is your job, not its: a withdrawal ("actually hold off") kills the
+  approval and means `discuss`, while a benign follow-up ("thanks - ping me when
+  the PR is up") leaves it standing and you should still cite it. So end this
+  turn with `submit_outcome(decision="discuss", reason=...)`
   unless a maintainer has actually posted something you can honestly read, and
   quote, as approval, and nothing later in the thread takes it back.
 - Silence over noise - HARD RULE. When no human has replied since the

@@ -89,3 +89,25 @@ MRs share one comments template at internal/prompt/bundle.go:259 fed by one
 buildComments builder; bundle.go:222 is the `proposal_history` element, a
 different block entirely, and full.golden:8 shows an issue comment carrying
 `external_id`.
+
+2026-07-28 (approval gate, review round 3 - the veto belongs in the PROCEDURE):
+the round-2 fix taught the withdrawal check well in prose but left both
+PROCEDURAL touchpoints in `tatara-clarify-conversation` bare - Branch B step 3's
+decision list and the "walk every `<issue>`" pre-submit checklist. The veto sat
+~60 lines below them, so an agent executing the numbered procedure never met the
+clause at the moment it decided. Since the withdrawal check is now the ONLY
+enforcement anywhere in the system, the checklist has to carry it, not just the
+essay: step 3 gained "and nothing later in the thread took it back", and the
+pre-submit walk is now an explicit three-item check. Also balanced
+`tatara-research-followup`'s hard constraint, which gave only the withdrawal sign
+and so tilted a solo reader of that file toward over-caution; it now carries the
+benign sign too. Established and worth not re-deriving: bundle elision does NOT
+endanger the veto - internal/prompt/bundle_test.go:669-677 asserts elision drops
+the OLDEST comments and always keeps the newest, so the "comments newer than the
+one you cite" window is exactly the retained region, and an elided approval fails
+the agent toward `discuss`. Deferred, not dropped: later comments that RE-SCOPE
+("actually do the CLI instead") or ask a question fall outside both sign lists;
+no site says what to do when a later comment is genuinely ambiguous;
+`tatara-mcp-outcome`'s carve-out is stated per-issue at :118 but the entry rule
+is per-live-issue at :98, so a Task owning one commented and one uncommented
+issue is not cleanly covered (pre-existing).

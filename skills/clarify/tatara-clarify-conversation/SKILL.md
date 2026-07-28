@@ -57,8 +57,9 @@ carries it as an attribute. There is nothing to fetch.
    silence-over-noise rule applies here without exception: if no human has
    replied since your last comment, post nothing.
 3. **Decide the outcome** using `tatara-triage-judgment`'s rubric:
-   - A maintainer's comment reads, to you, as a go-ahead -> `decision="implement"`,
-     citing that comment (see the approval section below).
+   - A maintainer's comment reads, to you, as a go-ahead, and nothing later in
+     the thread took it back -> `decision="implement"`, citing that comment (see
+     the approval section below).
    - The human has explicitly declined, or the issue is a duplicate or out of
      scope -> `decision="close"`.
    - Still ambiguous, or no approval yet -> `decision="discuss"`.
@@ -72,8 +73,9 @@ approval evidence. One go-ahead on one issue does not approve a Task spanning
 four repos, and one citation does not cover four issues.
 
 So before you report `decision="implement"`, walk every `<issue>` in your bundle
-and check that each has its own maintainer comment you read as approval, and
-that you have an `approval_citations` entry for each. If any is still open, say
+and check three things: that each has its own maintainer comment you read as
+approval, that no later maintainer comment on that issue took it back, and that
+you have an `approval_citations` entry for each. If any is still open, say
 so in the thread - name the specific `<repo>#<number>` so the human knows where
 the remaining go-ahead has to be posted - and submit `decision="discuss"`
 instead.
