@@ -85,8 +85,11 @@ that is the auto-approve carve-out for tatara's own proposals, and there is
 nothing to cite. Never invent an entry.
 
 If your report fails the operator's check, the Task parks at
-`identity-unverified` (an HTTP 200, not an error) and a human is told what was
-missing. That is not terminal: a fresh clarify turn can cite a later maintainer
+`identity-unverified` (an HTTP 200, not an error). The refusal is visible to the
+operator in its logs and metrics, but nothing is posted back to the issue
+thread - the maintainer sees the Task stop and is not told why, so a refusal is
+silent rather than self-correcting. Submit `discuss` instead of a citation you
+doubt. Not terminal, though: a fresh clarify turn can cite a later maintainer
 comment. Do not resubmit the same citation.
 
 **close** when:

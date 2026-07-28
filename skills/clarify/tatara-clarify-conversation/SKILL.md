@@ -163,9 +163,18 @@ always yours under this design. Get it wrong in the permissive direction and you
 have started work a maintainer told you to stop.
 
 So: read the whole thread, decide, then cite. If the operator's check disagrees,
-the task parks at `identity-unverified` and a human is told what was missing.
-That is not a dead end - a later comment from a verified maintainer, cited by a
-later clarify turn, clears the gate - but do not resubmit the same citation.
+the Task parks at `identity-unverified`. The operator records the refusal in its
+own logs and metrics, but **nothing is posted back to the issue thread**, so the
+maintainer just sees the Task stop. Nobody is going to tell them what was
+missing and ask them to fix it.
+
+That is why a citation you are unsure of is not a cheap thing to try. A refusal
+is silent, not self-correcting: it does not bounce back to you with an
+explanation and it does not prompt the human. If you are not confident in a
+citation, the honest move is `decision="discuss"` with a comment naming exactly
+what you still need - that at least reaches a human. The gate is not a dead end
+either way; a later comment from a verified maintainer, cited by a later clarify
+turn, clears it. But do not resubmit the same citation.
 
 **Do not paraphrase the quote.** Copy the substring exactly. A paraphrase is
 indistinguishable from a fabrication and will be refused.

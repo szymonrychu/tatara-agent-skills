@@ -111,3 +111,21 @@ no site says what to do when a later comment is genuinely ambiguous;
 `tatara-mcp-outcome`'s carve-out is stated per-issue at :118 but the entry rule
 is per-live-issue at :98, so a Task owning one commented and one uncommented
 issue is not cleanly covered (pre-existing).
+
+2026-07-29 (approval gate: a refusal is SILENT): three sites promised "the Task
+parks at identity-unverified and a human is told what was missing"
+(`tatara-clarify-conversation`, `tatara-triage-judgment`, `tatara-mcp-outcome`).
+Nothing has ever delivered that. On a failed citation the operator parks at
+`parked(identity-unverified)`, writes an agentNote, increments
+`operator_approval_refused_total{reason}` and logs `action=approval_refused` at
+WARN - all operator-side. Nothing is posted to the forge thread, so the
+maintainer just sees the Task stop. `ApprovalRefusedComment`, the only thing that
+ever rendered a refusal into human-readable text, had NO production caller even
+before the operator branch deleted it. All three sentences now say what actually
+happens, and carry the behavioural consequence rather than just the correction:
+a refusal is silent, not self-correcting, so a citation the agent doubts is not a
+cheap thing to try and `discuss` (which DOES reach a human) is the honest move.
+Deliberately NOT written: any claim that the operator will post a refusal
+comment. It will not today; whether it should is an open owner decision, and the
+skills get updated if it lands. `tatara-writeback-discipline:140` needed no edit
+- it states the park without claiming a notification.
