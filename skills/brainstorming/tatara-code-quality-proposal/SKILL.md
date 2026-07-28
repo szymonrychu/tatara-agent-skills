@@ -55,6 +55,14 @@ actually read. No speculative "you might also want" features.
   exact shape.
 - If nothing clears the bar this cycle, call
   `submit_outcome(action="skip", reason=...)` and stop. Silence over noise.
+  `skip` is transient: nothing THIS cycle, expect something next session.
+- If you have re-derived that nothing is worth proposing until the project
+  itself changes - not just this cycle - call
+  `submit_outcome(action="exhausted", reason=...)` instead. This **pauses
+  brainstorming for the whole project** until a real change lands. One report
+  is enough; use it sparingly, only when you mean the conclusion to hold. See
+  `tatara-brainstorm-guardrails` rail 2 for the full skip vs exhausted
+  contract.
 - Duplicate of an existing open issue: do not propose it. Name the duplicate in
   your `skip` reason. You have no `issue_write`, so you cannot comment on it
   either.

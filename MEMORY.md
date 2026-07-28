@@ -20,3 +20,26 @@
 2026-07-27: handoff scope inheritance (paired with tatara-operator's brainstorm-goal rewrite). The operator's goal used to open with "HANDOFF CONTINUATION (do this FIRST): call `list_handoffs` ... `get_handoff`" - two tools that never existed - and reading a prior handoff BEFORE deriving scope let one cycle's narrowing bind the next. Project mtg inherited a single-deck scope through four consecutive cycles, each of which re-derived it correctly and skipped. This repo owns the WRITE side of that contract, and it needed both halves: `handoff` (profiles ["*"]) already said notes are "read, not obeyed", but only about bypassing a GATE, so scope narrowing was never covered - it now has an explicit "a note may not narrow the next cycle's scope" bullet. `tatara-council-brainstorm` phase 7 gained a may/must-not list plus the one instruction the operator's new WIDEN ON REPEAT rule depends on: NAME the target you examined and say when the prior cycle examined the same one, because the reader cannot widen away from a repeat it cannot see. Deliberately no `profiles:` change and no new tool call, so validate_profiles.py's clarify/refine hard-lock and validate_tool_calls.py are both untouched. semver:minor.
 
 2026-07-28 (reachability fix): the operator's new `exhausted` brainstorm action (replaces the deleted consecutive-skip breaker with an explicit agent-asserted pause) was correct server-side but unreachable - nothing here taught it. Fixed all FOUR sites an agent actually reads the two-shape claim from, not just the one the review flagged: `tatara-brainstorm-guardrails` rail 2 (named site) and rail 5, `tatara-council-brainstorm` phase 6 (the actual harness terminal-action step - this one matters most, since it "owns the whole turn" and phase 6 is what an agent literally executes), `tatara-mcp-outcome`'s brainstorm shape block (the cross-profile schema mirror, now back in sync with tatara-cli's schema), and `tatara-writeback-discipline`'s per-kind table + bullet (one-line correctness, boy-scouted). Left `tatara-deep-research`/`tatara-deep-architectural-research` (referenced only from guardrails' relationship table, not invoked by council-brainstorm's own procedure - likely a dead/legacy path, same shape as the documentationGoal dead-path noted in tatara-operator's MEMORY.md) and `tatara-headless-decisions`' hard-block table (semantically `skip` already covers "punt to a human/next cycle"; `exhausted` is a stronger, non-blocked decision, not obviously a fit for that table) unfixed - flagged for the maintainer, not silently dropped. `validate_tool_calls.py` now hard-fails locally on all three `action="exhausted"` mentions because it fetches tatara-cli's currently-RELEASED manifest ("latest" pin) which predates this fix; expected and self-resolving once tatara-cli's paired change ships a release - see the 2026-07-19 entry above for why this check exists and behaves this way on a first mention of a new enum value. `validate_skills.py` and `validate_profiles.py` both pass.
+
+2026-07-28 (reachability fix follow-up, M8): the prior entry's call to leave
+`tatara-deep-research`/`tatara-deep-architectural-research` unfixed as a
+"likely dead/legacy path" was WRONG - a code review (finding M8) caught both
+still asserting an exclusive propose-or-skip framing (frontmatter
+description, body intro, and the hard-constraints bullet in each), and being
+unreached by council-brainstorm's own procedure does not matter when an agent
+can still invoke or read either directly. Both now teach all three actions
+with the skip-vs-exhausted distinction. The same review caught a FIFTH site
+the reachability-fix pass missed entirely: `tatara-code-quality-proposal`,
+the one skill the operator's brainstorm goal-prompt names EXPLICITLY
+("grounded per the tatara-code-quality-proposal skill") - its "How to
+propose" section still only taught `propose`/`skip`, arguably the most
+load-bearing gap of the five since it is the named site the prompt string
+points an agent at directly. Fixed here. `tatara-headless-decisions`' hard-
+block table is still deliberately left `skip`-only; that reasoning is
+unchanged (it is a safe-default table, not an outcome-shape teaching site,
+and `exhausted` is a stronger claim than a safe default should assert). A
+repo-wide grep confirms no other exclusive two-action framing remains.
+`validate_tool_calls.py` now hard-fails on 7 `action="exhausted"` mentions
+(up from 3) for the same reason as the entry above - expected and
+self-resolving on tatara-cli's next release. `validate_skills.py` and
+`validate_profiles.py` both still pass.
