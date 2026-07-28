@@ -101,7 +101,15 @@ submit_outcome(decision="implement"|"close"|"discuss", reason)
 ```
 submit_outcome(action="propose", proposals=[{repo, title, body, kind}])   # 1..5
 submit_outcome(action="skip", reason)
+submit_outcome(action="exhausted", reason)
 ```
+
+- `action="skip"` is transient: nothing THIS cycle, no lasting consequence.
+- `action="exhausted"` means nothing worth proposing until the project itself
+  changes. It **pauses brainstorming for the project** until a real change
+  lands - a non-tatara commit to the default branch, a tatara commit from real
+  task work, or a maintainer acting on an issue/MR. One report is enough;
+  there is no threshold. Both `skip` and `exhausted` need a non-empty `reason`.
 
 ### incident
 

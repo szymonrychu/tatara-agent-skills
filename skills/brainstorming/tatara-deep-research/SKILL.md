@@ -1,14 +1,18 @@
 ---
 name: tatara-deep-research
-description: "Use on a brainstorm turn to research ONE high-leverage improvement for the tatara platform. Researches deeply across the whole platform using the tatara-memory knowledge/code graph plus the on-disk repos, scores leverage, dedups against open issues and in-flight Tasks, then takes exactly one action: submit_outcome(action=propose) with 1..5 grounded proposals when something is genuinely novel, or submit_outcome(action=skip) when nothing clears the bar. Never self-implemented."
+description: "Use on a brainstorm turn to research ONE high-leverage improvement for the tatara platform. Researches deeply across the whole platform using the tatara-memory knowledge/code graph plus the on-disk repos, scores leverage, dedups against open issues and in-flight Tasks, then takes exactly one action: submit_outcome(action=propose) with 1..5 grounded proposals when something is genuinely novel, submit_outcome(action=skip) when nothing clears the bar this cycle, or submit_outcome(action=exhausted) when nothing will until the project itself changes. Never self-implemented."
 profiles: ["brainstorm"]
 ---
 
 # tatara deep research
 
 Discover ONE high-leverage improvement per run, then take exactly one
-action: `submit_outcome(action="propose")` (novel, shippable) or
-`submit_outcome(action="skip")` (honest no-yield). All input and output go through
+action: `submit_outcome(action="propose")` (novel, shippable),
+`submit_outcome(action="skip")` (honest no-yield THIS cycle, transient - expect
+something next session), or `submit_outcome(action="exhausted")` (nothing
+worth proposing until the project itself changes - **pauses brainstorming for
+the whole project**; use sparingly, only when you mean the conclusion to
+hold). All input and output go through
 the `tatara` MCP server. You never use git or gh; you never open or comment
 on an issue yourself - the OPERATOR opens an issue from each accepted proposal,
 under the bot identity, and mints a clarify Task for it.
@@ -17,8 +21,12 @@ under the bot identity, and mints a clarify Task for it.
 
 - ONE outcome per run. **A run that submits no outcome does not quietly end:** the
   Task ages out at `stageReason=no-outcome`, the pod is deleted, and the work is
-  lost. If nothing is genuinely novel, that is `submit_outcome(action="skip",
-  reason=...)` - an honest no-yield, not silence.
+  lost. If nothing is genuinely novel this cycle, that is
+  `submit_outcome(action="skip", reason=...)` - an honest no-yield, not
+  silence. If you have re-derived that nothing will be novel until the project
+  itself changes - not just this cycle - use `submit_outcome(action="exhausted",
+  reason=...)` instead; it pauses brainstorming for the whole project, so use
+  it sparingly and only when you mean the conclusion to hold.
 - **You have no `issue_write` and no `mr_write`.** There is no "comment on the
   existing issue instead" path any more. An idea that only extends an open issue
   is a `skip` that names that issue, not a proposal and not a comment.

@@ -1,14 +1,18 @@
 ---
 name: tatara-deep-architectural-research
-description: Use on an architectural-research turn to discover ONE high-leverage structural improvement for the tatara platform. Walks SCOPE -> MAP INWARD -> (Phase-1 stubbed) SURVEY -> ASSESS FIT -> NOVELTY -> SYNTHESIZE ADR -> PROPOSE; Phase-1 external field survey deferred (memory graph + on-disk only); the terminal no-yield action is submit_outcome(action=skip); never self-implemented.
+description: Use on an architectural-research turn to discover ONE high-leverage structural improvement for the tatara platform. Walks SCOPE -> MAP INWARD -> (Phase-1 stubbed) SURVEY -> ASSESS FIT -> NOVELTY -> SYNTHESIZE ADR -> PROPOSE; Phase-1 external field survey deferred (memory graph + on-disk only); the terminal no-yield action is submit_outcome(action=skip) this cycle, or submit_outcome(action=exhausted) when nothing will until the project itself changes; never self-implemented.
 profiles: ["brainstorm"]
 ---
 
 # tatara deep architectural research
 
 Discover ONE high-leverage structural improvement per run, produce an
-ADR/RFC artifact, then report it through `submit_outcome(action="propose")` - or
-`submit_outcome(action="skip")` when nothing novel or shippable emerges. All input
+ADR/RFC artifact, then report it through `submit_outcome(action="propose")`,
+`submit_outcome(action="skip")` when nothing novel or shippable emerges THIS
+cycle (transient - expect something next session), or
+`submit_outcome(action="exhausted")` when nothing will until the project
+itself changes (**pauses brainstorming for the whole project**; use
+sparingly, only when you mean the conclusion to hold). All input
 and output go through the
 `tatara` MCP server. You never use git or gh directly; you never open an
 issue yourself - the OPERATOR opens it from your accepted proposal, under the
@@ -17,7 +21,10 @@ bot identity.
 ## Hard constraints
 
 - ONE outcome per run: `submit_outcome(action="propose", proposals=[...])` (novel,
-  shippable) or `submit_outcome(action="skip", reason=...)` (honest no-yield). No
+  shippable), `submit_outcome(action="skip", reason=...)` (honest no-yield this
+  cycle, transient), or `submit_outcome(action="exhausted", reason=...)`
+  (nothing worth proposing until the project itself changes - pauses
+  brainstorming for the whole project; use sparingly). No
   partial outputs, no implementation requests. **A run that submits no outcome
   ages out at `no-outcome` and the work is lost.**
 - Discovery-only. You have no `issue_write`, no `mr_write`, no label and no merge.

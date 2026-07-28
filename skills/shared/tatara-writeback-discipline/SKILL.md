@@ -48,7 +48,7 @@ tool you do not see in `tools/list` will appear if you retry.
 |---|---|---|
 | `implement` | `action="submitted"\|"declined"` | `mr_write` (no `issue_write`) |
 | `documentation` | same as `implement` | `mr_write` (no `issue_write`) |
-| `brainstorm` | `action="propose"\|"skip"` | none - proposals go through `submit_outcome` only |
+| `brainstorm` | `action="propose"\|"skip"\|"exhausted"` | none - proposals go through `submit_outcome` only |
 | `incident` | `action="file_issue"\|"false_positive"` | none - same reason |
 | `clarify` | `decision="implement"\|"close"\|"discuss"` | `issue_write` (no `mr_write`) |
 | `review` | `verdict="approve"\|"request_changes"` | `mr_write`, comment/reply only in practice - you review an existing MR, you do not open one |
@@ -119,6 +119,9 @@ shape, so you understand what your call actually causes downstream:
   matching an already-open issue's exact title is adopted, not duplicated.
 - **`brainstorm`, `action="skip"`**: no proposal this cycle. A silent finish
   with no `submit_outcome` call at all is forbidden and re-prompted.
+- **`brainstorm`, `action="exhausted"`**: nothing worth proposing until the
+  project itself changes. Pauses brainstorming for the project until a real
+  change lands; one report is enough.
 - **`incident`, `action="file_issue"`**: same issue-creation path as
   brainstorm's propose, scoped to the alert rule(s) that fired.
 - **`incident`, `action="false_positive"`**: no issue filed; reason recorded.
