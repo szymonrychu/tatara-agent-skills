@@ -168,3 +168,44 @@ discuss, a comment on implement declined, clarify close being refused with an
 unmerged MR, and brainstorm propose enforcing title dedup. All pre-existing, all
 out of scope here, all the owner's call as separate work. Recorded so they are
 not lost.
+
+2026-07-29 (approval gate, final cross-repo review - I4 + I5): two more of the
+class named in the entry above, both found by cross-repo audit.
+
+I4, the mixed-Task deadlock: the no-human-comment carve-out was stated in PROSE
+but every procedural checkpoint stated the strict per-Task rule, and the
+carve-outs landed 37-115 lines later. A Task owning issue A (human commented) and
+issue B (bot-authored, no human comment, autoApproveTataraProposals on) would be
+GRANTED by the operator - A on its citation, B on the carve-out - but the
+checklist tells the agent it needs an entry for B, and inventing one is
+explicitly forbidden, so it submits `discuss` every turn forever. Exact same
+shape as the withdrawal-veto gap: the procedure disagreed with the prose and the
+procedure is what gets followed under pressure. Fixed AT the checkpoints (not by
+moving the carve-out closer): the requirement is one entry per live Issue THAT
+HAS A MAINTAINER COMMENT. Seven sites, three more than the review listed - a
+sweep for "per live Issue / every live Issue / every live one" caught the same
+strict phrasing at `tatara-triage-judgment:46` and `tatara-research-followup:81`
+and `:93`, which would have recreated the deadlock through a different file. Also
+added the MIRROR-IMAGE anti-pattern, which nothing covered: submitting `discuss`
+because an uncommented issue has no citation.
+
+I5, the surviving counter-claim to the not-sticky fix: `tatara-implement-workflow`
+told the implement agent "The operator ran the approval gate on EVERY live Issue
+this Task owns before your pod was admitted; if it is your Task, it is approved",
+and its section 3 opener said the Issues "were approved together". The gate runs
+at submit_outcome time only; an Issue adopted afterwards is never re-gated
+(applyApprovalStage had no production caller). This was the same false guarantee
+as D1, sitting in the one skill whose agent would ACT on it. Rewritten to say the
+gate ran on what the Task owned when the clarify agent submitted, and a late
+arrival did not pass it. Deliberate framing choice: an implement agent has no
+tool to re-check consent, so this cannot be a verification duty - it is stated as
+a reason to stay inside the briefed scope, with a concrete action (an owned Issue
+that no note, goal or thread mentions is out of scope; say so in the outcome body
+rather than shipping it). Inventing a check the agent cannot perform would have
+been the same defect pointing the other way.
+
+Confirmed clean by the reviewer, recorded so it is not re-audited:
+`approval_citations` is snake_case in all 20 occurrences with zero
+`approvalCitations`, the `{id, quote}` item shape is consistent everywhere, zero
+recency claims survive, and the withdrawal veto is attributed to the agent at
+every touchpoint including the enumerated pre-submit walk.

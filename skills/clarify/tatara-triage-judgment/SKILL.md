@@ -43,10 +43,11 @@ approve!", "continue", "yep, do it" all approve; "hold on, this is wrong" and
 loop, so read the comment, not a pattern.
 
 **Your decision is a REPORT, and it must carry evidence.** Along with `reason`,
-submit `approval_citations`: one `{id, quote}` per live Issue the Task owns,
-where `id` is the `external_id` of the maintainer comment you are citing as the
-go-ahead (an attribute in your bundle) and `quote` is a VERBATIM substring of
-that comment's body.
+submit `approval_citations`: one `{id, quote}` per live Issue the Task owns THAT
+A HUMAN HAS COMMENTED ON, where `id` is the `external_id` of the maintainer
+comment you are citing as the go-ahead (an attribute in your bundle) and `quote`
+is a VERBATIM substring of that comment's body. A live Issue with no human
+comment at all needs no entry.
 
 **The operator judges WHO, never WHAT IT MEANT.** For each citation it re-reads
 that comment from its own mirror and refuses if the comment is not on that
@@ -77,8 +78,10 @@ Three more ways to get this wrong:
 - Citing a comment that declines or defers, or one whose approval a later
   maintainer comment already withdrew.
 - One approval on one issue does not approve a Task that owns four. Every live
-  Issue (state `open`, status not `done`/`rejected`) needs its own comment and
-  its own citation.
+  Issue (state `open`, status not `done`/`rejected`) that a human has commented
+  on needs its own comment and its own citation. A live Issue with NO human
+  comment at all needs neither - that is the carve-out below, not a gap, so a
+  Task owning one commented and one uncommented issue cites exactly once.
 
 Omit `approval_citations` only when NO human has commented on the issue at all -
 that is the auto-approve carve-out for tatara's own proposals, and there is

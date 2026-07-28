@@ -68,17 +68,20 @@ carries it as an attribute. There is nothing to fetch.
 
 A Task can own several Issues across several repos. The approval gate is scoped
 to ALL of them: the operator approves your Task only when EVERY live Issue it
-owns (state `open`, status not `done` or `rejected`) carries its own cited
-approval evidence. One go-ahead on one issue does not approve a Task spanning
-four repos, and one citation does not cover four issues.
+owns (state `open`, status not `done` or `rejected`) is cleared - each on its own
+cited evidence, or on the no-human-comment carve-out below. One go-ahead on one
+issue does not approve a Task spanning four repos, and one citation does not
+cover four issues.
 
-So before you report `decision="implement"`, walk every `<issue>` in your bundle
-and check three things: that each has its own maintainer comment you read as
-approval, that no later maintainer comment on that issue took it back, and that
-you have an `approval_citations` entry for each. If any is still open, say
-so in the thread - name the specific `<repo>#<number>` so the human knows where
-the remaining go-ahead has to be posted - and submit `decision="discuss"`
-instead.
+So before you report `decision="implement"`, walk every `<issue>` in your bundle.
+For each live one that a human has commented on, check three things: that it has
+its own maintainer comment you read as approval, that no later maintainer comment
+on that issue took it back, and that you have an `approval_citations` entry for
+it. A live issue NO human has commented on needs none of the three - it rides the
+carve-out, and a Task owning one commented and one uncommented issue submits
+exactly one citation. If any commented issue is still open, say so in the thread -
+name the specific `<repo>#<number>` so the human knows where the remaining
+go-ahead has to be posted - and submit `decision="discuss"` instead.
 
 **Adopting an issue after the gate does NOT re-run the gate.** An issue you add
 to an approved Task (via `issue_write(action="create")`) is simply in scope from
@@ -211,8 +214,12 @@ human named: that goes in the note, not in a `plan` argument (there is none).
 - Re-posting a comment that only re-requests approval or restates prior analysis
   when no human has replied (silence-over-noise violation).
 - Answering under your own last comment.
-- Reporting `decision="implement"` when some live Issue your Task owns has no
-  maintainer approval comment of its own, or no citation for it.
+- Reporting `decision="implement"` when some live Issue a human HAS commented on
+  has no maintainer approval of its own, or no citation for it. (An Issue nobody
+  has commented on is fine - it needs no citation.)
+- The mirror image: submitting `discuss` because a live Issue has no citation
+  when no human ever commented on it. That issue does not need one, and holding
+  the whole Task for a citation you must not invent parks it forever.
 - Paraphrasing the `quote` instead of copying the substring verbatim.
 - Citing a comment that declines, defers, or makes the go-ahead conditional on
   something that has not happened yet. A go-ahead that merely carries a scope

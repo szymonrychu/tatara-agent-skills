@@ -94,9 +94,11 @@ submit_outcome(decision="implement"|"close"|"discuss", reason, approval_citation
 
 - `reason` is required on all three. For `decision=implement`, say in plain
   words WHO approved and WHY you read their comment as approval.
-- `approval_citations` is required for `decision=implement` whenever a human has
-  commented on the issue: ONE entry per LIVE issue this task owns, each
-  `{id, quote}`.
+- `approval_citations` is required for `decision=implement`: ONE entry per LIVE
+  issue this task owns THAT HAS A MAINTAINER COMMENT, each `{id, quote}`. A live
+  issue no human has commented on at all needs no entry - see the carve-out
+  below - so a task owning one commented and one uncommented issue submits
+  exactly one entry.
   - `id` is the `external_id` of the maintainer comment you are citing as the
     go-ahead. It is already in your turn-0 bundle, on the
     `<comment external_id="...">` attribute. Copy it. Do not re-crawl to find it.

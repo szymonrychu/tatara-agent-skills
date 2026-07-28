@@ -78,8 +78,9 @@ Create a TodoWrite item per numbered step.
    or to put it on a line of its own. A later clarify turn reads whatever they
    write and judges it. Do not approve it yourself; you cannot.
 
-   If this Task owns SEVERAL Issues, every live one needs its own approval
-   comment. Say so, and name the `<repo>#<number>` that is still missing one.
+   If this Task owns SEVERAL Issues, every live one a human has engaged with
+   needs its own approval comment. Say so, and name the `<repo>#<number>` that is
+   still missing one.
 
 5. **Idle discipline.** Has a human posted since the last bot comment? If NO -
    go straight to step 6 without calling `issue_write`. The silence-over-noise
@@ -89,10 +90,12 @@ Create a TodoWrite item per numbered step.
    Task at `awaiting-human`; the next human comment un-parks it and a fresh
    clarify pod picks it up. Use `decision="close"` ONLY if the idea is clearly
    dead AND a human concurred in the thread. Use `decision="implement"` only when
-   every live Issue carries a maintainer comment you read as a go-ahead, with
-   nothing later in the thread withdrawing it - say WHO and WHY in your `reason`,
-   and carry one `approval_citations` entry per live issue (none when no human
-   has ever commented), its `id` copied from that comment's `external_id`
+   every live Issue a human has commented on carries a maintainer comment you
+   read as a go-ahead, with nothing later in the thread withdrawing it - say WHO
+   and WHY in your `reason`, and carry one `approval_citations` entry per such
+   issue (a live issue no human ever commented on needs none, and holding the
+   Task for one you must not invent parks it forever), its `id` copied from that
+   comment's `external_id`
    attribute in your bundle and its `quote` a verbatim substring of its body.
 
    You MUST submit an outcome. A turn that ends without one ages the Task out at

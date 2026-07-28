@@ -90,9 +90,9 @@ outcome body.
 
 ## 3. Several issues under one Task
 
-A Task can own several Issues, across several repos. They were approved together
-and they ship together: resolve all of them in this Task's MRs. Do not open a
-separate Task or a separate stream per issue.
+A Task can own several Issues, across several repos. They ship together: resolve
+all of them in this Task's MRs. Do not open a separate Task or a separate stream
+per issue.
 
 The issue-closing directive in your MR body is filtered by an operator-side
 ALLOWLIST: `Closes #N` survives only for an Issue this Task actually owns. Write
@@ -100,9 +100,17 @@ ALLOWLIST: `Closes #N` survives only for an Issue this Task actually owns. Write
 would close an issue outside your Task's mandate is stripped, and writing it
 anyway just produces a body that does not say what you think it says.
 
-You do not decide which issues are approved. The operator ran the approval gate
-on EVERY live Issue this Task owns before your pod was admitted; if it is your
-Task, it is approved.
+You do not decide which issues are approved - but do not read mere ownership as
+proof of approval either. The gate ran once, on the Issues this Task owned at the
+moment the clarify agent submitted its outcome. An Issue adopted AFTER that never
+passed it, and nothing re-runs the gate on a late arrival.
+
+In practice the Task you are handed is the approved one, and you have no tool to
+re-check consent - so this is not a verification you can perform. It is a reason
+to stay inside the scope you were briefed on: work the Issues the handoff note
+and the goal actually describe, and if the Task owns an Issue that no note, no
+goal and no thread ever mentions, treat it as out of scope and say so in your
+outcome body rather than shipping it on the assumption that someone approved it.
 
 ---
 
