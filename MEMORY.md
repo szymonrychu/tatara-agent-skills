@@ -43,3 +43,169 @@ repo-wide grep confirms no other exclusive two-action framing remains.
 (up from 3) for the same reason as the entry above - expected and
 self-resolving on tatara-cli's next release. `validate_skills.py` and
 `validate_profiles.py` both still pass.
+
+2026-07-28 (approval is judged, not matched): the operator's `approvalPhrases`
+wordlist is gone (paired tatara-operator change). The clarify agent now READS a
+maintainer's comment, judges whether it approves, and CITES it back as
+`approval_citations=[{id, quote}]` - `id` copied off the `external_id` attribute
+the turn-0 bundle already renders on every `<comment>`, `quote` a verbatim
+substring of the body. The operator re-verifies four STRUCTURAL facts only (the
+comment is on that issue, its author is a verified non-bot maintainer, the quote
+occurs verbatim in the body it holds, that comment has not already been consumed
+as evidence); a failed citation is an HTTP 200 that parks the Task at
+`identity-unverified`, not an error. Two non-obvious calls: (a) the
+"do not re-crawl the forge" anti-pattern was KEPT and the fix was to SAY the id
+is already in the bundle - licensing a re-crawl would have traded one bug for a
+worse one; (b) added the repo's FIRST `decision="implement"` worked example
+(`tatara-writeback-discipline`), modelled on the `reviewed_shas` idiom in
+`tatara-mcp-outcome`, because a required server-re-verified field with no worked
+example is the shape of a field agents omit. `approval_citations` is not an enum
+value, so `validate_tool_calls.py` cannot see it in either direction - the
+operator-side parity test is the only mechanical guard. No `profiles:` change and
+no new skill, so `validate_profiles.py`'s clarify hard-lock is untouched.
+`.claude-plugin/plugin.json` left alone (CI-owned).
+
+2026-07-28 (approval gate, review round 2 - NO recency check): the first pass of
+the entry above taught "the cited comment must be the MOST RECENT maintainer
+comment" and the operator briefly enforced it. That rule DEADLOCKS an ordinary
+thread and the owner removed it: given "go ahead, I approve!" followed by
+"thanks - ping me when the PR is up", consent is unambiguous but the newest
+maintainer comment is not itself a go-ahead, so the agent could never cite
+anything, would submit `discuss` every turn, and the Task would park at
+`awaiting-human` forever with no signal why. The operator now verifies four
+structural facts and NOT recency, which moves the withdrawal veto entirely onto
+the AGENT - it must read every maintainer comment newer than the one it cites and
+submit `discuss` if any takes the go-ahead back. Because nothing downstream
+backstops that any more, every site now states it explicitly and gives both
+signs: benign follow-up ("ping me when the PR is up") keeps the approval,
+withdrawal ("actually hold off") kills it. The `tatara-writeback-discipline`
+worked example was rebuilt around exactly the deadlock thread - two comments,
+cite the EARLIER one - since a single-comment example cannot teach a rule about
+what comes after. Also corrected there: bundle timestamps are MINUTE precision
+(`at="2026-07-12T10:02Z"`, see tatara-operator internal/prompt/testdata/full.golden:8),
+not seconds. Separately, an earlier concern that `external_id` was missing from
+ISSUE comments was WRONG and is recorded here so nobody re-derives it: issues and
+MRs share one comments template at internal/prompt/bundle.go:259 fed by one
+buildComments builder; bundle.go:222 is the `proposal_history` element, a
+different block entirely, and full.golden:8 shows an issue comment carrying
+`external_id`.
+
+2026-07-28 (approval gate, review round 3 - the veto belongs in the PROCEDURE):
+the round-2 fix taught the withdrawal check well in prose but left both
+PROCEDURAL touchpoints in `tatara-clarify-conversation` bare - Branch B step 3's
+decision list and the "walk every `<issue>`" pre-submit checklist. The veto sat
+~60 lines below them, so an agent executing the numbered procedure never met the
+clause at the moment it decided. Since the withdrawal check is now the ONLY
+enforcement anywhere in the system, the checklist has to carry it, not just the
+essay: step 3 gained "and nothing later in the thread took it back", and the
+pre-submit walk is now an explicit three-item check. Also balanced
+`tatara-research-followup`'s hard constraint, which gave only the withdrawal sign
+and so tilted a solo reader of that file toward over-caution; it now carries the
+benign sign too. Established and worth not re-deriving: bundle elision does NOT
+endanger the veto - internal/prompt/bundle_test.go:669-677 asserts elision drops
+the OLDEST comments and always keeps the newest, so the "comments newer than the
+one you cite" window is exactly the retained region, and an elided approval fails
+the agent toward `discuss`. Deferred, not dropped: later comments that RE-SCOPE
+("actually do the CLI instead") or ask a question fall outside both sign lists;
+no site says what to do when a later comment is genuinely ambiguous;
+`tatara-mcp-outcome`'s carve-out is stated per-issue at :118 but the entry rule
+is per-live-issue at :98, so a Task owning one commented and one uncommented
+issue is not cleanly covered (pre-existing).
+
+2026-07-29 (approval gate: a refusal is SILENT): three sites promised "the Task
+parks at identity-unverified and a human is told what was missing"
+(`tatara-clarify-conversation`, `tatara-triage-judgment`, `tatara-mcp-outcome`).
+Nothing has ever delivered that. On a failed citation the operator parks at
+`parked(identity-unverified)`, writes an agentNote, increments
+`operator_approval_refused_total{reason}` and logs `action=approval_refused` at
+WARN - all operator-side. Nothing is posted to the forge thread, so the
+maintainer just sees the Task stop. `ApprovalRefusedComment`, the only thing that
+ever rendered a refusal into human-readable text, had NO production caller even
+before the operator branch deleted it. All three sentences now say what actually
+happens, and carry the behavioural consequence rather than just the correction:
+a refusal is silent, not self-correcting, so a citation the agent doubts is not a
+cheap thing to try and `discuss` (which DOES reach a human) is the honest move.
+Deliberately NOT written: any claim that the operator will post a refusal
+comment. It will not today; whether it should is an open owner decision, and the
+skills get updated if it lands. `tatara-writeback-discipline:140` needed no edit
+- it states the park without claiming a notification.
+
+2026-07-29 (approval gate: no re-gate on adopted issues): `tatara-clarify-
+conversation` claimed that acquiring a NEW issue after approval "resets the Task
+out of `approved` and back to `clarifying`" and that "you cannot widen your own
+mandate by adopting work after the gate". Both false. The only implementer of
+that reset is `applyApprovalStage` (internal/controller/approval_grammar.go:525-554),
+whose sole caller is `VerifyApprovalDetailed`, which the operator's own comment
+at :418 says has no production caller either (tests only). The REST clarify path
+calls `stage.Enter(StageApproved)` directly (internal/restapi/outcome.go:1351) and
+never reaches it; `appendTaskRef` (internal/restapi/handlers_v2.go:1171-1182)
+appends an IssueRef with no re-gate. The stage edge exists at
+internal/stage/stage.go:330 and nothing triggers it. This is the dangerous shape:
+an agent told it CANNOT widen its own mandate stops guarding against doing so.
+Rewritten to put the duty where it actually sits - adopting does not re-run the
+gate, the scope you leave behind is the scope that ships, and if you are adopting
+because you expect a second check there is none, so submit `discuss` first. No
+invented mechanism and no claim the operator re-gates.
+
+Also this pass: matched `tatara-mcp-outcome` and `tatara-triage-judgment` to
+`tatara-clarify-conversation`'s stricter "not confident in a citation" bar (both
+said "a citation you doubt", a lower bar satisfiable almost every turn, which
+over-steers toward `discuss`). And softened the round-3 absolute: "nothing is
+posted back to the issue thread" was slightly overstated - a Task parked at
+identity-unverified DOES draw a forge notice from the reaper
+(internal/controller/reaper.go:864-880), but only after ParkRetention = 7 days,
+only if no un-park fires first, and its body names only the Stage and StageReason
+enums, never what was missing. All three sites now say "nothing USEFUL reaches
+the issue thread" with that qualifier; the behavioural conclusion is unchanged.
+
+Standing note after two rounds of this: every "the operator will ..." sentence in
+this skill set should be treated as unverified until someone reads the operator
+for it. Three such claims have now been found false (the recency check, the
+refusal notification, this re-gate). The audit that found this one also flagged
+five more in OTHER skills - tatara-headless-decisions' bot-comment-on-park
+promise, and tatara-writeback-discipline's claims about a comment on clarify
+discuss, a comment on implement declined, clarify close being refused with an
+unmerged MR, and brainstorm propose enforcing title dedup. All pre-existing, all
+out of scope here, all the owner's call as separate work. Recorded so they are
+not lost.
+
+2026-07-29 (approval gate, final cross-repo review - I4 + I5): two more of the
+class named in the entry above, both found by cross-repo audit.
+
+I4, the mixed-Task deadlock: the no-human-comment carve-out was stated in PROSE
+but every procedural checkpoint stated the strict per-Task rule, and the
+carve-outs landed 37-115 lines later. A Task owning issue A (human commented) and
+issue B (bot-authored, no human comment, autoApproveTataraProposals on) would be
+GRANTED by the operator - A on its citation, B on the carve-out - but the
+checklist tells the agent it needs an entry for B, and inventing one is
+explicitly forbidden, so it submits `discuss` every turn forever. Exact same
+shape as the withdrawal-veto gap: the procedure disagreed with the prose and the
+procedure is what gets followed under pressure. Fixed AT the checkpoints (not by
+moving the carve-out closer): the requirement is one entry per live Issue THAT
+HAS A MAINTAINER COMMENT. Seven sites, three more than the review listed - a
+sweep for "per live Issue / every live Issue / every live one" caught the same
+strict phrasing at `tatara-triage-judgment:46` and `tatara-research-followup:81`
+and `:93`, which would have recreated the deadlock through a different file. Also
+added the MIRROR-IMAGE anti-pattern, which nothing covered: submitting `discuss`
+because an uncommented issue has no citation.
+
+I5, the surviving counter-claim to the not-sticky fix: `tatara-implement-workflow`
+told the implement agent "The operator ran the approval gate on EVERY live Issue
+this Task owns before your pod was admitted; if it is your Task, it is approved",
+and its section 3 opener said the Issues "were approved together". The gate runs
+at submit_outcome time only; an Issue adopted afterwards is never re-gated
+(applyApprovalStage had no production caller). This was the same false guarantee
+as D1, sitting in the one skill whose agent would ACT on it. Rewritten to say the
+gate ran on what the Task owned when the clarify agent submitted, and a late
+arrival did not pass it. Deliberate framing choice: an implement agent has no
+tool to re-check consent, so this cannot be a verification duty - it is stated as
+a reason to stay inside the briefed scope, with a concrete action (an owned Issue
+that no note, goal or thread mentions is out of scope; say so in the outcome body
+rather than shipping it). Inventing a check the agent cannot perform would have
+been the same defect pointing the other way.
+
+Confirmed clean by the reviewer, recorded so it is not re-audited:
+`approval_citations` is snake_case in all 20 occurrences with zero
+`approvalCitations`, the `{id, quote}` item shape is consistent everywhere, zero
+recency claims survive, and the withdrawal veto is attributed to the agent at
+every touchpoint including the enumerated pre-submit walk.

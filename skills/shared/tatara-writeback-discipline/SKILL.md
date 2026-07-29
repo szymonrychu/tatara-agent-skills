@@ -50,7 +50,7 @@ tool you do not see in `tools/list` will appear if you retry.
 | `documentation` | same as `implement` | `mr_write` (no `issue_write`) |
 | `brainstorm` | `action="propose"\|"skip"\|"exhausted"` | none - proposals go through `submit_outcome` only |
 | `incident` | `action="file_issue"\|"false_positive"` | none - same reason |
-| `clarify` | `decision="implement"\|"close"\|"discuss"` | `issue_write` (no `mr_write`) |
+| `clarify` | `decision="implement"\|"close"\|"discuss"` (+ `approval_citations` on `implement`, none when no human has ever commented) | `issue_write` (no `mr_write`) |
 | `review` | `verdict="approve"\|"request_changes"` | `mr_write`, comment/reply only in practice - you review an existing MR, you do not open one |
 | `refine` | `folds[]`, `closes[]`, `links[]` (any subset, at least one when acting) | `issue_write` and `mr_write` (`mr_write` restricted to `action="comment"` only) |
 
@@ -125,17 +125,25 @@ shape, so you understand what your call actually causes downstream:
 - **`incident`, `action="file_issue"`**: same issue-creation path as
   brainstorm's propose, scoped to the alert rule(s) that fired.
 - **`incident`, `action="false_positive"`**: no issue filed; reason recorded.
-- **`clarify`, `decision="implement"`**: your `reason` must cite WHO approved
-  and WHERE. The operator independently re-reads the thread and re-verifies
-  both identity and wording against the C.6 approval grammar - your judgment
-  about scope is trusted, your report of consent is not. This can still fail
-  the gate if the evidence does not hold up; see `tatara-mcp-outcome`.
+- **`clarify`, `decision="implement"`**: YOU judged that a maintainer's comment
+  approves the work, and you carry the evidence in `approval_citations` - one
+  `{id, quote}` per live owned issue (none when no human has ever commented),
+  the `id` copied off that comment's `external_id` attribute in your bundle and
+  the `quote` a verbatim substring of its body. The operator does not read
+  intent and has no wordlist: it re-reads that exact comment from its own mirror
+  and checks that it is on that issue, WHO wrote it (a verified maintainer,
+  never the bot), that your quote really occurs in it, and that it has not
+  already been consumed as approval evidence. It does NOT check that you cited
+  the newest comment, so noticing that a later maintainer comment withdrew the
+  approval is YOUR job, not the operator's. Your judgment of meaning is trusted;
+  your report of who said it is not. A failed check is a 200, not an error - the
+  Task parks at `identity-unverified`. See `tatara-mcp-outcome`.
 - **`clarify`, `decision="close"`**: the operator closes the issue. Refused
   if the Task owns an unmerged MR - close the loose end first.
 - **`clarify`, `decision="discuss"`**: the operator posts your `reason` as a
-  comment and parks the task awaiting a human. This is not a dead end - a
-  later maintainer comment that passes the approval grammar re-triggers the
-  check and un-parks the Task on its own.
+  comment and parks the task awaiting a human. This is not a dead end - the
+  next human comment wakes a fresh clarify pod, which reads the new comment and
+  decides again.
 - **`review`, `verdict="approve"|"request_changes"`**: you never post the
   review yourself. The operator posts a single `COMMENT`-event review
   carrying your verdict and findings (the forge blocks a bot from
@@ -200,6 +208,7 @@ action for it.
 | Call `submit_outcome(action="submitted")` before opening any MR | 400 - the Task owns no open MR to attach the outcome to |
 | Look for an `mr_write` action to approve, request changes on, or merge | Does not exist. Reviews and merges are `submit_outcome` + the operator, never a direct tool call |
 | Look for an `issue_write` `status` or `labels` parameter | Does not exist. Approval and every lifecycle label are operator-owned |
+| Paraphrase or tidy up an `approval_citations` `quote` | The operator substring-matches it against the body it holds; a paraphrase is indistinguishable from a fabrication and is refused |
 | Post an empty or whitespace-only comment body | The forge/operator will still consume the call; nothing useful lands |
 | Use `task_note` to try to reach a human | Notes are agent/operator continuity state, never rendered to the issue or MR thread - see `tatara-headless-decisions` |
 
@@ -235,6 +244,41 @@ action for it.
      reason="Posted a question about the retry limit; task parks awaiting reply.")
    -> Operator posts the reason too and keeps the task in Conversation.
 ```
+
+### Worked example: `decision="implement"`
+
+The bundle carried:
+
+```xml
+<comment author="szymonrychu" at="2026-07-28T09:14Z" bot="false" external_id="2154887301">
+I looked at the failing case. Yeah, go ahead, I approve! Just keep the change to
+the one package.
+</comment>
+<comment author="szymonrychu" at="2026-07-28T09:21Z" bot="false" external_id="2154889044">
+thanks - ping me when the PR is up
+</comment>
+```
+
+szymonrychu is a maintainer on this project and the first comment reads as
+approval. The second is newer, but it is a benign follow-up, not a withdrawal,
+so the approval stands and the EARLIER comment is the one to cite:
+
+```
+submit_outcome(
+  decision="implement",
+  reason="szymonrychu approved on issue #13 - 'go ahead, I approve!' - with a scope note to keep the change to one package, which the goal already does. Their later 'ping me when the PR is up' is a follow-up, not a withdrawal.",
+  approval_citations=[{"id": "2154887301", "quote": "go ahead, I approve!"}]
+)
+```
+
+The `id` is copied off the `external_id` attribute. The `quote` is copied
+character for character out of the body. Note what is NOT here: no wordlist, no
+requirement that the approval be a line on its own, no requirement that it be
+the newest comment, no re-crawl.
+
+Had that second comment said "actually hold off, let me think about this", the
+approval would NOT stand and the right outcome is `decision="discuss"`. The
+operator does not check recency, so that judgement is entirely yours.
 
 ### Brainstorm that proposes two ideas
 

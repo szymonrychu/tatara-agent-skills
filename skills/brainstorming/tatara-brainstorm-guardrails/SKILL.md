@@ -123,10 +123,11 @@ A blank or one-word reason is not acceptable for either.
 
 You do not open MRs, request CI, approve anything, or label anything. The tools
 do not exist in your profile. **Approval is a maintainer's comment on the issue,
-matching the project's `approvalPhrases` as a whole line, verified by the
-operator** - and it happens on the clarify Task the operator mints from your
-proposal, long after your pod is gone. Nothing you write in a proposal body
-advances that gate; do not pretend otherwise in the prose.
+judged by a clarify agent and cited back to the operator, which verifies who
+wrote it** - and it happens on the clarify Task the operator mints from your
+proposal, long after your pod is gone. There is no approval wordlist. Nothing
+you write in a proposal body advances that gate; do not pretend otherwise in the
+prose.
 
 ### 7. The session quota (enforced externally)
 

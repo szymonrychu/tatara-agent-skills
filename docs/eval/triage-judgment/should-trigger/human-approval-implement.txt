@@ -1,5 +1,7 @@
 # Fixture: human-approval-implement
-# Expected: agent should consult tatara-triage-judgment and emit action=implement.
+# Expected: agent should consult tatara-triage-judgment and emit decision=implement.
 # This prompt is a stub. Populate with a triage turn prompt for a tatara-authored issue
-# where a human has posted a clear approval comment ("LGTM", "go ahead", "approved").
-# Expected behavior: agent emits issue_outcome(action=implement).
+# where a maintainer has posted a comment that reads as a go-ahead, in whatever words
+# they chose ("go ahead, I approve!", "continue", "yep do it"). There is no wordlist.
+# Expected behavior: agent emits submit_outcome(decision="implement", reason=...,
+# approval_citations=[{id: <that comment's external_id>, quote: <verbatim substring>}]).
