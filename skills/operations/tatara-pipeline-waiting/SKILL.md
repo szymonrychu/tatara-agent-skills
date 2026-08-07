@@ -6,7 +6,7 @@ description: >
   read via scm_read(kind=ci). Teaches the heartbeat-poll loop that survives the
   turn inactivity timeout, how to tell an infra flap (retrigger) from a real
   failure (fix), and when to stop waiting. Read before polling any pipeline.
-profiles: ["implement", "review", "incident", "clarify"]
+profiles: ["implement", "review", "incident"]
 ---
 
 # tatara-pipeline-waiting
@@ -126,15 +126,14 @@ profile:
 to. Push an empty commit to retrigger the pipeline:
 `git commit --allow-empty -m "chore: retrigger ci" && git push`
 
-**incident / clarify - always this one, never the push above.** These
-profiles are read/investigate-only (see `tatara-incident-investigation`
-HARD RAIL: no pushes) with no `mr_write` and no forge write credential.
-If you are running as incident or clarify and you hit an infra flap: say so
-in your outcome / issue body and let a human (or the implement/review pod
-that later owns this failure) push the retrigger. Never construct or run a
-`git push` for this.
+**incident - always this one, never the push above.** This profile is
+read/investigate-only (see `tatara-incident-investigation` HARD RAIL: no
+pushes) with no `mr_write` and no forge write credential. If you are running
+as incident and you hit an infra flap: say so in your outcome / issue body
+and let a human (or the implement/review pod that later owns this failure)
+push the retrigger. Never construct or run a `git push` for this.
 
-Both profiles: do NOT "fix" an infra flap by changing code. That is how a
+Every profile: do NOT "fix" an infra flap by changing code. That is how a
 green pipeline gets a spurious commit in it and how a real bug gets buried
 under a workaround.
 

@@ -7,14 +7,14 @@ description: >
   understand code structure before reading files, trace a bug across call
   boundaries, assess impact of a change, or locate tightly-coupled subsystems.
   Available in every agent profile except refine.
-profiles: ["brainstorm", "implement", "incident", "review", "clarify", "documentation"]
+profiles: ["brainstorm", "implement", "incident", "review", "documentation"]
 ---
 
 # tatara-mcp-code-graph
 
 All 4 tools in `groupCodeGraph` hit the tatara-memory backend
 (Target=TargetMemory) at `/code/...` and `/code-graph/...` routes. Tool names
-are exact; use them verbatim. `code_graph` is not available in the `clarify`
+are exact; use them verbatim. `code_graph` is not available in the `refine`
 profile (D.6); the other three are.
 
 The `repo` argument is always a slug like `szymonrychu/tatara-cli`. Every

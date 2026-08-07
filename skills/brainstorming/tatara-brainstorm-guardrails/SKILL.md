@@ -105,9 +105,10 @@ A proposal must be:
 
 ### 4. What a proposal becomes
 
-Each entry in `proposals[]` becomes its OWN issue and its OWN clarify Task. There
-is no umbrella, no `systemicId`, and no linked-issue group: a cross-repo finding
-is N proposals, and the clarify conversation on each is where scope gets settled.
+Each entry in `proposals[]` becomes its OWN issue and its OWN implement Task.
+There is no umbrella, no `systemicId`, and no linked-issue group: a cross-repo
+finding is N proposals, and the implement conversation on each is where scope
+gets settled.
 The array is capped at 5 by the schema.
 
 `kind` is `bug` or `improvement`.
@@ -123,8 +124,8 @@ A blank or one-word reason is not acceptable for either.
 
 You do not open MRs, request CI, approve anything, or label anything. The tools
 do not exist in your profile. **Approval is a maintainer's comment on the issue,
-judged by a clarify agent and cited back to the operator, which verifies who
-wrote it** - and it happens on the clarify Task the operator mints from your
+judged by the implement agent and cited back to the operator, which verifies who
+wrote it** - and it happens on the implement Task the operator mints from your
 proposal, long after your pod is gone. There is no approval wordlist. Nothing
 you write in a proposal body advances that gate; do not pretend otherwise in the
 prose.

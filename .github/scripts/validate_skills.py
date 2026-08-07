@@ -10,12 +10,11 @@ REQUIRED_FIELDS = {"name", "description"}
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
 
 # A COMMAND INVOCATION, not the substring. A naive `gh `/`glab ` grep matches
-# "enough ", "through " (tatara-pipeline-waiting), and - fatally - the five
+# "enough ", "through " (tatara-pipeline-waiting), and - fatally - the four
 # "You never use git or gh directly" lines that ARE the ban (contract L.4,
 # L.10; skills/brainstorming/tatara-deep-architectural-research,
 # tatara-council-brainstorm, tatara-deep-research,
-# skills/investigation/tatara-research-followup,
-# skills/clarify/tatara-clarify-conversation). A checker that flags the
+# skills/investigation/tatara-research-followup). A checker that flags the
 # prohibition as a violation is a checker nobody keeps.
 FORGE_CLI = re.compile(
     r"\bg(?:h|lab)\s+(?:pr|run|api|issue|repo|mr|ci|auth|release|workflow|"

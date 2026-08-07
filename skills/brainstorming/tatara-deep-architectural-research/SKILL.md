@@ -28,9 +28,9 @@ bot identity.
   partial outputs, no implementation requests. **A run that submits no outcome
   ages out at `no-outcome` and the work is lost.**
 - Discovery-only. You have no `issue_write`, no `mr_write`, no label and no merge.
-  Approval happens later, on the clarify Task the operator mints from your
-  proposal, when a maintainer comments, a clarify agent reads that comment as a
-  go-ahead and cites it, and the operator verifies who wrote it. There is no
+  Approval happens later, on the implement Task the operator mints from your
+  proposal: a maintainer comments a go-ahead, the agent judges the intent and
+  cites the comment, and the operator verifies who wrote it. There is no
   approval wordlist. Nothing you write advances that gate; never imply in a
   proposal body that it does.
 - Respect every platform hard rule (read the on-disk `CLAUDE.md`): KISS, no
@@ -61,7 +61,7 @@ context lean by fanning per-repo legwork out to subagents.
   platform-wide gap, or recurring debt - in preference to a one-repo tweak.
 - A genuinely systemic improvement is several entries in ONE `proposals[]` array
   (capped at 5), one per affected repo. Each becomes its own issue and its own
-  clarify Task; there is no umbrella and no `systemicId`. Name the siblings in
+  implement Task; there is no umbrella and no `systemicId`. Name the siblings in
   each body so the humans can see the three new issues are one design.
 
 The `tatara` tools auto-scope to your current task and project from the pod

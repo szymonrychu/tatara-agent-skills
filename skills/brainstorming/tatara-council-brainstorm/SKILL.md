@@ -101,9 +101,9 @@ simplification, operability, product-growth, tech-radar.
        submit_outcome(action="propose",
                       proposals=[{repo, title, body, kind}, ...])   # 1..quota
 
-   **Each proposal becomes its own issue and its own clarify Task.** There is no
-   umbrella Task, no linked-issue group: a finding that touches three repos is
-   three entries, and the clarify conversation on each is where its scope is
+   **Each proposal becomes its own issue and its own implement Task.** There is
+   no umbrella Task, no linked-issue group: a finding that touches three repos is
+   three entries, and the implement conversation on each is where its scope is
    settled. The operator truncates the array to the quota in payload order, and
    the schema ceiling is 5 regardless - so order your entries best-first.
 

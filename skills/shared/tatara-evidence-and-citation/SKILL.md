@@ -1,6 +1,6 @@
 ---
 name: tatara-evidence-and-citation
-description: "REFERENCE - evidence and citation conventions for tatara agents: query the memory/code graph before reading raw files, cite file:line for every code-level claim, and never assert a codebase fact without a tool result proving it. Read in any research, clarify, brainstorm, incident, or implement turn before making assertions about the platform."
+description: "REFERENCE - evidence and citation conventions for tatara agents: query the memory/code graph before reading raw files, cite file:line for every code-level claim, and never assert a codebase fact without a tool result proving it. Read in any research, brainstorm, incident, or implement turn before making assertions about the platform."
 profiles: ["*"]
 ---
 
@@ -16,9 +16,9 @@ Every injected turn-0 prompt that requires codebase investigation anchors its ou
 - `healthCheckGoalProject` (`internal/controller/projectscan.go`): proposals require "the concrete defect with file:line evidence, the proposed fix."
 - `incident.GoalProject` (`internal/incident/goal.go`): the issue body MUST contain "the queries/tools you ran and their results."
 
-`triage` and `lifecycle` are retired Task kinds; their evidence requirements are subsumed by `clarify`.
+`triage` and `lifecycle` are retired Task kinds; their evidence requirements are subsumed by `implement` (via the since-retired `clarify` kind, which was itself merged into `implement`).
 
-The tool surface is now gated per profile (contract D.6), not uniformly available. `memory_query`/`memory_describe` are on the always-on `submit_outcome`/`scm_read` tier and present in every profile. `code_search`/`code_context`/`code_explain` are present in every profile except `refine`. `code_graph` is present in `brainstorm`, `incident`, `implement`, `review`, `documentation` - not `clarify`, not `refine`. `memory_write`/`memory_entity`/`memory_edges` vary further still. See `tatara-mcp-code-graph` and `tatara-mcp-memory` for the authoritative per-tool gating and full schemas; this skill does not re-document them.
+The tool surface is now gated per profile (contract D.6), not uniformly available. `memory_query`/`memory_describe` are on the always-on `submit_outcome`/`scm_read` tier and present in every profile. `code_search`/`code_context`/`code_explain` are present in every profile except `refine`. `code_graph` is present in `brainstorm`, `incident`, `implement`, `review`, `documentation` - not `refine`. `memory_write`/`memory_entity`/`memory_edges` vary further still. See `tatara-mcp-code-graph` and `tatara-mcp-memory` for the authoritative per-tool gating and full schemas; this skill does not re-document them.
 
 ## The tool ladder
 

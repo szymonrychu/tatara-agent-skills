@@ -36,7 +36,7 @@ Four things, in this order, and nothing else:
 1. **State.** Where the work actually is. "Branch `task/x` has the operator-side
    fix and the envtest; the cli side is untouched."
 2. **Done.** What is finished and verified. Not what you attempted.
-3. **Next.** The single next action, concretely. "Add `clarify` to
+3. **Next.** The single next action, concretely. "Add `documentation` to
    `profiles.go`'s map and update `TestKindProfiles`." Not "continue the work".
 4. **Blocked / open.** What you could not resolve and why. A question you could
    not answer is more valuable here than a guess.

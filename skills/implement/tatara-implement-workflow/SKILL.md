@@ -37,6 +37,22 @@ If the `<notes>` element reports a nonzero `elided` count, pull the rest with
 
 ---
 
+## 0a. The gate is a precondition
+
+If your Task's issue has not been approved yet, you are not in this skill yet.
+Go to `tatara-implement-gate`, agree a plan, and come back when
+`submit_outcome(action="approved")` returned `granted: true`. There is no path
+into code that does not go through it.
+
+You are the SAME agent on both sides of that gate - no separate pod digests the
+ask, wins the approval and then hands the Task off to you. The plan you agreed in the thread is
+the plan you now implement, and the `task_note(kind="plan")` the operator hashed
+at grant is the one it re-checks before you write code. If the work needs a
+different plan, go back to `tatara-implement-gate` section 6 rather than quietly
+diverging from the one that was approved.
+
+---
+
 ## 1. Plan, then work the plan
 
 **Criterion:** if the objective fits comfortably in one turn (a single focused
@@ -100,21 +116,33 @@ ALLOWLIST: `Closes #N` survives only for an Issue this Task actually owns. Write
 would close an issue outside your Task's mandate is stripped, and writing it
 anyway just produces a body that does not say what you think it says.
 
-You do not decide which issues are approved - but do not read mere ownership as
-proof of approval either. The gate ran once, on the Issues this Task owned at the
-moment the clarify agent submitted its outcome. An Issue adopted AFTER that never
+**One issue is the record.** The issue you were gated on is where the
+conversation lives for the whole life of this Task, through code, review and
+merge. Do not open a second issue to discuss the same work, and do not move the
+conversation to the MR thread - a maintainer following the issue will not see
+it. `issue_write(action="create")` is for a genuinely new piece of work; every
+later word you have to say about THIS one is `issue_write(action="comment")` on
+the issue of record. See `tatara-mcp-scm`.
+
+Ownership is not approval. The gate ran on the Issues this Task owned at the
+moment you submitted `action="approved"`. An Issue adopted AFTER that never
 passed it, and nothing re-runs the gate on a late arrival.
 
-In practice the Task you are handed is the approved one, and you have no tool to
-re-check consent - so this is not a verification you can perform. It is a reason
-to stay inside the scope you were briefed on: work the Issues the handoff note
-and the goal actually describe, and if the Task owns an Issue that no note, no
-goal and no thread ever mentions, treat it as out of scope and say so in your
-outcome body rather than shipping it on the assumption that someone approved it.
+So stay inside the scope you were gated on: work the Issues the plan note, the
+goal and the thread actually describe, and if the Task owns an Issue that none of
+them ever mentions, treat it as out of scope and say so in your outcome body
+rather than shipping it on the assumption that someone approved it. If it really
+does belong, go back to `tatara-implement-gate` and get a go-ahead on it.
 
 ---
 
 ## 4. Commit discipline
+
+**Push at the end of every turn, without exception.** Your pod now lives across
+several turns instead of one, so the window in which uncommitted work can be
+lost to a TTL rotation, an eviction, or a node drain is much longer than it used
+to be. Uncommitted work is more valuable and more fragile than it was. `git add
+-A && git commit && git push` is the last thing you do before `task_note`.
 
 - Commit and push to the task branch at the end of each turn (the harness does
   this via a post-turn hook, but make sure your changes are staged).
@@ -179,7 +207,10 @@ A silent finish is **never allowed**. A Task that receives no outcome does not
 quietly stop: it ages out at `stageReason=no-outcome`, the pod is deleted, and
 the work is lost. Every implement run ends with `submit_outcome`.
 
-There are exactly two actions.
+Two of the five implement actions are terminal for the code half of the turn:
+`action="submitted"` (section 5) and `action="declined"` below. The other three -
+`approved`, `discuss`, `rejected` - belong to the gate and live in
+`tatara-implement-gate`.
 
 ### 6a. action="declined"
 
