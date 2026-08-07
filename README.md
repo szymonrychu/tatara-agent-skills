@@ -22,17 +22,18 @@ Profile names, matching `skillProfileForKind`:
 |---|---|
 | implement | `implement` |
 | review | `review` |
-| clarify | `clarify` |
 | brainstorm | `brainstorm` |
 | incident | `incident` |
 | refine | `refine` |
 | documentation | `documentation` |
 | unknown | (empty - fail-open, install all) |
 
-`triageIssue`, `issueLifecycle`, `selfImprove`, and `healthCheck` are retired
-kinds; the operator no longer emits them (stored terminal Task CRs of those
-kinds may still exist and are read-only history, but no new pod boots with
-one of those `TATARA_SKILL_PROFILE` values).
+`triageIssue`, `issueLifecycle`, `selfImprove`, `healthCheck` and `clarify` are
+retired kinds; the operator no longer emits them (stored terminal Task CRs of
+those kinds may still exist and are read-only history, but no new pod boots with
+one of those `TATARA_SKILL_PROFILE` values). `clarify` was folded into
+`implement` in #521: one long-lived agent now conducts the issue conversation,
+runs the approval gate, and writes the code.
 
 `profiles: ["*"]` installs in every profile. Absent or empty `profiles:` is treated as `["*"]`. If `TATARA_SKILL_PROFILE` is empty the wrapper fails open and installs all skills. A non-empty but unknown profile is NOT fail-open: it matches only the `["*"]` (wildcard) skills, so an unrecognized profile name installs the wildcards alone. Clone failure also fails open with a WARN metric.
 
@@ -47,8 +48,7 @@ one of those `TATARA_SKILL_PROFILE` values).
 skills/
   shared/             # superpowers-derived process skills, always relevant
   brainstorming/      # tatara brainstorm kind skills + guardrails
-  clarify/            # tatara clarify kind conversation harness + judgment
-  investigation/      # tatara incident kind SRE workflow + evidence judgment, refine kind backlog groomer, clarify kind research follow-up
+  investigation/      # tatara incident kind SRE workflow + evidence judgment, refine kind backlog groomer, implement kind research follow-up
   review/             # code review discipline skills
   implement/          # implementation workflow skills
   mcp/                # MCP tool discipline and writeback skills
@@ -119,14 +119,7 @@ context lean.
 | tatara-brainstorm-guardrails | reference |
 | tatara-code-quality-proposal | reference |
 
-### skills/clarify/ (tatara clarify kind, 2 skills)
-
-| Skill | Type |
-|---|---|
-| tatara-clarify-conversation | task |
-| tatara-triage-judgment | reference |
-
-### skills/investigation/ (tatara incident, refine, and clarify kinds, 4 skills)
+### skills/investigation/ (tatara incident, refine, and implement kinds, 4 skills)
 
 | Skill | Type |
 |---|---|
@@ -135,13 +128,15 @@ context lean.
 | tatara-backlog-groomer | task |
 | tatara-research-followup | task |
 
-### skills/implement/ (tatara implement kind, 3 skills)
+### skills/implement/ (tatara implement kind, 5 skills)
 
 | Skill | Type |
 |---|---|
+| tatara-implement-gate | task |
 | tatara-implement-workflow | task |
 | tatara-implement-conflict-resolution | task |
 | tatara-implement-takeover | reference |
+| tatara-triage-judgment | reference |
 
 ### skills/mcp/ (the tool reference, 6 skills)
 

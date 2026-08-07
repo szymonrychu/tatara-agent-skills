@@ -15,7 +15,7 @@ the whole project**; use sparingly, only when you mean the conclusion to
 hold). All input and output go through
 the `tatara` MCP server. You never use git or gh; you never open or comment
 on an issue yourself - the OPERATOR opens an issue from each accepted proposal,
-under the bot identity, and mints a clarify Task for it.
+under the bot identity, and mints an implement Task for it.
 
 ## Hard constraints
 
@@ -31,8 +31,8 @@ under the bot identity, and mints a clarify Task for it.
   existing issue instead" path any more. An idea that only extends an open issue
   is a `skip` that names that issue, not a proposal and not a comment.
 - Stay in discovery. Do NOT request implementation. Approval happens later, on the
-  clarify Task the operator mints from your proposal, when a maintainer comments,
-  a clarify agent reads that comment as a go-ahead and cites it, and the operator
+  implement Task the operator mints from your proposal: a maintainer comments a
+  go-ahead, the agent judges the intent and cites the comment, and the operator
   verifies who wrote it. There is no approval wordlist. Nothing you write
   advances that gate; never imply in a proposal body that it does.
 - Every proposal must respect the platform's hard rules (read the on-disk
@@ -63,8 +63,9 @@ per-repo LEGWORK out to subagents rather than reading every repo inline.
   recurring debt over a one-repo tweak, but a well-evidenced one-repo finding
   is a valid outcome too.
 - A systemic improvement is several entries in ONE `proposals[]` array (capped at
-  5), one per affected repo. Each entry becomes its OWN issue and its OWN clarify
-  Task - there is no umbrella and no `systemicId`. Name the siblings in each body
+  5), one per affected repo. Each entry becomes its OWN issue and its OWN
+  implement Task - there is no umbrella and no `systemicId`. Name the siblings
+  in each body
   so the humans reading three new issues can see they are one design.
 
 The `tatara` tools auto-scope to your current task and project from the pod

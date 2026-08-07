@@ -130,10 +130,10 @@ D.6; the tool-family skills (`tatara-mcp-scm`, `tatara-mcp-code-graph`,
 duplicating it here. In short:
 
 - `task_list`: `brainstorm`, `incident`, `refine` only - the broad-context kinds.
-- `issue_write`: `clarify`, `refine` only.
+- `issue_write`: `implement`, `refine` only.
 - `mr_write`: `implement`, `review`, `refine` (comment-only), `documentation`.
 - `code_search` / `code_context` / `code_explain`: every profile except `refine`.
-- `code_graph`: `brainstorm`, `incident`, `implement`, `review`, `documentation` - not `clarify`, not `refine`.
+- `code_graph`: `brainstorm`, `incident`, `implement`, `review`, `documentation` - not `refine`.
 - `memory_query` / `memory_describe`: every profile.
 - `memory_write` / `memory_entity` / `memory_edges`: vary by profile - see `tatara-mcp-memory`.
 
@@ -148,11 +148,12 @@ required for the task.
 
 The workspace is transient - rebuilt by git clone + checkout on every run. What survives:
 
-- **Conversation kinds** (`clarify`, `brainstorm`, `incident`, `refine`): only what you post
+- **Conversation kinds** (`brainstorm`, `incident`, `refine`): only what you post
   through your profile's write tools (`issue_write`, `submit_outcome`) and what you write via
   `task_note`. File edits on disk are discarded.
 - **Implementation kind** (`implement`): changes committed and pushed to the task branch are
-  restored on the next run. Uncommitted edits are discarded. `review` reads the pushed branch
+  restored on the next run. Uncommitted edits are discarded - this covers `implement`'s early
+  conversation turns too, before any code exists to push. `review` reads the pushed branch
   read-only and never commits.
 
 Never assume local disk state from a prior turn is still there unless you pushed it.
@@ -163,8 +164,8 @@ of kind - see `tatara-mcp-platform`.
 
 ## Turn-0 context bundle (project-scoped kinds)
 
-For every project-scoped kind (`brainstorm`, `incident`, `clarify`,
-`implement`, `review`, `refine`), the operator assembles the FULL cross-repo
+For every project-scoped kind (`brainstorm`, `incident`, `implement`,
+`review`, `refine`), the operator assembles the FULL cross-repo
 umbrella context into your turn-0 prompt: every linked issue's body and
 comment thread, every open PR/MR's description, branch, and CI/mergeability
 state, across every repo in the project's scope. This is everything a human

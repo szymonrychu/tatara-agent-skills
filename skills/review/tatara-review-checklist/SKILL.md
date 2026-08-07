@@ -188,11 +188,11 @@ Whose MR you are reviewing changes what your verdict DOES:
 
 | you are reviewing | `approve` | `request_changes` |
 |---|---|---|
-| the platform's own MR (an implement Task cycling through `reviewing`) | the OPERATOR merges. That merge is the approval of record - still the operator's action, never yours | back to `implementing`; an implement pod fixes your findings |
+| the platform's own MR (an implement Task cycling through `reviewing`) | the OPERATOR merges. That merge is the approval of record - still the operator's action, never yours | back to the implement agent, which fixes your findings and pushes again |
 | a HUMAN's PR (you are a `review`-kind Task) | `parked(awaiting-human)` | `parked(awaiting-human)` |
 
 On a human's PR BOTH verdicts park. The review is posted either way, and then
-the human fixes and merges their own PR. **No implement pod will ever spawn on a
+the human fixes and merges their own PR. **No implement agent will ever run on a
 `review`-kind Task, by any path** - so do not write your findings as a work order
 for a bot that will pick them up. Write them for the person who opened the PR. If
 they push and comment, you may be re-invoked on the same PR to review the new
@@ -228,6 +228,29 @@ Do not use `mr_write` to deliver your review. The review goes through
 
 ## Step 7 - Finish
 
+**A verdict does not end you.** Your pod stays live after `submit_outcome`. If
+the head moves and you are asked to review again, you are the SAME agent with
+the same notes - diff the new head against your PRIOR findings note rather than
+re-reviewing from scratch, and say in your findings which of your earlier points
+were addressed. Repeating a finding the implementer already fixed is how a
+review loop becomes a ping-pong.
+
+Concretely, on every round after the first:
+
+1. Read your own prior `task_note(kind="handoff")` and the findings you already
+   submitted. They are in your bundle; they are not something to re-derive.
+2. `git diff <the sha you last reviewed>..<the new head>` - that is the review
+   surface for this round, not `origin/main..HEAD`. Read the whole diff against
+   `origin/main` only if the branch was rewritten under you.
+3. Verdict on the WHOLE MR as it now stands, but write the findings as a delta:
+   what your last round asked for and did not get, plus anything the new commits
+   introduced.
+
+You live until the MR is merged or the Task ends. A new comment on the thread, a
+new push, or a CI state change arrives as a NEW TURN on this same pod - there is
+no polling loop to run and no wall-clock wait to sit through. Stop the turn, and
+the next event wakes you with your context intact.
+
 After `submit_outcome` returns, the turn is complete. Hard stops:
 
 - Do NOT `git commit` or `git push` anything. A review pod that pushes has become
@@ -237,7 +260,8 @@ After `submit_outcome` returns, the turn is complete. Hard stops:
 - Do NOT open, edit, or close issues - `issue_write` is not in your profile.
 
 Before you submit, write a `task_note(kind="handoff")` (see `handoff`): on the
-platform's own MR it is what the next implement pod reads first.
+platform's own MR it is what the implement agent reads first, and on a later
+round it is what YOU diff against.
 
 If a platform tool failed (MCP error, tool unavailable) during the review, call
 `report_internal_issue` with the exact error and the tool name, and note the

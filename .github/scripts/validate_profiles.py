@@ -3,9 +3,9 @@
 
 Mirrors the wrapper's install logic (a skill installs for profile P when its
 `profiles:` list contains P or "*", and absent/empty is treated as "*"). This
-guard locks EVERY gated profile (all seven: brainstorm, incident, clarify,
-implement, review, refine, documentation) to its exact set of
-explicitly-tagged skills, so an accidental over-tag or a dropped tag fails CI.
+guard locks EVERY gated profile (all six: brainstorm, incident, implement,
+review, refine, documentation) to its exact set of explicitly-tagged skills,
+so an accidental over-tag or a dropped tag fails CI.
 `["*"]` skills are excluded from every set by definition (see the wildcard
 note below) - they are not a gap in this guard, they install everywhere and
 need no per-profile lock.
@@ -19,14 +19,12 @@ Each locked set protects a specific profile's tool-surface boundary
 - `incident`: the two incident skills plus code-graph, SCM, and pipeline-
   waiting references. Must never pick up brainstorm-proposal or refine
   skills.
-- `clarify`: the live-polling issue-conversation kind. Must receive exactly
-  its conversation/triage/research-followup/pipeline-wait/SCM/code-graph
-  toolkit, never the review or brainstorm-proposal skills. `mr_write` and
-  `memory_write`/`memory_entity`/`memory_edges` heavy skills are out of
-  scope for this profile (D.6).
-- `implement`: the two implement skills plus code-graph, SCM, and pipeline-
-  waiting references. Must never pick up `task_list`-broad-context skills
-  (D.6: implement has no `task_list`).
+- `implement`: the merged implement kind - it conducts the issue conversation,
+  runs the approval gate, and writes the code. It gets the three implement
+  skills, the gate skill, the triage-judgment rubric and the research-followup
+  discipline the deleted clarify profile used to own, plus code-graph, SCM and
+  pipeline-waiting references. Must never pick up `task_list`-broad-context
+  skills (D.6: implement has no `task_list`).
 - `review`: the review-checklist and mcp-review skills plus code-graph, SCM,
   and pipeline-waiting references. `mr_write` here is comment/reply-only
   (never approve/merge) - see `validate_no_merge_instruction` in
@@ -66,21 +64,17 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-mcp-scm",
         "tatara-pipeline-waiting",
     },
-    "clarify": {
-        "tatara-clarify-conversation",
-        "tatara-triage-judgment",
-        "tatara-research-followup",
-        "tatara-mcp-scm",
-        "tatara-pipeline-waiting",
-        "tatara-mcp-code-graph",
-    },
+    # "clarify" is DELETED: the kind was folded into implement (#521).
     "implement": {
         "tatara-implement-conflict-resolution",
+        "tatara-implement-gate",
         "tatara-implement-takeover",
         "tatara-implement-workflow",
         "tatara-mcp-code-graph",
         "tatara-mcp-scm",
         "tatara-pipeline-waiting",
+        "tatara-research-followup",
+        "tatara-triage-judgment",
     },
     "review": {
         "tatara-mcp-code-graph",

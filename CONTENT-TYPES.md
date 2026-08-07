@@ -39,7 +39,7 @@ Every skill in this repo is one of two content types. Choosing correctly is the 
 
 **Examples:**
 - `tatara-brainstorm-guardrails`: what the operator enforces, what valid output looks like, anti-patterns. The actual research strategy is the agent's.
-- `tatara-triage-judgment`: decision rubric for classifying an issue on a clarify/refine turn. The
+- `tatara-triage-judgment`: decision rubric for classifying an issue on an implement/refine turn. The
   procedural counterpart is a task skill in the same profile (never a cross-profile reference).
 - `writing-skills`: style and communication heuristics, not a writing procedure.
 - `using-superpowers`: when to reach for each skill, not how to execute them.
@@ -74,13 +74,13 @@ mandated together on every incident turn.
 
 The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
 
-Valid profile names: `implement`, `review`, `clarify`, `brainstorm`, `incident`,
-`refine`, `documentation`. `triage`, `lifecycle`, and `selfImprove` are
-retired - the operator no longer emits those kinds (their agent-facing
-front-half work is absorbed into `clarify`/`implement`/`review`; the
-lifecycle's CD back-half is an operator-only deploy supervisor with no
-agent-facing skills at all). Do not add any of the three retired names to a
-`profiles:` list.
+Valid profile names: `implement`, `review`, `brainstorm`, `incident`,
+`refine`, `documentation`. `triage`, `lifecycle`, `selfImprove` and `clarify`
+are retired - the operator no longer emits those kinds (their agent-facing
+front-half work is absorbed into `implement`/`review`; the lifecycle's CD
+back-half is an operator-only deploy supervisor with no agent-facing skills at
+all). `clarify` was folded into `implement` in #521. Do not add any of the four
+retired names to a `profiles:` list.
 
 `["*"]` (with the asterisk quoted) installs in every profile. Absent or empty field is treated as `["*"]`. When in doubt for a new shared utility skill, use `["*"]`.
 

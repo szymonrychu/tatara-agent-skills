@@ -1,7 +1,7 @@
 ---
 name: tatara-mcp-scm
 description: Reading and writing the forge - issues, merge requests, comment threads, commits, CI. Use when you need to see an issue or MR, read a review thread, check whether CI is green, open an MR, or comment on one.
-profiles: ["implement", "review", "clarify", "refine", "brainstorm", "incident", "documentation"]
+profiles: ["implement", "review", "refine", "brainstorm", "incident", "documentation"]
 ---
 
 # The forge, through three tools
@@ -48,6 +48,13 @@ only) reads the MR thread instead of the issue thread.
 - You may only write to an issue your Task controller-owns. Anything else is a
   409, and it is protecting a human's thread from two agents talking to each
   other on it.
+
+**Create once, then comment.** Under the merged implement kind you are the same
+agent from the first triage comment to the merged MR, so you will be back on
+this thread many times. `issue_write(action="create")` is for a genuinely new
+piece of work, not for restating one you already filed. If you find yourself
+about to create an issue whose subject you have already commented on, comment
+instead.
 
 ## `mr_write`
 

@@ -21,8 +21,8 @@ table and `tatara-mcp-scm`). Know your channel before you need it.
 
 | Profile | Direct comment channel | If you have none (or none yet) |
 |---|---|---|
-| `clarify`, `refine` | `issue_write(action="comment")` on the issue you own | n/a - you always have one |
-| `implement`, `review`, `documentation` | `mr_write(action="comment"\|"reply")`, but only once your Task has an open MR | Proceed on your default; surface reasoning at outcome time instead |
+| `implement`, `refine` | `issue_write(action="comment")` on the issue you own | n/a - you always have one. `implement` additionally gains `mr_write(action="comment"\|"reply")` once its Task has an open MR |
+| `review`, `documentation` | `mr_write(action="comment"\|"reply")`, but only once your Task has an open MR | Proceed on your default; surface reasoning at outcome time instead |
 | `brainstorm`, `incident` | none | Proceed on your default; surface reasoning at outcome time |
 
 `task_note(kind=note)` is NOT a channel to a human. It is read by the next
@@ -84,7 +84,7 @@ Keep it under 20 lines.
 
 ### Step 3 - Post it, if you can
 
-If your profile owns `issue_write` (clarify, refine) or already has an open
+If your profile owns `issue_write` (implement, refine) or already has an open
 MR to comment on via `mr_write` (implement, review, documentation), post the
 message now. Otherwise skip straight to Step 4 - there is nothing to post to
 yet, and there will not be until your outcome carries it.
@@ -111,9 +111,9 @@ the full schemas:
 | Kind | Call |
 |---|---|
 | `implement`, `documentation` | `submit_outcome(action="declined", decline_reason="...")` |
+| `implement` | `submit_outcome(action="discuss", reason="...")` - a genuine question for a human, not a platform defect |
 | `brainstorm` | `submit_outcome(action="skip", reason="...")` |
 | `incident` | `submit_outcome(action="false_positive", alert_rules=[...], reason="...")` |
-| `clarify` | `submit_outcome(decision="discuss", reason="...")` - a genuine question for a human, not a platform defect |
 | `refine` | `submit_outcome()` with no folds/closes/links - a safe no-op turn; explain why in `task_note` |
 | `review` | there is no blocked shape - see the note below |
 
@@ -152,9 +152,10 @@ transitions, the operator posts your reason to the issue thread automatically.
 
 Scenario: you are an `implement` pod working an issue that asks to "add
 retries to the ingester". You are unsure whether the retry limit should be 3
-(fast failure) or 10 (tolerant of slow Ceph). The issue does not say. Your
-Task does not yet have an open MR - you have not pushed anything yet, so
-`mr_write(comment)` has nothing to attach to.
+(fast failure) or 10 (tolerant of slow Ceph). The issue does not say. This is
+a Step 1 case - a reasonable default exists - so posting is not required even
+though you already own `issue_write` on this issue; your Task has no open MR
+yet, so `mr_write(comment)` has nothing to attach to either way.
 
 **Bad (DO NOT DO):**
 ```
@@ -164,7 +165,7 @@ This errors. The tool is denied.
 
 **Correct:**
 
-Record the assumption and proceed - you have no comment channel yet:
+Record the assumption and proceed:
 ```
 task_note(kind="note", body="Retry limit ambiguous (3 vs 10). Ceph latency
 spikes are common in this cluster and the ingester is not latency-sensitive.
@@ -172,12 +173,14 @@ Proceeding with 10; will note in the PR body.")
 ```
 
 Implement with 10 retries, push, `mr_write(action="open", ...)`. Once the MR
-exists you have a channel - if a maintainer later comments disagreement,
-answer via `mr_write(action="reply", in_reply_to=...)` in a later turn. If
-you were instead blocked outright (say, the issue's requirement genuinely
-contradicts another open MR in the same task), call
-`submit_outcome(action="declined", decline_reason="...")` describing the
-conflict and what a human needs to resolve before a new task can proceed.
+exists you also have `mr_write(action="comment"|"reply")` alongside your
+existing `issue_write` channel - if a maintainer later comments disagreement,
+that comment arrives as a new turn on this same long-lived pod, and you
+answer via whichever channel they used. If you were instead blocked outright
+(say, the issue's requirement genuinely contradicts another open MR in the
+same task), call `submit_outcome(action="declined", decline_reason="...")`
+describing the conflict and what a human needs to resolve before a new task
+can proceed.
 
 ---
 

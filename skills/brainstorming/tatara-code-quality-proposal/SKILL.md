@@ -8,8 +8,8 @@ profiles: ["brainstorm"]
 
 REFERENCE skill. brainstorm is a project-scoped, read-only proposer. It never
 pushes and never implements; it emits proposals through `submit_outcome` and the
-operator turns each one into an issue and a clarify Task. This skill is how you
-ground a code-quality proposal in real code rather than guessing.
+operator turns each one into an issue and an implement Task. This skill is how
+you ground a code-quality proposal in real code rather than guessing.
 
 ## Read the real code (two signals, use both)
 
@@ -49,8 +49,9 @@ actually read. No speculative "you might also want" features.
                      proposals=[{repo, title, body, kind}, ...])   # 1..5
 
   One entry per issue you want opened. Each becomes its own issue and its own
-  clarify Task - there is no umbrella and no `systemicId`. A cross-repo cleanup
-  is N entries, and the clarify conversation on each settles its scope. See
+  implement Task - there is no umbrella and no `systemicId`. A cross-repo
+  cleanup is N entries, and the implement conversation on each settles its
+  scope. See
   `tatara-brainstorm-guardrails` for the rails and `tatara-mcp-outcome` for the
   exact shape.
 - If nothing clears the bar this cycle, call

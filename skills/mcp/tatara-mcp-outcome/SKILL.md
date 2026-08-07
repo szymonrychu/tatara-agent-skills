@@ -16,21 +16,71 @@ an outcome is not optional and it is not the last thing you do if you have time.
 
 ## Your shape
 
-### implement / documentation
+### implement
 
 ```
+submit_outcome(action="approved", reason, approving_maintainer, plan_note_id, approval_citations)
+submit_outcome(action="discuss", reason)
+submit_outcome(action="rejected", reason)
 submit_outcome(action="submitted", title, body, change_significance, merge_order?)
 submit_outcome(action="declined", decline_reason)
 ```
 
-- `change_significance` is `major` (backward-incompatible), `minor` (a
-  backward-compatible feature) or `patch` (a fix). **YOU own this level.** A
+The first three are the GATE (see `tatara-implement-gate`); the last two are the
+code (see `tatara-implement-workflow`). One agent, five actions, one turn each.
+
+- `action="approved"` returns `{granted: true}` or
+  `{granted: false, reason, declared}`. **`granted:false` is a normal result, not
+  an error, and it does NOT stop you.** Post the reason in the thread and submit
+  `action="discuss"`. Never write code on a `granted:false`.
+- `reason` is required for `approved`, `discuss` and `rejected`. For `approved`,
+  say in plain words WHO approved and WHY you read their comment as approval.
+- `approval_citations` is required for `action="approved"` whenever a human has
+  commented: ONE entry per LIVE issue this task owns THAT HAS A MAINTAINER
+  COMMENT, each `{id, quote}`. A live issue no human has commented on at all
+  needs no entry, so a task owning one commented and one uncommented issue
+  submits exactly one entry.
+  - `id` is the `external_id` of the maintainer comment you are citing as the
+    go-ahead. It is already in your turn-0 bundle, on the
+    `<comment external_id="...">` attribute. Copy it. Do not re-crawl to find it.
+  - `quote` is a VERBATIM substring of that same comment's body. Copy it
+    exactly, including punctuation and case.
+  - YOU judge whether the comment approves. The operator does not read intent
+    and has no wordlist. It re-reads the comment itself and REFUSES if that
+    comment is not on that issue, if the author is not a verified maintainer, if
+    the author is the bot, if your quote does not occur in the body it holds, or
+    if that comment has already been consumed as approval evidence.
+  - **The cited comment does NOT have to be the newest one, and the operator
+    does not check that it is.** Withdrawal is YOUR call: if any maintainer
+    comment newer than the one you cite takes the go-ahead back ("actually hold
+    off"), submit `action="discuss"` instead. A benign newer comment ("thanks -
+    ping me when the PR is up") leaves the approval standing.
+  - Omit it only when NO human has commented at all - that is the auto-approve
+    carve-out for tatara's own proposals, and there is no comment to cite.
+- `approving_maintainer` must be the author of the comment you cited.
+  A mismatch is refused with `approver-mismatch`; a non-maintainer login is
+  refused with `approver-not-maintainer`.
+- `plan_note_id` is the id `task_note(kind="plan")` returned. The operator hashes
+  that note at grant and re-checks it before you write code.
+- `change_significance` is `major` / `minor` / `patch`. YOU own this level. A
   reviewer may raise it. Nobody can lower it. It becomes the release tag.
 - `merge_order` is REQUIRED the moment your change spans more than one repo:
   the Repository CR names, first-merged first. There is no default. Get it
   wrong and a downstream repo ships against an API that has not merged yet.
   With exactly one repo you may omit it.
 - `action=declined` needs a real reason. "Not doing this" is not one.
+
+### documentation
+
+```
+submit_outcome(action="submitted", title, body, change_significance, merge_order?)
+submit_outcome(action="declined", decline_reason)
+```
+
+Same two fields and the same rules as implement's `submitted`/`declined` above.
+Documentation deliberately has NO gate: it has no issue conversation to run and
+no approval to report, so `approved`, `discuss` and `rejected` are not in its
+schema at all and a call carrying one is refused before it leaves your pod.
 
 ### review
 
@@ -85,46 +135,6 @@ submit_outcome(verdict="approve"|"request_changes", reviewed_shas[], findings[],
 
   Either way you have no `mr_write(approve)` and no merge action; do not go
   looking for one.
-
-### clarify
-
-```
-submit_outcome(decision="implement"|"close"|"discuss", reason, approval_citations)
-```
-
-- `reason` is required on all three. For `decision=implement`, say in plain
-  words WHO approved and WHY you read their comment as approval.
-- `approval_citations` is required for `decision=implement`: ONE entry per LIVE
-  issue this task owns THAT HAS A MAINTAINER COMMENT, each `{id, quote}`. A live
-  issue no human has commented on at all needs no entry - see the carve-out
-  below - so a task owning one commented and one uncommented issue submits
-  exactly one entry.
-  - `id` is the `external_id` of the maintainer comment you are citing as the
-    go-ahead. It is already in your turn-0 bundle, on the
-    `<comment external_id="...">` attribute. Copy it. Do not re-crawl to find it.
-  - `quote` is a VERBATIM substring of that same comment's body. Copy it
-    exactly, including punctuation and case.
-- YOU judge whether the comment approves. The operator does not read intent and
-  has no wordlist. It re-reads the comment itself and REFUSES if that comment is
-  not on that issue, if the author is not a verified maintainer, if the author is
-  the bot, if your quote does not occur in the body it holds, or if that comment
-  has already been consumed as approval evidence.
-- **The cited comment does NOT have to be the newest one, and the operator does
-  not check that it is.** Withdrawal is YOUR call: read the WHOLE thread, and if
-  any maintainer comment newer than the one you want to cite takes the go-ahead
-  back ("actually hold off", "wait, let me think about this"), submit `discuss`
-  instead. A benign newer comment ("thanks - ping me when the PR is up") leaves
-  the approval standing, and you should still cite it.
-- A refusal is not an error. The task parks at `identity-unverified` and the
-  operator records it in its logs and metrics - but nothing useful reaches the
-  issue thread (a parked Task draws a forge notice only after a week, naming the
-  stage and never what was missing), so the maintainer is not told. A refusal is
-  silent, which is why a citation is not a cheap thing to try: if you are not
-  confident in one, submit `decision=discuss` instead. Do not retry the same
-  citation.
-- Omit `approval_citations` only when NO human has commented at all - that is the
-  auto-approve carve-out for tatara's own proposals, and there is no comment to
-  cite.
 
 ### brainstorm
 

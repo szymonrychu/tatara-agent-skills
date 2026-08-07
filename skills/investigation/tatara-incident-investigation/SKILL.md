@@ -276,4 +276,4 @@ The `comment` object (only for `action="comment_issue"`):
   links. Not a full postmortem restate; the tracker already has one.
 
 Before you stop, write `task_note(kind="handoff", body=...)` - see `handoff`. The
-clarify pod that picks up your filed issue or tracker comment reads it.
+implement pod that picks up your filed issue or tracker comment reads it.
