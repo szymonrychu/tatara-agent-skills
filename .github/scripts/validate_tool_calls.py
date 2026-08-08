@@ -24,9 +24,23 @@ prose (`body=...`) have no `="literal"` shape and are silently skipped - this
 is deliberately narrow to avoid the false-positive storm a full JSON-schema
 conformance check would cause on illustrative examples.
 
-A manifest fetch failure (network, 404, no release published yet) is a SOFT
-WARNING, not a CI failure, on first rollout (pre-mortem #3): otherwise every
-unrelated skill PR blocks the moment the manifest goes briefly missing.
+An unrecognized tool name is ALSO an error (tatara-agent-skills#46) - that is
+the one case this script exists to catch: a tool renamed or removed in
+tatara-cli. It is scoped to calls written as markdown code (a fenced ``` ```
+block, a 4-space indented code block, or an inline `backtick` span), because
+every genuine documented call in the corpus is written that way already
+(verified against all 44 skills/**/SKILL.md + template + .claude/agents
+files: 315/315 `tool_name(field="value")`-shaped matches live in one of those
+three forms, zero in bare prose). A name typed in ordinary prose - not code -
+stays unchecked, so this cannot drown the build in false positives on
+`run(...)`/`get(...)`-shaped English.
+
+A manifest fetch failure (network, 404, no release published yet) FAILS THE
+RUN (tatara-agent-skills#46). It used to be a soft warning so a CDN blip
+wouldn't block unrelated skill PRs (pre-mortem #3) - but that made the
+manifest-fetch step a silent no-op skip of the entire check, which is worse
+than an occasional false-alarm-red build: a fetch that never succeeds looks
+identical, in CI, to a repo with zero drift.
 """
 
 import json
@@ -58,6 +72,51 @@ NEGATION_RE = re.compile(
     r"\b(?:never|not|no|don't|cannot|can't|without|do not)\b", re.IGNORECASE
 )
 
+# A fenced code block: a line starting with ``` up to the next such line.
+FENCE_RE = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)
+
+# An inline code span: a backtick up to the next backtick. Real spans in this
+# corpus occasionally wrap across a soft line break inside a single bullet
+# (e.g. `` `task_note(kind="handoff", body="...\n     ...")` ``), so this is
+# intentionally DOTALL rather than anchored to one line.
+BACKTICK_RE = re.compile(r"`[^`]*?`", re.DOTALL)
+
+
+def _code_mask(text: str) -> bytearray:
+    """Mark every character position that is markdown CODE - a fenced ```
+    block, an inline `backtick` span, or a 4-space indented code block - as
+    1, everything else (plain prose) as 0.
+
+    This is the tightening that makes an unknown tool name safe to hard-fail
+    on (tatara-agent-skills#46): every genuine documented call in the real
+    44-file corpus is written as one of these three forms, and ordinary
+    prose - the false-positive risk the original `continue` was guarding
+    against - is none of them.
+    """
+    mask = bytearray(len(text))
+
+    for m in FENCE_RE.finditer(text):
+        for i in range(*m.span()):
+            mask[i] = 1
+
+    for m in BACKTICK_RE.finditer(text):
+        if mask[m.start()]:
+            continue  # a stray backtick inside an already-fenced block
+        for i in range(*m.span()):
+            mask[i] = 1
+
+    pos = 0
+    for line in text.splitlines(keepends=True):
+        content = line.rstrip("\n")
+        stripped = content.lstrip(" ")
+        indent = len(content) - len(stripped)
+        if stripped and indent >= 4 and not mask[pos]:
+            for i in range(pos, pos + len(content)):
+                mask[i] = 1
+        pos += len(line)
+
+    return mask
+
 
 def fetch_manifest() -> dict | None:
     root = pathlib.Path(__file__).parent.parent.parent
@@ -67,16 +126,23 @@ def fetch_manifest() -> dict | None:
     try:
         with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as resp:
             return json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
+    except (
+        urllib.error.URLError,
+        urllib.error.HTTPError,
+        TimeoutError,
+        OSError,
+    ) as exc:
         print(
-            f"WARNING: could not fetch tool manifest from {url}: {exc}\n"
-            "WARNING: skipping tool-call validation for this run (soft warning, "
-            "not a CI failure - see tatara-agent-skills#28 pre-mortem #3)",
+            f"ERROR: could not fetch tool manifest from {url}: {exc}\n"
+            "ERROR: failing closed (tatara-agent-skills#46) - a manifest that "
+            "cannot be fetched must fail the run, not silently skip validation",
             file=sys.stderr,
         )
         return None
     except json.JSONDecodeError as exc:
-        print(f"WARNING: tool manifest at {url} is not valid JSON: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: tool manifest at {url} is not valid JSON: {exc}", file=sys.stderr
+        )
         return None
 
 
@@ -92,35 +158,76 @@ def build_index(manifest: dict) -> dict:
 
 def validate_file(path: pathlib.Path, index: dict) -> list[str]:
     errors = []
-    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        for match in CALL_RE.finditer(line):
-            tool, field, value_list = match.group(1), match.group(2), match.group(3)
-            if tool not in index:
-                continue  # not every parenthesized word is a tool call; unknown names are just prose
-            fields = index[tool]
-            if field not in fields:
-                continue  # not every documented field is enum-constrained; only check ones the manifest tracks
-            if NEGATION_RE.search(line[: match.start()]):
-                continue
-            allowed = fields[field]
-            for value in VALUE_RE.findall(value_list):
-                if value not in allowed:
-                    errors.append(
-                        f"{path}:{n}: {tool}({field}=\"{value}\") - \"{value}\" is not a valid "
-                        f"{field} for {tool} (allowed: {', '.join(sorted(allowed))}): {line.strip()}"
-                    )
+    text = path.read_text(encoding="utf-8")
+    mask = _code_mask(text)
+    lines = text.splitlines()
+
+    # byte offset each line starts at, for turning a full-text match position
+    # back into a 1-based line number.
+    line_starts = [0]
+    for line in text.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line))
+
+    for match in CALL_RE.finditer(text):
+        tool, field, value_list = match.group(1), match.group(2), match.group(3)
+
+        if not mask[match.start()]:
+            continue  # bare prose, not a documented call - not every parenthesized word is a tool call
+
+        n = _line_number(line_starts, match.start())
+        line = lines[n - 1]
+
+        if tool not in index:
+            errors.append(
+                f'{path}:{n}: {tool}(...) - "{tool}" is not a known tool in the '
+                f"tool manifest (renamed, removed, or never existed): {line.strip()}"
+            )
+            continue
+        fields = index[tool]
+        if field not in fields:
+            continue  # not every documented field is enum-constrained; only check ones the manifest tracks
+        if NEGATION_RE.search(line[: match.start() - line_starts[n - 1]]):
+            continue
+        allowed = fields[field]
+        for value in VALUE_RE.findall(value_list):
+            if value not in allowed:
+                errors.append(
+                    f'{path}:{n}: {tool}({field}="{value}") - "{value}" is not a valid '
+                    f"{field} for {tool} (allowed: {', '.join(sorted(allowed))}): {line.strip()}"
+                )
     return errors
+
+
+def _line_number(line_starts: list[int], offset: int) -> int:
+    """1-based line number containing byte offset `offset`, given the
+    cumulative per-line start offsets `line_starts` (line_starts[0] == 0)."""
+    lo, hi = 0, len(line_starts) - 1
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if line_starts[mid] <= offset:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo + 1
 
 
 def main() -> int:
     root = pathlib.Path(__file__).parent.parent.parent
     manifest = fetch_manifest()
     if manifest is None:
-        return 0
+        print(
+            "ERROR: tool-call validation failed closed - no manifest to validate "
+            "against (tatara-agent-skills#46)",
+            file=sys.stderr,
+        )
+        return 1
 
     index = build_index(manifest)
     if not index:
-        print("WARNING: fetched tool manifest has no tools; skipping validation", file=sys.stderr)
+        print(
+            "WARNING: fetched tool manifest has no tools; skipping validation",
+            file=sys.stderr,
+        )
         return 0
 
     doc_files = sorted(root.glob("skills/**/**/SKILL.md"))
@@ -134,10 +241,14 @@ def main() -> int:
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
-        print(f"\n{len(errors)} tool-call drift error(s) found in {len(doc_files)} files")
+        print(
+            f"\n{len(errors)} tool-call drift error(s) found in {len(doc_files)} files"
+        )
         return 1
 
-    print(f"OK: {len(doc_files)} files validated against tool manifest ({len(index)} tools known)")
+    print(
+        f"OK: {len(doc_files)} files validated against tool manifest ({len(index)} tools known)"
+    )
     return 0
 
 

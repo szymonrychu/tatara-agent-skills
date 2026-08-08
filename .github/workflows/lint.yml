@@ -21,6 +21,11 @@ jobs:
           python3 -m pip install --quiet pyyaml
           python3 .github/scripts/validate_profiles.py
 
+      - name: Unit-test the tool-call validator
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest .github/scripts/tests/ -v
+
       - name: Validate tool calls against tatara-cli tool manifest
         run: python3 .github/scripts/validate_tool_calls.py
 
