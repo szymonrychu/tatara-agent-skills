@@ -82,6 +82,22 @@ Documentation deliberately has NO gate: it has no issue conversation to run and
 no approval to report, so `approved`, `discuss` and `rejected` are not in its
 schema at all and a call carrying one is refused before it leaves your pod.
 
+### upgrade
+
+```
+submit_outcome(action="submitted", title, body, change_significance, merge_order?)
+submit_outcome(action="declined", decline_reason)
+```
+
+The same two shapes and the same rules as documentation's above. Upgrade has no
+gate either: a cron tick minted your Task, nobody filed an issue, and there is
+no maintainer comment to cite, so `approved`, `discuss` and `rejected` are not
+in its schema. `merge_order` matters more here than anywhere else - an upgrade
+routinely spans `containers -> charts -> helmfile` and the order is the publish
+dependency. `action="declined"` is a normal, common answer for this kind: no
+eligible candidate, or every one already claimed by a live sibling Task. See
+`tatara-upgrade-workflow`.
+
 ### review
 
 ```

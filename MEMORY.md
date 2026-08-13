@@ -225,3 +225,39 @@ every touchpoint including the enumerated pre-submit walk.
 2026-08-08 (#46): ran the hardened validator against the real fetched tatara-cli manifest (21 tools) and all 49 real doc files (44 SKILL.md + template + 4 agent files): zero drift found, all 15 distinct tool names used in the corpus (submit_outcome, code_context, code_graph, task_note, mr_write, scm_read, issue_write, memory_entity, memory_edges, task_context, code_search, memory_query, memory_describe, code_explain, report_internal_issue) are live in the manifest, and `action="comment_issue"` is a valid submit_outcome enum value, not drift. No SKILL.md edits were needed. The two reaped names from the issue (decline_implementation, comment_on_issue) have zero hits in this repo - they were only ever live in the sibling tatara-claude-code-wrapper#136, not here.
 
 2026-08-08 (#46): no test infra existed for `.github/scripts/*.py` before this change (no tests/, no pytest wiring in lint.yml). Added `.github/scripts/tests/` with a `conftest.py` sys.path shim (these scripts are invoked directly by lint.yml, not imported as a package, so no `__init__.py`) and wired `python3 -m pytest .github/scripts/tests/` into lint.yml ahead of the live validate_tool_calls.py run, so the regression tests actually execute in CI rather than living only on disk.
+
+2026-08-13 (upgrade kind, Phase 2): added the 7th skill profile `upgrade` and
+`skills/upgrade/tatara-upgrade-workflow`. Three corrections to the plan's own
+draft, all verified before writing. (1) The draft documented
+`submit_outcome(kind=upgrade, action=...)`; `kind` is NOT an agent-supplied
+argument - tatara-cli's published tool manifest lists submit_outcome's enum
+fields as `action`/`change_significance`/`verdict` only, and the cli's own
+Task 1.2 test builds the call with no `kind` key (the wire envelope's `kind` is
+added server-side from the pod profile). The skill documents
+`submit_outcome(action="submitted"|"declined", ...)`, matching every other
+kind's skill and snake_case per the 2026-08-07 contract entry. Writing `kind=`
+would also have been the first unknown-field literal in the corpus.
+(2) The plan said to delete the `engine: none` discovery block once Phase 0
+decided `renovate-full`; that decision only says the `renovate` enum value is
+buildable, and the design still enrols project-mtg with `engine: none`, so BOTH
+branches ship, selected by the resolved policy in the assignment. (3) The
+documented Renovate invocation is `RENOVATE_PLATFORM=local` against the
+already-cloned `/workspace/<owner>/<repo>`, not the design's
+`--platform=gitlab --autodiscover=false` flag form: agent pods have no forge
+token (contract L.10, the same fact that bans gh/glab), and local mode is
+exactly what the Phase 0 spike actually verified. The forge-backed form is
+mentioned as needing a `read_api` token, not prescribed.
+
+Beyond the plan's file list, three adjacent-correctness fixes the tag change
+made necessary: `tatara-mcp-outcome` (`profiles: ["*"]`, so the upgrade agent
+loads it) enumerated per-kind outcome shapes for six kinds and would have shown
+an upgrade pod a "Your shape" section with no shape - added the upgrade block;
+`tatara-implement-conflict-resolution`, newly tagged `upgrade`, pointed twice at
+`tatara-implement-workflow` sections an upgrade pod does not have installed -
+both now name the `tatara-upgrade-workflow` equivalent too; and README's profile
+table, layout tree, skill count (44 -> 45) and inventory gained the new kind, the
+same staleness recorded on 2026-07-12. `.pre-commit-config.yaml` still does not
+exist here (2026-07-13 entry), so `pre-commit run --all-files` was not runnable;
+ran lint.yml's four checks directly instead - validate_skills, validate_profiles,
+the .github/scripts pytest suite and validate_tool_calls against the live
+tatara-cli manifest - all green.

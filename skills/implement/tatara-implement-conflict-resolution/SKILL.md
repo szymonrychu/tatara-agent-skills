@@ -1,7 +1,7 @@
 ---
 name: tatara-implement-conflict-resolution
 description: "How an implement turn resolves a merge conflict on its MR - merge the default branch (never rebase), resolve, push without force, or decline - when the Task has been routed back to implementing with an unmergeable MR. Read when your context reports a merge conflict."
-profiles: ["implement"]
+profiles: ["implement", "upgrade"]
 ---
 
 # tatara implement conflict resolution
@@ -27,7 +27,8 @@ Always MERGE, never rebase.
    minimal and faithful to the issue.
 4. Commit the merge and `git push` (no `--force`, no `--force-with-lease`).
 5. Call `submit_outcome(action="submitted", ...)` per `tatara-implement-workflow`
-   section 5, and stop. Your MR is already open - `mr_write(action="open")` is
+   section 5 - or `tatara-upgrade-workflow` section 7 if you are the upgrade
+   agent, which re-enters here on the same path - and stop. Your MR is already open - `mr_write(action="open")` is
    idempotent and returns it with `"existing": true` if you call it again. The
    operator re-attempts the merge once your Task is approved at review. **You
    never merge the MR yourself.**
@@ -48,7 +49,8 @@ all. The one terminal you have is `submit_outcome(action="declined")`.
   the conflict cannot be resolved sensibly, call
   `submit_outcome(action="declined", decline_reason="<why>")`. A genuinely
   unresolvable conflict after a real attempt IS a valid decline reason - unlike
-  "insufficient context", which `tatara-implement-workflow` section 6a forbids.
+  "insufficient context", which `tatara-implement-workflow` section 6a and
+  `tatara-upgrade-workflow` section 8 both forbid.
   Do NOT stop silently.
 
 ## Invariants

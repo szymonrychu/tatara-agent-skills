@@ -6,7 +6,7 @@ description: >
   read via scm_read(kind=ci). Teaches the heartbeat-poll loop that survives the
   turn inactivity timeout, how to tell an infra flap (retrigger) from a real
   failure (fix), and when to stop waiting. Read before polling any pipeline.
-profiles: ["implement", "review", "incident"]
+profiles: ["implement", "review", "incident", "upgrade"]
 ---
 
 # tatara-pipeline-waiting

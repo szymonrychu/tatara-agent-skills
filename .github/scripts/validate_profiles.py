@@ -3,9 +3,9 @@
 
 Mirrors the wrapper's install logic (a skill installs for profile P when its
 `profiles:` list contains P or "*", and absent/empty is treated as "*"). This
-guard locks EVERY gated profile (all six: brainstorm, incident, implement,
-review, refine, documentation) to its exact set of explicitly-tagged skills,
-so an accidental over-tag or a dropped tag fails CI.
+guard locks EVERY gated profile (all seven: brainstorm, incident, implement,
+review, refine, documentation, upgrade) to its exact set of explicitly-tagged
+skills, so an accidental over-tag or a dropped tag fails CI.
 `["*"]` skills are excluded from every set by definition (see the wildcard
 note below) - they are not a gap in this guard, they install everywhere and
 need no per-profile lock.
@@ -36,6 +36,12 @@ Each locked set protects a specific profile's tool-surface boundary
   groomer reads issues, not code).
 - `documentation`: the documentation-workflow skill plus code-graph and SCM
   references. Must never pick up incident/brainstorm-only skills.
+- `upgrade`: the upgrade-workflow skill plus code-graph, SCM and pipeline-
+  waiting references, and the implement conflict-resolution skill (see the
+  comment on its entry below). Like implement it opens MRs, so it must never
+  pick up `task_list`-broad-context skills (D.6: unit dedup goes through the
+  always-on `task_context(index=true)`), and like documentation it has no
+  approval gate, so it must never pick up the gate or triage-judgment skills.
 """
 
 import sys
@@ -93,6 +99,18 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-documentation-workflow",
         "tatara-mcp-code-graph",
         "tatara-mcp-scm",
+    },
+    # The 7th profile (2026-08-13). tatara-implement-conflict-resolution is here
+    # because AgentKindFor(under-implementation, upgrade) routes the post-
+    # request_changes re-entry back to the UPGRADE agent, not to implement: an
+    # upgrade agent meets exactly the same unmergeable-MR situation and needs the
+    # same never-rebase discipline.
+    "upgrade": {
+        "tatara-implement-conflict-resolution",
+        "tatara-mcp-code-graph",
+        "tatara-mcp-scm",
+        "tatara-pipeline-waiting",
+        "tatara-upgrade-workflow",
     },
 }
 
