@@ -228,7 +228,7 @@ action for it.
 ### Implement run that produces an MR
 
 ```
-1. Investigate, write code, push branch task/<task-name>.
+1. Investigate, write code, push to the task branch (`TASK_BRANCH`).
 2. mr_write(action="open", repo="tatara-operator",
      title="fix(tatara-operator): correct 4xx skip loop cap",
      body="Bounds the un-triageable writeback skip loop...")

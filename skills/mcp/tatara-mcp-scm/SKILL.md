@@ -65,9 +65,10 @@ instead.
   `submit_outcome` - see `tatara-mcp-outcome`. A hallucinated merge call has
   nowhere to land.
 - `open` is IDEMPOTENT: if your Task already has an open MR for that repo on
-  `task/<task-name>`, you get that MR back with `"existing": true` and the forge
-  is not called. If your Task already MERGED an MR for that repo, `open` is
-  REFUSED - you are about to open a duplicate PR for work that already shipped.
+  the task branch (`TASK_BRANCH`), you get that MR back with `"existing": true`
+  and the forge is not called. If your Task already MERGED an MR for that
+  repo, `open` is REFUSED - you are about to open a duplicate PR for work that
+  already shipped.
 - **Only `open` is synchronous** and hands back a `number`/`url`. `comment` and
   `reply` are DEFERRED: the call writes the intent and returns; a RECONCILER
   posts it to the forge and appends the resulting comment by `externalId`. **You
