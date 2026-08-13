@@ -1,15 +1,18 @@
 ---
 name: tatara-implement-conflict-resolution
-description: "How an implement turn resolves a merge conflict on its MR - merge the default branch (never rebase), resolve, push without force, or decline - when the Task has been routed back to implementing with an unmergeable MR. Read when your context reports a merge conflict."
+description: "How an implement or upgrade turn resolves a merge conflict on its MR - merge the default branch (never rebase), resolve, push without force, or decline - when the Task has been routed back with an unmergeable MR. Read when your context reports a merge conflict."
 profiles: ["implement", "upgrade"]
 ---
 
 # tatara implement conflict resolution
 
 TASK skill. The review verdict was `request_changes` (or the merge attempt found
-a moved head), and the operator routed your Task back to `implementing` because
-an MR under it is unmergeable. Your mandate is BINARY: reach one of two terminal
-outcomes this turn. Never leave the MR parked, never stop half-done.
+a moved head), and the operator routed your Task back because an MR under it is
+unmergeable. On an implement Task that routing lands at the `implementing` stage,
+on an implement pod. On an upgrade Task it lands back on the UPGRADE agent, on
+the same Task, with the same MRs - there is no separate implement pod for an
+upgrade MR. Either way your mandate is BINARY: reach one of two terminal outcomes
+this turn. Never leave the MR parked, never stop half-done.
 
 ## Never rebase
 
@@ -22,9 +25,18 @@ Always MERGE, never rebase.
 1. `git fetch origin`
 2. `git merge origin/<default-branch>` on the task branch (your bundle names the
    MR's head branch; `repo_list` names the repo's default branch).
-3. Resolve each conflicting file guided by the originating issue intent - your
-   bundle carries every Issue this Task owns and its full thread. Keep the change
-   minimal and faithful to the issue.
+3. Resolve each conflicting file guided by the intent behind the change. What
+   supplies that intent depends on your kind:
+   - **implement:** the originating issue. Your bundle carries every Issue this
+     Task owns and its full thread. Keep the change minimal and faithful to it.
+   - **upgrade:** there is NO issue. An upgrade Task is minted by a cron tick and
+     owns none, so do not go looking for a thread to be faithful to. The intent
+     is the hop and the release notes you recorded in your plan note, your
+     handoff note and the MR body (`tatara-upgrade-workflow` sections 3 and 4):
+     keep the pin at the target you picked and re-apply every config change the
+     notes obliged. If the default branch has moved that pin under you, re-derive
+     the hop from the NEW pin before resolving - the repo's current pin is the
+     cursor, and a merge that restores the old one walks the chain backwards.
 4. Commit the merge and `git push` (no `--force`, no `--force-with-lease`).
 5. Call `submit_outcome(action="submitted", ...)` per `tatara-implement-workflow`
    section 5 - or `tatara-upgrade-workflow` section 7 if you are the upgrade

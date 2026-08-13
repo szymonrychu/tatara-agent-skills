@@ -261,3 +261,50 @@ exist here (2026-07-13 entry), so `pre-commit run --all-files` was not runnable;
 ran lint.yml's four checks directly instead - validate_skills, validate_profiles,
 the .github/scripts pytest suite and validate_tool_calls against the live
 tatara-cli manifest - all green.
+
+2026-08-13 (upgrade kind, review pass): applied a cross-check of every
+behavioural claim in `tatara-upgrade-workflow` against live tatara-cli and
+tatara-operator source. Four claims were WRONG, not merely thin, and each would
+have made an autonomous pod act confidently on a mechanism that does not exist.
+(1) The dedup section told the agent to make its unit visible "in your MR title
+and in your outcome title". The index renders `<title>`/`<body>` from
+`splitGoal(t.Spec.Goal)` (operator internal/prompt/bundle.go:459, template
+:274-290), the goal is frozen at mint time, and `/outcome` only appends an
+agentNote (internal/restapi/outcome.go) - so an outcome title is visible to
+nobody. Rewritten to dedup off the index's `<mrs>` refs plus a
+`scm_read(kind="mr")` per sibling, with the residual collision (a sibling that
+has not opened its MR yet is invisible) stated as unclosable rather than papered
+over, and the index's 100-Task cap + budget trim named. (2) "Two units in one
+Task parks at `operator-error`" was fabricated: `mrForRepo`
+(internal/controller/merge.go:152) takes the first non-closed MR and never
+errors, and mrOpen is idempotent per repo/Task (handlers_v2.go:1486-1516), so
+the real consequence is one branch, one MR, one `change_significance`, one tag -
+which reads as PERMISSION to fold a second unit in if you reason from the stated
+mechanism. Now states the real damage. (3) "Check the cluster" is not executable
+from an agent pod: no kubectl, no kubeconfig, no cluster tool in any profile, and
+the managed-pod NetworkPolicy egresses only to the operator, tatara-memory and
+:443 - so the instruction reliably produces a fabricated "I checked". Replaced
+with the in-repo sources of truth (deploy repo's k8s pin, `Chart.yaml`
+`kubeVersion`, `.mise.toml`/`go.mod`) and a decline when the minimum is genuinely
+unknowable. (4) The `renovate` binary is not in the wrapper image (Dockerfile
+installs git/curl/build-essential/node+claude/mise+python+pre-commit and nothing
+else), so the primary discovery path would have burned a turn every cycle;
+documented as expected-baked, with binary-absent falling through to the
+`engine: none` path rather than a decline or a per-tick internal issue. Same
+class for `pluto`/`helm`, which get the `mise use -g` acquisition path.
+
+Also: "the next MANDATORY release only" contradicted section 3's table (a
+mandatory intermediate TRUNCATES a hop) and was undefined when nothing in the
+range is mandatory - 1.16 with 1.17-1.20 available read as either 1.17 or 1.20.
+Redefined as ceiling-then-truncate with a worked strategy/mandatory matrix.
+First-party pins are now excluded from the unit definition outright (`repo_list`
+is the test): section 1 previously sent the agent hunting a lagging `appVersion`
+and section 5 had it editing deploy pins, i.e. exactly what CD propagates and
+what the platform contract forbids hand-editing. `git add -A` is banned in a
+tree Renovate ran in (`platform=local` writes into the working tree whenever the
+dry run does not take). Dropped the uncited 8,106-PR statistic - no other skill
+in the corpus cites an external study and the agent cannot verify it.
+`tatara-implement-conflict-resolution`, newly tagged `upgrade`, still told the
+resolver to be faithful to "the originating issue"; an upgrade Task owns none, so
+it now branches on kind and points at the hop + release notes, including
+re-deriving the hop when the default branch moved the pin under the merge.

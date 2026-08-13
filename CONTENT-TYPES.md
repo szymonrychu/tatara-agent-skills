@@ -75,7 +75,7 @@ mandated together on every incident turn.
 The `profiles:` list controls which agent kinds receive the skill. The wrapper compares it against `TATARA_SKILL_PROFILE` (set by the operator per task kind) and skips skills that don't match.
 
 Valid profile names: `implement`, `review`, `brainstorm`, `incident`,
-`refine`, `documentation`. `triage`, `lifecycle`, `selfImprove` and `clarify`
+`refine`, `documentation`, `upgrade`. `triage`, `lifecycle`, `selfImprove` and `clarify`
 are retired - the operator no longer emits those kinds (their agent-facing
 front-half work is absorbed into `implement`/`review`; the lifecycle's CD
 back-half is an operator-only deploy supervisor with no agent-facing skills at

@@ -55,13 +55,23 @@ touches. `cilium 1.16 -> 1.17` is one unit spanning `charts` and `helmfile`.
 `helmfile`.
 
 You take **exactly one unit** this Task. Not two, not "while I was in there".
-The operator's merge driver resolves exactly one MR per repo per Task, so two
-independent upgrades that each need a `charts` MR is a shape the driver cannot
-represent - it parks the Task with `operator-error` and both bumps are lost.
+
+Nothing errors if you take two. There is no guard rail here and you must not go
+looking for one: the merge driver takes the first non-closed MR it finds for a
+repo and works with that, and `mr_write(action="open")` is idempotent per repo
+per Task, so a second MR in the same repo cannot even be opened. What happens
+instead is quieter and worse. Both units land on the SAME task branch, inside the
+SAME MR, under ONE `change_significance`, and release as ONE tag. The reviewer
+gets one diff carrying two unrelated upgrades and has to take or reject them
+together. A revert takes out the good bump with the bad one. And the tag's level
+is whichever single level you declared, which is wrong for at least one of them.
+
+Do not reason from "there is only one MR, so this is representable" to "so I may
+fold the second unit in". The single MR is the damage, not the accommodation.
 
 Independent upgrades never block each other precisely because they are separate
 Tasks. A stuck cilium bump does not hold up grafana. Leaving a second candidate
-for the next cron tick costs nothing; folding it into this Task costs the Task.
+for the next cron tick costs nothing; folding it into this Task costs both.
 
 ---
 
@@ -84,6 +94,30 @@ renovate
 `RENOVATE_PLATFORM=local` reads the working tree in front of it and needs no
 forge and no token - the right shape here, because your pod has neither a forge
 CLI nor a forge token. Run it once per repo you want candidates from.
+
+**Renovate is expected to be baked into the agent image at a pinned version.** Do
+not install it ad hoc: it carries a hard Node engine range, and the image's Node
+major is what satisfies it. If `renovate` is not on PATH, **you are not blocked
+and this is not an internal issue** - a missing binary would fire that channel on
+every cron tick and change nothing. Fall through to the `engine: none` path
+below, enumerate the candidates by hand, and say in your outcome body that the
+discovery engine was unavailable and you enumerated manually.
+
+**`RENOVATE_DRY_RUN=full` is the only thing making this read-only.** Under
+`platform=local` Renovate writes its updates straight INTO the working tree when
+the dry run is not in force, so one dropped or misspelled flag turns discovery
+into a mass bump across every manager, sitting unstaged in the repo you are about
+to commit from. Immediately after the run, before you edit anything:
+
+```sh
+git status --porcelain
+```
+
+Expect it empty. If it is not, `git checkout -- .`, delete any untracked file
+Renovate left, and re-run with the flag correct. Never stage a tree you have not
+inspected since a Renovate run (see section 6). Keep the report at
+`/workspace/renovate-report.json`, outside every repo, so it can never be staged
+at all.
 
 **Read `packageFiles`. Never `branches`.** Under `dryRun: full` the report's
 `repositories.<repo>.branches` array is **always empty** - suppressing branch
@@ -139,17 +173,39 @@ repo's actual pin and the upstream release.
 
 ### If your policy says `engine: none`
 
-There is no dependency engine on this project. Enumerate candidates yourself:
-read the pins in the repos you can see (`Chart.yaml` dependencies, image tags,
-`go.mod`, lockfiles, `.mise.toml`), then check each upstream's own release feed
-for what is newer.
+There is no dependency engine on this project. This is also where you land when
+the policy says `renovate` but the binary is not on PATH. Enumerate candidates
+yourself: read the pins in the repos you can see (`Chart.yaml` dependencies,
+image tags, `go.mod`, lockfiles, `.mise.toml`), then check each upstream's own
+release feed for what is newer.
+
+### Third-party only. Never a first-party pin.
+
+An upgrade unit is a **third-party** dependency: an upstream chart, image, module,
+action or toolchain this project consumes and does not itself publish.
+
+**Exclude every pin whose producer is an enrolled repo of this project.**
+`repo_list` names them, and that list is the test. Those pins are written by the
+release pipeline: when a producer repo releases, CD propagates the new version
+into whatever consumes it. A hand edit races that write, ships a version that was
+never published, or silently reverts a propagation that already landed. The
+platform rule has no exception - never hand-edit a deploy pin. If a first-party
+pin genuinely looks stuck, that is a release-pipeline fault and the channel is
+`report_internal_issue` (section 9), never an MR from you.
+
+This bites exactly where the work looks easiest. A chart whose `appVersion` lags
+the image it deploys is a unit ONLY if that image is third-party; if an enrolled
+repo builds it, the lag is CD's to close. A chart version pinned in the deploy
+repo is a unit ONLY if the chart comes from upstream; if an enrolled repo
+publishes it, leave it. Check who publishes it BEFORE you touch it.
 
 ### Either way, look for what no engine can see
 
-A chart whose `appVersion` lags the image tag it deploys. A hand-pinned digest
-in a Dockerfile with no `# renovate:` marker. A Kubernetes API version the
-cluster's current release has deprecated. Use `code_search`/`code_graph` (see
-`tatara-mcp-code-graph`) to find the pins nothing indexes.
+Within third-party scope, plenty is invisible to any engine. A hand-pinned digest
+in a Dockerfile with no `# renovate:` marker. A pinned action or base image in a
+CI workflow. A tool version in `.mise.toml`. A Kubernetes API version deprecated
+by the release this project's cluster targets. Use `code_search`/`code_graph`
+(see `tatara-mcp-code-graph`) to find the pins nothing indexes.
 
 ---
 
@@ -159,21 +215,50 @@ cluster's current release has deprecated. Use `code_search`/`code_graph` (see
 task_context(index=true)
 ```
 
-Read the project-wide Task index **before you pick**. Any unit already named in a
-live sibling Task's title is claimed: skip it and take the next candidate.
+Read the project-wide Task index **before you pick**, and pull out the live
+Tasks with `kind="upgrade"`.
 
-**Nothing in the operator enforces this.** There is no per-unit dedup key - the
-cron mints a Task before anyone knows which unit you will choose, and
-`spec.dedupKey` is fixed at mint time. This index read is the whole mechanism.
-Skip it and two agents open competing MRs against the same pin, in the same
-repos, on different branches.
+**The index title is not the unit, and never will be.** Each entry's `<title>`
+and `<body>` are rendered from that Task's goal, which the cron froze at mint
+time - before any agent chose anything. Nothing writes a chosen unit back into a
+goal: your outcome is recorded as an agent note, not as the goal. So a sibling's
+`<title>` tells you the cron template fired and nothing else, and the title you
+submit is invisible to every sibling. Do not dedup on it.
 
-So make your unit **recognisable to a sibling doing the same read**. Name it in
-your MR title, and in your outcome title, in this form:
+**What carries a unit is the MR.** Each entry carries an `<mrs>` element listing
+that Task's MR refs as `<repo>!<number>`. For every live upgrade sibling that has
+one, read the real title:
+
+```
+scm_read(kind="mr", repo="charts", number=41)
+```
+
+A dependency named in a sibling's MR title is claimed. Skip it, take the next
+candidate.
+
+**This is best-effort, and you must not present it as a guarantee.** A sibling
+that is mid-turn and has not opened its MR yet is invisible here: frozen goal, no
+MR refs, nothing to read. Two agents CAN still pick the same dependency, and that
+collision is resolved by a human at review, not by anything you can do from this
+turn. The index is also capped at the 100 newest Tasks and trimmed further to fit
+the bundle budget, so an older live sibling can be absent from it entirely.
+Absence from this read means "not visible", never "not claimed".
+
+Nothing in the operator enforces any of it. There is no per-unit dedup key -
+`spec.dedupKey` is fixed at mint time, before the unit exists. This read plus
+those MR titles is the whole mechanism.
+
+Which is why your own unit must be **recognisable to a sibling doing the same
+read**. Put it at the front of your MR title, in this form:
 
 ```
 chore: <dependency> <current> -> <target>
 ```
+
+Use the same string for your outcome title and your handoff note (they are read
+by the reviewer and by the next pod on this Task, not by siblings). The window in
+which you are invisible closes when your MR opens, so do not sit on an openable
+MR through a multi-turn hop.
 
 If every candidate is already claimed, or nothing is worth taking this cycle,
 go to section 8 and decline. That is a correct and common answer.
@@ -202,28 +287,89 @@ The one case that IS reliably automatable is **Kubernetes API removal**: render
 the chart and run Pluto over the rendered output. Do that whenever a chart is in
 the blast radius. Everything else is prose-reading, and prose-reading is the job.
 
+Neither `pluto` nor `helm` is baked into your image, and `helm` resolves only in
+a repo whose own `.mise.toml` pins it. Install what you need for the session per
+`tatara-mise-tooling`:
+
+```sh
+mise use -g helm@<version>
+mise use -g pluto@<version>
+```
+
+Session-scoped, so do NOT add either to a repo's `.mise.toml` unless that repo
+genuinely builds, tests or lints with it. If the install itself fails - registry
+unreachable, no such tool - that is a platform failure: `report_internal_issue`
+(section 9), then carry on with the hop and state in the MR body that the
+API-removal check could not be run and which chart went unchecked. Silently
+skipping it is the one option you do not have.
+
 What you are reading FOR, and what you must carry into section 6:
 
 | Signal in the notes | What it obliges you to do |
 |---|---|
 | A renamed or removed `values.yaml` key | Rewrite every values file and template that sets it |
 | A removed or renamed Kubernetes API version | Re-render, run Pluto, fix the manifests |
-| A raised minimum Kubernetes / runtime / DB version | Check the cluster and the pinned toolchain actually meet it before proposing the hop at all |
-| A mandatory intermediate release, or a documented two-phase migration | The next hop is that intermediate release, not the one you wanted |
+| A raised minimum Kubernetes / runtime / DB version | Establish the current value from the repos (below) before proposing the hop at all. Cannot establish it: decline |
+| A mandatory intermediate release, or a documented two-phase migration | It TRUNCATES the hop: section 4 step 2 |
 | A data migration that runs on first start | Say so explicitly in the MR body; it is the reviewer's whole decision |
 | A known-bad release that was pulled or superseded | Do not take that hop. Take the fixed release, or decline and say why |
+
+### You cannot look at the cluster
+
+Nothing in your pod can. There is no `kubectl`, no kubeconfig, no cluster tool in
+your profile, and your egress reaches the operator, tatara-memory and external
+HTTPS - not an API server. Any sentence of the form "I checked the cluster and it
+meets the minimum" is a fabrication, and it is precisely the fabrication that
+ships a version the cluster cannot run.
+
+The repos are what you actually have. Check a raised minimum against:
+
+- the Kubernetes version pinned in whichever enrolled repo declares the target
+  cluster version - the GitOps/deploy or infra repo; `repo_list` names them;
+- `kubeVersion` in the `Chart.yaml` of every chart in the blast radius, which is
+  the constraint the chart itself enforces at install time;
+- `.mise.toml` for a raised tool or runtime minimum, `go.mod` for a Go minimum,
+  the lockfile or manifest for a language runtime;
+- what the notes say the PREVIOUS release required, which tells you whether the
+  minimum moved at all.
+
+If none of that establishes the current value - it is declared nowhere you can
+read - that is a decline (section 8), not an assumption. Name in
+`decline_reason` which minimum you could not establish and where you looked.
 
 ---
 
 ## 4. Pick the hop
 
-Under `majorStrategy: nextHopOnly` (your assignment names the resolved value),
-propose **the next mandatory release only**, never the latest. Under
-`majorStrategy: latest` you may go straight to the newest eligible release, but
-section 3 still applies to every release you jump over.
+Your assignment names the resolved `majorStrategy`. Either way the target is
+derived mechanically, in two steps. Neither is a judgement call.
 
-Respect `minimumReleaseAge` from your assignment. A release younger than the
-policy's floor for its level is not eligible this cycle, however tempting.
+**Eligible** means published AND at least `minimumReleaseAge` old for its level,
+per your assignment. A release under that floor does not exist for either step
+below, however tempting.
+
+**Step 1 - the ceiling.** Under `majorStrategy: nextHopOnly` it is the smallest
+eligible increment above the current pin: the next minor within the current
+major if one exists, otherwise the next major's `x.0`. Under
+`majorStrategy: latest` it is the newest eligible release.
+
+**Step 2 - truncation.** If section 3 turned up a documented mandatory
+intermediate release, or a documented two-phase migration, sitting between the
+current pin and that ceiling, the hop becomes that intermediate release instead.
+A mandatory stop only ever pulls the target BACK. It never pushes it forward.
+
+Worked, pinned at 1.16 with 1.17, 1.18, 1.19 and 1.20 all eligible:
+
+| Strategy | Nothing marked mandatory | 1.18 documented as a mandatory stop |
+|---|---|---|
+| `nextHopOnly` | 1.17 | 1.17 - the ceiling already sits below the stop |
+| `latest` | 1.20 | 1.18 |
+
+**"The next mandatory release" is not the rule and never was.** Nothing in a
+range has to announce itself as required for a hop to exist: with nothing marked
+mandatory there is still always a next hop, and under `nextHopOnly` that is 1.17,
+not 1.20. Reading it the other way is how a hop gets skipped. Under `latest`,
+section 3 still applies to every release you jump over.
 
 Multi-hop chains are walked one Task at a time, **statelessly: the repo's current
 pin IS the cursor.** Nothing persists a chain, and nothing needs to. After this
@@ -276,11 +422,11 @@ they run concurrently.
 
 ### Run the repo's real test suite. Not just a build.
 
-"It compiles" is the dominant false-success signal in agent-authored changes: an
-empirical study of 8,106 agent-authored pull requests found **broken tests
-(18.1%) the single largest cause of an unmerged PR, ahead of incorrect fixes
-(15.3%)**. A build that succeeds while the tests are red is a failed upgrade, not
-a partial one.
+"It compiles" is the dominant false-success signal in an agent-authored change,
+and a dependency bump is the change class where a compiler has least to say: a
+renamed values key, a changed default, a dropped API version and a moved config
+path all build perfectly and fail at runtime. A build that goes green while the
+tests are red is a failed upgrade, not a partial one.
 
 - Use `mise run test` (or that repo's documented equivalent - see
   `tatara-mise-tooling`). Never a bare `go`/`helm`/`python`; the pinned toolchain
@@ -295,9 +441,14 @@ a partial one.
 
 ### Commit discipline
 
-- `git add -A && git commit && git push` at the end of **every** turn, before
-  `task_note`. Uncommitted work does not survive a TTL rotation, an eviction or
-  a node drain.
+- **Read `git status --porcelain` before you stage, every time, and never
+  `git add -A` in a tree Renovate has run in.** Discovery and implementation
+  happen in the same working tree, and a Renovate run whose dry run did not take
+  leaves a bump in every manager sitting there unstaged (section 1). `add -A`
+  commits all of it under your one unit's title. Stage the paths your hop
+  actually changed.
+- `git commit && git push` at the end of **every** turn, before `task_note`.
+  Uncommitted work does not survive a TTL rotation, an eviction or a node drain.
 - Commits never go to a default branch. The task branch was created for you.
 - Each repo with a change gets its own push and its own MR.
 - `git push --force` and `--force-with-lease` are hard-denied in this pod.
@@ -306,8 +457,10 @@ a partial one.
 
 ## 7. Open the MRs, then submit the outcome
 
-When the whole hop is implemented, pushed and green, open one MR per changed
-repo:
+Open one MR per changed repo. Opening one early in a multi-turn hop is fine and
+section 2 prefers it - the MR title is the only thing that makes your unit
+visible to a sibling - but the hop must be implemented, pushed and green before
+you submit the outcome on it:
 
 ```
 mr_write(action="open", repo="charts", title="chore: cilium 1.16 -> 1.17", body="...")
@@ -315,7 +468,14 @@ mr_write(action="open", repo="charts", title="chore: cilium 1.16 -> 1.17", body=
 
 `open` is IDEMPOTENT - if your Task already has an open MR for that repo on
 `task/<task-name>`, you get it back with `"existing": true` and the forge is not
-called. See `tatara-mcp-scm`.
+called. **It is not idempotent once that repo's MR has MERGED: then it is
+REFUSED.** You meet this more often than an implement agent does. A review bounce
+drops you back into this section (section 9) with the merge cursor part-way
+through your `merge_order`, so the early repos in the chain can already be merged
+while the later ones are not. Re-open only for the repos still ahead of the
+cursor. A repo whose MR merged is finished for this Task - a further change there
+is a NEXT hop, on a next Task; say so in the MR body of the repos you can still
+change, and in your outcome. See `tatara-mcp-scm`.
 
 The body is where the reviewer's whole decision lives. It carries: the hop chain
 (section 4), which release notes you read and what they obliged, what you changed
@@ -336,7 +496,7 @@ submit_outcome(
 
 | Field | What to write |
 |---|---|
-| `title` | The unit, in the section 2 form, so a sibling's index read recognises it. No trailing period. |
+| `title` | The unit, in the section 2 form. No trailing period. This one is read by the reviewer and by the next pod on this Task; the MR title is the one siblings read. Keep them identical anyway. |
 | `body` | As above. Written for the reviewer, who has not read the release notes. |
 | `change_significance` | The significance of **your change**, not of the upstream release. A patch-level dependency bump that forces a values-key rename in a chart is a `minor` for that chart. YOU own this level; a reviewer may raise it, nobody can lower it. |
 | `merge_order` | **REQUIRED the moment this hop spans more than one repo**, in the publish order you derived in section 5. Omit it on a multi-repo change and you get a 400. With exactly one repo you may omit it. |
@@ -367,11 +527,20 @@ common:
   the policy's `minimumReleaseAge`.
 - The hop is unsafe: a pulled or known-bad release, a raised minimum the cluster
   does not meet, a migration that cannot be done without a maintainer decision.
-- The hop cannot be delivered whole - the config migration is larger than a turn,
-  or it needs a change in a repo this project does not enrol.
+- The hop cannot be delivered whole: it needs a change in a repo this project
+  does not enrol, or the only pin that moves is one CD owns (section 1).
 
 `decline_reason` is required and must be non-empty. Name what you enumerated and
 what you rejected; "nothing to do" is not a reason.
+
+**"It is bigger than one turn" is NOT a decline reason.** Your Task is
+multi-turn. You commit and push at the end of every turn, write a handoff note,
+and the next pod resumes the same unit from that note and the task branch
+(section 6, "Before you stop"). A large config migration is worked across turns,
+not declined at the sight of it. The size-shaped decline that IS legitimate is
+bounded on the Task's budget rather than the turn's: the Task has no turns left,
+the hop is still incomplete, and nothing partial should ship. Say exactly that,
+and name what landed and what did not, so a human can pick it up.
 
 **`decline_reason` MUST NOT cite insufficient context or ambiguous scope.** You
 have the policy, every enrolled repo, the Task index and the whole public
@@ -405,9 +574,12 @@ for an upgrade MR. Fix the findings, push, and submit again.
   first. A single blocking call longer than the turn inactivity window
   terminally fails the turn.
 - If you are blocked by a platform or tooling failure - an MCP error, a missing
-  credential, a tatara tool returning an unexpected error, Renovate refusing to
-  run - call `report_internal_issue(...)`. That is the **only** correct channel,
-  and a blocked tool is never a reason to decline the upgrade on its merits.
+  credential, a tatara tool returning an unexpected error, Renovate erroring or
+  reporting a problem mid-run, a `mise` install that cannot reach its registry -
+  call `report_internal_issue(...)`. That is the **only** correct channel, and a
+  blocked tool is never a reason to decline the upgrade on its merits. The one
+  exception is `renovate` simply not being on PATH: that has its own fallback
+  (section 1) and is not an internal issue.
 
 ---
 
@@ -438,14 +610,25 @@ reading the index.
   `majorStrategy: nextHopOnly`.
 - Taking a second unit in the same Task, or opening a second MR in the same repo
   for it.
-- Picking a unit without reading the Task index first. Nothing else dedups.
+- Picking a unit without reading the Task index and the siblings' MR titles.
+  Nothing else dedups - and dedupping on the index `<title>` alone, which is a
+  frozen cron goal that names no unit, is the same as not dedupping at all.
+- Taking a pin the project's own CD propagates. First-party pins are never a
+  unit; check `repo_list` before you touch a version.
+- Asserting you checked the cluster. You cannot reach one.
+- `git add -A` in a tree Renovate ran in.
+- Declining because the migration looks big. The Task is multi-turn.
 - Submitting the pin bump alone and leaving the config migration for "a
   follow-up". There is no follow-up; there is a broken deployment.
 - Claiming green from a successful build without running the tests.
 - Omitting `merge_order` on a multi-repo hop, or declaring it in the wrong
   direction.
-- Reaching for `issue_write` or `task_list`. Neither is in your profile, by
-  design.
+- Reaching for `issue_write`, `task_list` or `mr_takeover_request`. None of the
+  three is in your profile, by design. `mr_takeover_request` is the trap:
+  `tatara-mcp-scm` documents it at length and its worked example is a Renovate
+  MR, which is your exact subject matter. It belongs to a REVIEW agent asking to
+  take over somebody else's MR after a maintainer requests it. You author your
+  own MRs on your own task branch; there is nothing there for you to take over.
 - Attribution or session links in any commit, MR body or comment.
 - Merging or approving anything. You have no such action; the operator owns that
   egress, and it acts on a review verdict, never on yours.
