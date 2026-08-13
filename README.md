@@ -26,6 +26,7 @@ Profile names, matching `skillProfileForKind`:
 | incident | `incident` |
 | refine | `refine` |
 | documentation | `documentation` |
+| upgrade | `upgrade` |
 | unknown | (empty - fail-open, install all) |
 
 `triageIssue`, `issueLifecycle`, `selfImprove`, `healthCheck` and `clarify` are
@@ -54,6 +55,7 @@ skills/
   mcp/                # MCP tool discipline and writeback skills
   operations/         # shared pipeline-waiting mechanic
   documentation/      # scheduled documentation agent skill
+  upgrade/            # scheduled dependency-upgrade agent skill
 template/             # starter skill (copy this to begin a new skill)
 docs/
   eval/               # eval scaffolding for reference skills (A/B gate fixtures)
@@ -81,7 +83,7 @@ context lean.
 
 ## Skill inventory
 
-**44 skills** on disk (45 `SKILL.md` files total including `template/SKILL.md`, which is the copy-me starter, has no `profiles:`, and does not count toward the skill inventory). Counted with
+**45 skills** on disk (46 `SKILL.md` files total including `template/SKILL.md`, which is the copy-me starter, has no `profiles:`, and does not count toward the skill inventory). Counted with
 `find skills -name SKILL.md | sed 's|skills/\([^/]*\)/.*|\1|' | sort | uniq -c`.
 
 ### skills/shared/ (superpowers-derived + tatara-native process skills, 20 skills)
@@ -167,6 +169,12 @@ context lean.
 | Skill | Type |
 |---|---|
 | tatara-documentation-workflow | task |
+
+### skills/upgrade/ (scheduled dependency-upgrade kind, 1 skill)
+
+| Skill | Type |
+|---|---|
+| tatara-upgrade-workflow | task |
 
 ## Task vs Reference content types
 

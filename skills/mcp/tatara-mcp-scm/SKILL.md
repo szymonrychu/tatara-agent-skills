@@ -1,7 +1,7 @@
 ---
 name: tatara-mcp-scm
 description: Reading and writing the forge - issues, merge requests, comment threads, commits, CI. Use when you need to see an issue or MR, read a review thread, check whether CI is green, open an MR, or comment on one.
-profiles: ["implement", "review", "refine", "brainstorm", "incident", "documentation"]
+profiles: ["implement", "review", "refine", "brainstorm", "incident", "documentation", "upgrade"]
 ---
 
 # The forge, through three tools

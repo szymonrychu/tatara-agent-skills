@@ -29,7 +29,7 @@ the one case this script exists to catch: a tool renamed or removed in
 tatara-cli. It is scoped to calls written as markdown code (a fenced ``` ```
 block, a 4-space indented code block, or an inline `backtick` span), because
 every genuine documented call in the corpus is written that way already
-(verified against all 44 skills/**/SKILL.md + template + .claude/agents
+(verified against all 45 skills/**/SKILL.md + template + .claude/agents
 files: 315/315 `tool_name(field="value")`-shaped matches live in one of those
 three forms, zero in bare prose). A name typed in ordinary prose - not code -
 stays unchecked, so this cannot drown the build in false positives on
