@@ -17,7 +17,8 @@ At turn 0 you receive:
 - The Task and project. Every `tatara` tool auto-scopes to them from the pod
   environment - omit the `task`/`project` args and the tool fills them in.
 - Your assignment, rendered by the operator.
-- The task branch (`task/<task-name>`). All your pushes target it. It is created
+- The task branch, injected as the `TASK_BRANCH` environment variable. All your
+  pushes target it - do not construct the branch name yourself. It is created
   from the default branch for you. **Never commit or push to the default branch.**
 - Workspace root: `/workspace/<owner>/<repo>` - every repo in scope, cloned under
   its own `owner/repo` subdirectory. Changes you commit and push to the task
@@ -161,8 +162,8 @@ changed repo:
 mr_write(action="open", repo="tatara-operator", title="...", body="...")
 ```
 
-`open` is IDEMPOTENT - if your Task already has an open MR for that repo on
-`task/<task-name>`, you get it back with `"existing": true` and the forge is not
+`open` is IDEMPOTENT - if your Task already has an open MR for that repo on the
+task branch, you get it back with `"existing": true` and the forge is not
 called. If your Task already MERGED an MR for that repo, `open` is REFUSED: you
 are about to open a duplicate MR for work that already shipped. See
 `tatara-mcp-scm`.

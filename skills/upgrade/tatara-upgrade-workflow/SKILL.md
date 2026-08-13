@@ -26,8 +26,11 @@ At turn 0 you receive:
   upgrade policy**: the discovery engine (`renovate` or `none`), the major
   strategy, and the minimum release age per level. Read it before you discover
   anything - the policy decides which candidates are even eligible.
-- The task branch (`task/<task-name>`). All your pushes target it. It is created
-  from the default branch for you. **Never commit or push to a default branch.**
+- The task branch, injected as the `TASK_BRANCH` environment variable. All your
+  pushes target it - do not construct the branch name yourself. It is created
+  from the default branch for you (an upgrade Task has no source issue, so the
+  operator names it `tatara/task-<task-name>`). **Never commit or push to a
+  default branch.**
 - Workspace root: `/workspace/<owner>/<repo>` - **every enrolled repo in the
   project**, cloned under its own `owner/repo` subdirectory. Your kind is
   unconstrained scope: no single repo was assigned to you, and you may open an MR
@@ -466,8 +469,8 @@ you submit the outcome on it:
 mr_write(action="open", repo="charts", title="chore: cilium 1.16 -> 1.17", body="...")
 ```
 
-`open` is IDEMPOTENT - if your Task already has an open MR for that repo on
-`task/<task-name>`, you get it back with `"existing": true` and the forge is not
+`open` is IDEMPOTENT - if your Task already has an open MR for that repo on the
+task branch, you get it back with `"existing": true` and the forge is not
 called. **It is not idempotent once that repo's MR has MERGED: then it is
 REFUSED.** You meet this more often than an implement agent does. A review bounce
 drops you back into this section (section 9) with the merge cursor part-way
