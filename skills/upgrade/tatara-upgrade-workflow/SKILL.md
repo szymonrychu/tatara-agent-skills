@@ -27,19 +27,22 @@ At turn 0 you receive:
   strategy, and the minimum release age per level. Read it before you discover
   anything - the policy decides which candidates are even eligible.
 - The task branch, injected as the `TASK_BRANCH` environment variable. All your
-  pushes target it - do not construct the branch name yourself. It is created
-  from the default branch for you (an upgrade Task has no source issue, so the
-  operator names it `tatara/task-<task-name>`). **Never commit or push to a
-  default branch.**
+  pushes target it - do not construct the branch name yourself. On a SCHEDULED
+  Task it is created from the default branch for you (that Task has no source
+  issue, so the operator names it `tatara/task-<task-name>`). On an ADOPTED Task
+  (section 0b) it is an existing merge request's own branch, which already
+  carries the pin bump. **Never commit or push to a default branch.**
 - Workspace root: `/workspace/<owner>/<repo>` - **every enrolled repo in the
   project**, cloned under its own `owner/repo` subdirectory. Your kind is
   unconstrained scope: no single repo was assigned to you, and you may open an MR
   in any of them. Changes you commit and push to the task branch are restored on
-  the next run; uncommitted edits are discarded.
+  the next run; uncommitted edits are discarded. On an ADOPTED Task (section 0b)
+  your scope is narrower than that: one repo, named in your goal (section 2a).
 
-**Nobody filed an issue for this Task.** It was minted by a cron tick, not by a
-human ask, so there is no issue thread, no maintainer comment, and no approval
-gate on the way into code. That is why `issue_write` is not in your tool profile
+**Nobody filed an issue for this Task.** It was minted by a cron tick, or adopted
+onto an existing dependency merge request, not by a human ask, so there is no
+issue thread, no maintainer comment, and no approval gate on the way into code.
+That is why `issue_write` is not in your tool profile
 and why `approved`/`discuss`/`rejected` are not in your outcome schema. Do not go
 looking for a go-ahead that does not exist; the policy in your assignment IS the
 standing go-ahead, and its limits are the only ones you have.
@@ -75,6 +78,38 @@ fold the second unit in". The single MR is the damage, not the accommodation.
 Independent upgrades never block each other precisely because they are separate
 Tasks. A stuck cilium bump does not hold up grafana. Leaving a second candidate
 for the next cron tick costs nothing; folding it into this Task costs both.
+
+---
+
+## 0b. Which shape of Task are you?
+
+There are two, and almost everything below is written for the first.
+
+**A SCHEDULED Task.** A cron tick minted it. It names no unit, is bound to no
+repo and to no merge request, and your `TASK_BRANCH` is a fresh
+`tatara/task-<task-name>`. You do sections 1 through 8 in order.
+
+**An ADOPTED Task.** A third-party dependency bot already opened a merge request,
+with the pin bump committed and the changelog in the body, and the platform
+adopted it into this Task. Your goal names the repo, the merge request number,
+its title and its branch. That branch IS your `TASK_BRANCH`, and your commits
+land on top of the bump already on it.
+
+**On an adopted Task you only ever run AFTER a review round asked for
+something.** An adopted merge request is reviewed FIRST, and most of them are
+approved and merged without you ever being spawned - a bump that obliges nothing
+beyond the pin costs one review turn, not an implement turn plus a review turn.
+So if you are reading this on an adopted Task, a reviewer read the changelog and
+concluded it obliges work. Their findings are in your bundle and they are your
+work order.
+
+Tell the two apart by reading your goal. If it names an open merge request, you
+are adopted: go to **section 2a** and skip sections 1 and 2 entirely. There is
+nothing to discover and nothing to claim, because the unit was decided when the
+merge request was opened and the merge request itself is the claim.
+
+Everything in sections 3 through 9 still applies to you, with the scope
+narrowing in 2a.
 
 ---
 
@@ -265,6 +300,108 @@ MR through a multi-turn hop.
 
 If every candidate is already claimed, or nothing is worth taking this cycle,
 go to section 8 and decline. That is a correct and common answer.
+
+---
+
+## 2a. The adopted merge request: the review findings are your work order
+
+You are here because your goal names an open merge request AND a review round
+requested changes on it. Both halves matter. You are not the first agent to look
+at this merge request, and **you are not deciding whether the bump obliges work -
+that decision has already been made**, by a reviewer who read the changelog and
+said what it obliges. Their findings are in your bundle. Read them first; they
+are the job.
+
+### Then read the merge request BODY
+
+```
+scm_read(kind="mr", repo="<the repo in your goal>", number=<the number in your goal>)
+```
+
+The body carries the release notes the bot fetched when it opened the merge
+request. **That text exists in no other artifact this platform produces.** A
+dry-run discovery pass (section 1) never fetches release notes at all: its report
+has no changelog field anywhere and `sourceUrl` is a bare link.
+
+The reviewer read this body before you. Read it yourself anyway: their findings
+tell you what they concluded, the body tells you what they concluded it FROM, and
+you need the second to judge the first. If the `<body>` in your bundle is empty,
+the bundle dropped it for size - `scm_read` returns the full mirrored text.
+
+Read the diff too. It is usually one line. If it is not - a vendored manifest, a
+lockfile, a generated file - that is a signal, not noise.
+
+### Act on the findings
+
+Section 3's table is the checklist, unchanged: follow `sourceUrl` and read the
+upstream release pages to confirm what the body summarises and what the reviewer
+made of it. Three outcomes:
+
+**The findings are right.** Make the change, on this same branch, in this same
+repo, per section 6. One merge request then carries the bump and the code that
+makes it work, which is the point of adoption. Go to section 7 and submit; it
+goes back for another review round.
+
+**The findings are wrong** - the notes do not oblige what was asked, or the
+concern is already handled. Do not make a change you do not believe in to satisfy
+a finding you think is mistaken; a merge request carrying a complementary commit
+nobody could justify is worse than one carrying none. Say so plainly, quoting the
+passage of the notes you are relying on, and decline (section 8). A human reads
+the disagreement.
+
+**The hop is not safe to take at all** - the notes name a mandatory intermediate
+release between the current pin and this target, or a migration that needs a
+human decision. **Do not retarget the branch.** Say so on the merge request and
+decline (section 8):
+
+```
+mr_write(action="comment", repo="<repo>", number=<number>, body="<what the notes say, and why this hop is not safe as targeted>")
+```
+
+Retargeting is the one thing worse than declining: the bot chose the target, a
+human reading the merge request title expects that target, and silently changing
+it produces a merge request whose title lies.
+
+### You are bound to ONE repo
+
+Your merge order is this repo alone, and you may omit `merge_order` entirely. If
+the changelog obliges a change in another repo, **decline and name it** - the
+scheduled path (section 1) handles cross-repo units and this one does not.
+
+This is not a limitation to work around. Your `TASK_BRANCH` is the bot's branch
+name, and that same name may exist in another repo for a completely different
+unit. Pushing there would push onto somebody else's bump.
+
+### Do not open a merge request, and do not touch the branch's shape
+
+- The merge request exists and is already bound to this Task, and
+  `submit_outcome` finds it without you doing anything. `mr_write(action="open")`
+  is not part of this path: the platform derives a DIFFERENT branch name than the
+  one you are pushing to, so an `open` call here is not a harmless no-op - it is
+  a real forge write that opens a SECOND merge request from a branch that does
+  not exist.
+- **Never force-push.** `--force` and `--force-with-lease` are hard-denied in
+  this pod, and this branch belongs to a bot that has frozen it against exactly
+  the commits you are adding.
+- Never rebase. If the branch has fallen behind and is unmergeable,
+  `tatara-implement-conflict-resolution` applies unchanged: merge the default
+  branch in, never rebase.
+- Never delete or rename the branch.
+
+### Why your commits are safe here, and the one thing that is not
+
+The bot freezes a branch the moment a commit lands on it whose author email is
+not the bot's own. From that point it makes no further change to the branch, on
+that run or any later one. Your commits are not at risk from it, and you do not
+need to rush.
+
+**The one real danger is a human asking the bot to rebase** - applying a rebase
+label, or ticking a dashboard checkbox. That discards every commit on the branch
+that is not the bot's. You cannot prevent it and you cannot detect it in advance.
+What you can do is not create the conditions for someone to want it: push early,
+keep the merge request mergeable, and say plainly in the body what you added and
+why, so nobody reads a stalled merge request and reaches for a rebase to unstick
+it.
 
 ---
 
@@ -460,6 +597,11 @@ tests are red is a failed upgrade, not a partial one.
 
 ## 7. Open the MRs, then submit the outcome
 
+**On an ADOPTED Task, skip the opening half of this section.** The merge request
+already exists and is already bound to your Task; `open` is not part of that path
+(section 2a). Go straight to `submit_outcome` below, and omit `merge_order` - you
+changed exactly one repo.
+
 Open one MR per changed repo. Opening one early in a multi-turn hop is fine and
 section 2 prefers it - the MR title is the only thing that makes your unit
 visible to a sibling - but the hop must be implemented, pushed and green before
@@ -626,12 +768,26 @@ reading the index.
 - Claiming green from a successful build without running the tests.
 - Omitting `merge_order` on a multi-repo hop, or declaring it in the wrong
   direction.
+- On an adopted Task: opening a merge request, or creating a branch. Both
+  already exist and are already bound to you.
+- On an adopted Task: retargeting the bot's branch to a different version because
+  the notes say the targeted hop is unsafe. Comment and decline instead; the
+  merge request title names the target a human is expecting.
+- On an adopted Task: starting from the changelog and ignoring the review
+  findings that put you there. You are the second agent on this merge request,
+  not the first, and a reviewer already read the changelog and asked for
+  something specific.
+- On an adopted Task: making a change you believe is unnecessary because a
+  finding asked for it. Disagree in the outcome and decline. A complementary
+  commit nobody can justify is worse than none.
 - Reaching for `issue_write`, `task_list` or `mr_takeover_request`. None of the
   three is in your profile, by design. `mr_takeover_request` is the trap:
-  `tatara-mcp-scm` documents it at length and its worked example is a Renovate
-  MR, which is your exact subject matter. It belongs to a REVIEW agent asking to
-  take over somebody else's MR after a maintainer requests it. You author your
-  own MRs on your own task branch; there is nothing there for you to take over.
+  `tatara-mcp-scm` documents it at length and its worked example is a dependency
+  bot's MR, which is your exact subject matter. It belongs to a REVIEW agent
+  asking to take over somebody else's MR after a maintainer requests it. On a
+  scheduled Task you author your own MRs on your own task branch, and on an
+  adopted Task the platform already owns the merge request; either way there is
+  nothing there for you to take over.
 - Attribution or session links in any commit, MR body or comment.
 - Merging or approving anything. You have no such action; the operator owns that
   egress, and it acts on a review verdict, never on yours.

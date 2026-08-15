@@ -43,6 +43,15 @@ intent and calls `mr_takeover_request` with that comment's external id. Only
 fall through to the review steps below when no comment in the thread carries
 unresolved takeover intent.
 
+**Not on an ADOPTED merge request.** If your goal names an open merge request
+that the platform already took over into this Task (Step 5's adopted row), the
+hand-over has already happened and there is nothing to request. Do NOT call
+`mr_takeover_request` there whatever the thread says - it is not refused on an
+adopted merge request, because owning the merge request is that tool's
+precondition rather than its blocker, and the damage is described in
+`tatara-review-takeover`. Reply in the thread that tatara already owns the merge
+request, and carry on with your review.
+
 ```
 task_get()
 ```
@@ -133,6 +142,32 @@ For each dimension: record a finding (pass, or severity + evidence). Skip none.
 - Added tests actually compile and run (not skipped)?
 - Build + lint still pass with the new tests in place?
 
+### 3e. The merge request description (on a dependency MR, this IS the review)
+
+Every dimension above is diff-shaped. On a merge request opened by a dependency
+bot the diff is not the change: the description carries the changelog and release
+notes for the bump, and **that text exists in no other artifact this platform
+produces** - a dry-run discovery pass never fetches release notes at all. Judge
+it against one question: does it name a breaking change, a renamed or removed
+configuration key, a required migration, a raised minimum version, or a mandatory
+intermediate release?
+
+If it does, `request_changes` and name the key, the migration or the manifest.
+Your findings are the upgrade agent's work order, and "read the release notes" is
+not a work order. If it does not, approve - that is the common answer on a
+dependency bump and it is the correct one.
+
+The body is the bot's summary of what it fetched, not the upstream source. Follow
+`sourceUrl` and read the release pages yourself before you conclude nothing
+breaks: a changelog that mentions nothing breaking is weak evidence, not
+clearance.
+
+**An empty `<body>` in your bundle usually means elided, not absent.** When the
+bundle runs out of byte budget it truncates bodies, and its last-resort step
+drops them to nothing, leaving `<body truncated="true">` with nothing inside.
+Re-read it with `scm_read(kind="mr", repo=..., number=...)`, which returns the
+full mirrored body, before concluding the changelog said nothing.
+
 ---
 
 ## Step 4 - Severity routing
@@ -189,7 +224,17 @@ Whose MR you are reviewing changes what your verdict DOES:
 | you are reviewing | `approve` | `request_changes` |
 |---|---|---|
 | the platform's own MR (an implement Task cycling through `reviewing`) | the OPERATOR merges. That merge is the approval of record - still the operator's action, never yours | back to the implement agent, which fixes your findings and pushes again |
+| an ADOPTED third-party dependency MR (a bot opened it; the platform took it over into an `upgrade` Task) | the OPERATOR merges, exactly as on the platform's own MR. This is the COMMON and correct answer: most dependency bumps oblige nothing beyond the pin | back to the UPGRADE agent, which pushes complementary commits onto that same branch |
 | a HUMAN's PR (you are a `review`-kind Task) | `parked(awaiting-human)` | `parked(awaiting-human)` |
+
+Tell an adopted MR apart by its goal: it names the merge request number, its
+title and its branch, and it says that branch is your `TASK_BRANCH`. An ordinary
+`review`-kind Task's goal names none of those. **If your goal names an open merge
+request you are on the adopted row, not the human row** - and the middle row is
+where a third party's merge request gets merged on your approve. Reason "this is
+not the platform's own MR, so both verdicts just park" there and you have
+approved a merge, not parked one. Approve on the evidence in front of you
+(Step 3e), never on the assumption that somebody downstream looks again.
 
 On a human's PR BOTH verdicts park. The review is posted either way, and then
 the human fixes and merges their own PR. **No implement agent will ever run on a

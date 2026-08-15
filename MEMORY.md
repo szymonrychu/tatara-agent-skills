@@ -308,3 +308,55 @@ in the corpus cites an external study and the agent cannot verify it.
 resolver to be faithful to "the originating issue"; an upgrade Task owns none, so
 it now branches on kind and points at the hop + release notes, including
 re-deriving the hop when the default branch moved the pin under the merge.
+
+2026-08-15 (the adopted merge request - a third shape, and the review agent meets
+it FIRST): a third-party dependency bot's merge request is now adopted into an
+`upgrade` Task that enters at `awaiting-review`, so the shipped review skills were
+the dangerous half of this change, not the upgrade one.
+`tatara-review-checklist`'s verdict-consequence table had exactly TWO rows and an
+adopted merge request matches NEITHER. The old shape invites "not the platform's
+own MR, therefore the human row, therefore both verdicts just park" - and an
+approve reasoned that way MERGES a third party's merge request. The adopted row
+goes in the MIDDLE, above the human row, so the human row is the residual rather
+than the default, and the row states both consequences outright (approve ->
+operator merges; request_changes -> the UPGRADE agent, onto that same branch).
+Step 3 gained a `3e` for the merge request DESCRIPTION: on a dependency bump the
+one-line diff is not the change, the changelog in the body is, and nothing in a
+diff-shaped dimension list told the reviewer to read it.
+`tatara-review-takeover` opened by calling another bot's merge request, "like
+Renovate", one "the operator never merges" - false for exactly the case it named.
+Corrected, plus an anti-pattern for the real trap: `mr_takeover_request` on an
+adopted Task is NOT refused. Controller-owning the merge request is `mrTakeover`'s
+PRECONDITION (`internal/restapi/takeover.go`, the ownership gate ahead of the
+mint), which an adopted Task satisfies. Verified against the operator: when the
+mirror is already classified `tatara` the call is an idempotent no-op that costs a
+turn (`takeover.go:130`), and when it is not - a merge request authored by an
+allowlisted `upgradeEngineLogins` account rather than `botLogin`, since
+`ownershipForAuthor` (`ownership.go:33-38`) only returns `tatara` for the bot -
+the mint runs for real and hands the merge request to a `takeover` Task minted at
+`refined`, whose only forward edge needs an `approved` outcome that
+`verifyApprovalScope` refuses for a Task owning zero Issue CRs.
+`tatara-upgrade-workflow` gained 0b (which shape of Task) and 2a (the adopted
+path). 2a is deliberately SMALL: the upgrade agent only ever reaches an adopted
+merge request a review round already bounced, so it acts on findings rather than
+deciding whether the bump is trivial. "An unchanged bump is the common case" lives
+on the review side now, where the decision is. TASK_BRANCH is the bot's branch
+(one repo per adopted Task, deliberately - the same branch NAME in a second repo
+is a different unit), `mr_write(action="open")` is never called on that path, and
+never force-push or rebase: the bot's freeze is what protects the agent's commits.
+Boy-scouted `tatara-mcp-scm`, which also named Renovate as review-only and is the
+file the upgrade skill's own anti-pattern points at.
+No new skill and no profile change: all four touched files are already in their
+profiles' exact sets, so `README.md`'s and `plugin.json`'s counts do not move.
+
+2026-08-15 (two plan claims that did not survive verification): the plan asserted
+the context bundle's last-resort body drop "leaves no `truncated=\"true\"`
+marker". It does leave one - `truncBody(s, 0)` returns `("", true)`
+(`internal/prompt/bundle.go:855-864`) and the template renders
+`<body truncated="true">` - so both new sites say an empty body is USUALLY elided
+and to re-read it with `scm_read(kind="mr", ...)`, rather than asserting a marker
+that is absent. The plan also said `mr_takeover_request` on an adopted Task "would
+mint a `takeover` Task into `refined`" unconditionally; on the configuration this
+change actually ships (`upgradeEngineLogins: []`, Renovate authoring as the bot)
+the mirror is `tatara`-owned and the call is a no-op instead. The mint is the
+worse, narrower case, and the skills say so in that order.
