@@ -84,8 +84,8 @@ instead.
 
     mr_takeover_request(repo, number, comment_external_id)
 
-A review-only MR (someone else's PR or Renovate) can be handed to tatara for full
-agency by a project maintainer. This tool requests the handover; it does not merge,
+A review-only MR (someone else's PR) can be handed to tatara for full agency by a
+project maintainer. This tool requests the handover; it does not merge,
 does not approve, and does not push. The operator validates server-side that the
 comment author is an allowed maintainer and that the comment exists - you do not
 need to check membership yourself, but do not call this tool for a comment you did
@@ -98,6 +98,12 @@ your review job continues.
 If a non-maintainer asks for a takeover, do not call this tool - reply in the thread
 instead that only a project maintainer can hand an MR over to tatara. The operator
 would reject it anyway; refusing conversationally is clearer and cheaper.
+
+**Never on a merge request the platform ADOPTED** - a dependency bot's merge
+request that intake took over into an `upgrade` Task, which your goal names by
+number and branch. That hand-over already happened, and this call is not refused
+there: owning the merge request is the tool's precondition, not its blocker. See
+`tatara-review-takeover`.
 
 ## Anti-patterns
 
