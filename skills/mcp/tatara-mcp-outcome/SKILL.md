@@ -11,7 +11,7 @@ is chosen for you from your agent kind. You cannot call the wrong one, because
 there is no other one.
 
 **A Task that never receives an outcome does not quietly stop. It ages out at
-`stageReason=no-outcome`, its pod is deleted, and the work is lost.** Submitting
+`parkReason=no-outcome`, its pod is deleted, and the work is lost.** Submitting
 an outcome is not optional and it is not the last thing you do if you have time.
 
 ## Your shape

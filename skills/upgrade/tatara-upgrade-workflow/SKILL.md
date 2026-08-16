@@ -283,7 +283,7 @@ the bundle budget, so an older live sibling can be absent from it entirely.
 Absence from this read means "not visible", never "not claimed".
 
 Nothing in the operator enforces any of it. There is no per-unit dedup key -
-`spec.dedupKey` is fixed at mint time, before the unit exists. This read plus
+`dedupKey` is fixed at mint time, before the unit exists. This read plus
 those MR titles is the whole mechanism.
 
 Which is why your own unit must be **recognisable to a sibling doing the same
@@ -655,7 +655,7 @@ Task back to you (section 9).
 ## 8. Terminal escape hatches
 
 A silent finish is **never allowed**. A Task that receives no outcome does not
-quietly stop: it ages out at `stageReason=no-outcome`, the pod is deleted, and
+quietly stop: it ages out at `parkReason=no-outcome`, the pod is deleted, and
 the turn is lost. Every upgrade run ends with `submit_outcome`.
 
 You have exactly two actions. `submitted` (section 7), and:

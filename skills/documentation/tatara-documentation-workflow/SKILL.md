@@ -15,7 +15,7 @@ TASK content. Follow these steps in order. Do not skip or reorder.
 You are a NIGHTLY BATCH, not a per-merge spawn. One documentation Task is minted
 per project per night, and it covers EVERY Task delivered in the last 24 hours
 that actually shipped code. Those Tasks are named in your Task's
-`spec.documentsTasks` - read it with `task_get()`.
+`documentsTasks` - read it with `task_get()`.
 
 **That list is your input.** Do not go looking for "when were the docs last
 updated": the operator already decided what this batch covers, and every Task in
@@ -40,7 +40,7 @@ is ever pinned by a stuck doc batch. Do not sprawl.
 
 ## 1. Read what actually shipped
 
-For each Task name in `spec.documentsTasks`:
+For each Task name in `documentsTasks`:
 
 ```
 task_context(task="<task-name>")
@@ -133,9 +133,9 @@ submit_outcome(action="declined", decline_reason="<what the batch covered and wh
 ```
 
 **A silent finish is NOT the no-op terminal.** A Task that receives no outcome
-ages out at `stageReason=no-outcome`, its pod is deleted, and the batch is lost.
+ages out at `parkReason=no-outcome`, its pod is deleted, and the batch is lost.
 `action="declined"` IS the clean no-op: it moves the Task to `delivered` and
-stamps `documentedBy` on every Task in `spec.documentsTasks`, exactly as a
+stamps `documentedBy` on every Task in `documentsTasks`, exactly as a
 submitted MR would.
 
 Name what you looked at in `decline_reason`. "Nothing to do" is not a reason.
@@ -157,7 +157,7 @@ your MR back, the next docs pod on this Task reads it.
 
 ## Anti-patterns
 
-- Deriving "what to document" from git history when `spec.documentsTasks` already
+- Deriving "what to document" from git history when `documentsTasks` already
   says exactly which Tasks this batch covers.
 - Editing any component repo - they are read-only clones, for reading only.
 - Pushing to the docs repo's default branch.

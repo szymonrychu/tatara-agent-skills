@@ -20,7 +20,7 @@ under the bot identity, and mints an implement Task for it.
 ## Hard constraints
 
 - ONE outcome per run. **A run that submits no outcome does not quietly end:** the
-  Task ages out at `stageReason=no-outcome`, the pod is deleted, and the work is
+  Task ages out at `parkReason=no-outcome`, the pod is deleted, and the work is
   lost. If nothing is genuinely novel this cycle, that is
   `submit_outcome(action="skip", reason=...)` - an honest no-yield, not
   silence. If you have re-derived that nothing will be novel until the project

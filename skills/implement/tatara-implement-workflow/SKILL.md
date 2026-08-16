@@ -205,7 +205,7 @@ you already know is incomplete.
 ## 6. Terminal escape hatches
 
 A silent finish is **never allowed**. A Task that receives no outcome does not
-quietly stop: it ages out at `stageReason=no-outcome`, the pod is deleted, and
+quietly stop: it ages out at `parkReason=no-outcome`, the pod is deleted, and
 the work is lost. Every implement run ends with `submit_outcome`.
 
 Two of the five implement actions are terminal for the code half of the turn:

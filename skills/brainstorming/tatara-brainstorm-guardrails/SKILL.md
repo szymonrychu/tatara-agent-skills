@@ -79,7 +79,7 @@ merely for this cycle - defaulting to it because "probably nothing next time
 either" is not grounds; re-derive, don't guess.
 
 No combinations. No silent exits. **A turn that ends without an outcome does not
-quietly stop:** the Task ages out at `stageReason=no-outcome`, the pod is
+quietly stop:** the Task ages out at `parkReason=no-outcome`, the pod is
 deleted, and the work is lost.
 
 There is no third "comment on the existing issue instead" action any more. You
