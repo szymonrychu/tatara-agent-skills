@@ -360,3 +360,25 @@ mint a `takeover` Task into `refined`" unconditionally; on the configuration thi
 change actually ships (`upgradeEngineLogins: []`, Renovate authoring as the bot)
 the mirror is `tatara`-owned and the call is a no-op instead. The mint is the
 worse, narrower case, and the skills say so in that order.
+
+2026-08-16 (tatara-helmfile#397): release.yml gained a SECOND cd-release bump
+hop, `Bump tatara-helmfile skillsRef`, placed BEFORE the wrapper hop. Read this
+before touching either. Until now this repo's only CD target was the wrapper's
+`ARG TATARA_SKILLS_REF`, and that pin reaches no agent pod: the wrapper bakes
+it as a runtime ENV default, and `tatara-operator internal/agent/pod.go`
+appends `TATARA_SKILLS_REF` from `Project.spec.agent.skillsRef`
+unconditionally, so the Project pin always wins. That Project pin was written
+by nobody. Consequence measured, not inferred: a 72h Loki query over the
+wrapper's boot-clone line showed every pod cloning v2.1.1 or v2.0.0 while this
+repo was on v2.4.0 - v2.2.0/v2.3.0/v2.4.0 (including #56's 24 corrections to
+Procedure 1, the orient sequence every agent runs) had shipped to nobody. The
+new hop writes all three `values/project-*/common.yaml`, mtg included. It is
+FIRST because steps are sequential and fail-fast and it is the one that reaches
+production; a wrapper-hop failure must not starve it. `parent_repo ==
+tatara-helmfile` takes cd-release's terminal-hop path, so it coalesces onto
+`cd/deploy-train` - which also means a red pin-coverage check in that repo now
+blocks the whole train, not just this commit. The pin pattern
+`^(\s*skillsRef: ).*$` is duplicated as SKILLS_PIN_PATTERN in tatara-helmfile's
+check_pin_coverage.py and exercised there against the real values files, so a
+pin-site reformat reds that repo's lint instead of hard-erroring apply-pins.py
+with count==0 mid-release here.

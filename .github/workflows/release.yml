@@ -49,8 +49,62 @@ jobs:
           mode: tag
           token: ${{ secrets.TATARA_CD_TOKEN }}
 
+      # mode=bump, TERMINAL HOP: rewrite `agent.skillsRef` in every project's
+      # values file. THIS is the pin that reaches an agent pod - tatara-operator
+      # internal/agent/pod.go appends TATARA_SKILLS_REF from
+      # Project.spec.agent.skillsRef unconditionally, so it always overrides the
+      # image's baked ENV. Until tatara-helmfile#397 nothing wrote it: the fleet
+      # sat on v2.1.1 for eight days and three releases while the wrapper hop
+      # below dutifully bumped a value no agent ever read.
+      #
+      # FIRST, before the wrapper hop. Steps are sequential and fail-fast, and
+      # this is the one that reaches production; a wrapper-hop failure must not
+      # starve it.
+      #
+      # parent_repo == tatara-helmfile takes cd-release's terminal-hop path, so
+      # this coalesces onto cd/deploy-train with the operator and wrapper bumps
+      # and auto-merges on a green helmfile diff. Consequence worth knowing: a
+      # red pin-coverage check in that repo now blocks the whole train, not just
+      # this commit.
+      #
+      # Each pattern must keep matching its file exactly once - apply-pins.py
+      # treats count==0 as a hard error and fails the whole release, not one pin.
+      # tatara-helmfile's check_pin_coverage.py carries this pattern verbatim as
+      # SKILLS_PIN_PATTERN and its test suite applies it to the real values
+      # files, so a pin-site reformat reds that repo's lint before it can red a
+      # release run here.
+      - name: Bump tatara-helmfile skillsRef
+        if: steps.tag.outputs.version != ''
+        uses: szymonrychu/tatara-helmfile/.github/actions/cd-release@main
+        with:
+          mode: bump
+          token: ${{ secrets.TATARA_CD_TOKEN }}
+          parent_repo: szymonrychu/tatara-helmfile
+          new_value: ${{ steps.tag.outputs.version }}
+          pins: |
+            [
+              {
+                "file": "values/project-tatara/common.yaml",
+                "pattern": "^(\\s*skillsRef: ).*$",
+                "value_template": "\\1{{version}}"
+              },
+              {
+                "file": "values/project-infrastructure/common.yaml",
+                "pattern": "^(\\s*skillsRef: ).*$",
+                "value_template": "\\1{{version}}"
+              },
+              {
+                "file": "values/project-mtg/common.yaml",
+                "pattern": "^(\\s*skillsRef: ).*$",
+                "value_template": "\\1{{version}}"
+              }
+            ]
+
       # mode=bump: rewrite the wrapper Dockerfile TATARA_SKILLS_REF ARG pin to
       # the freshly cut tag and open an auto-merge PR. Single pin, no chart.
+      # This one only seeds the image's runtime ENV default, which the operator
+      # overrides for every agent pod (see the hop above); it is the right value
+      # for a container run outside the operator, and reaches no pod.
       - name: Bump wrapper TATARA_SKILLS_REF pin
         if: steps.tag.outputs.version != ''
         uses: szymonrychu/tatara-helmfile/.github/actions/cd-release@main
