@@ -361,4 +361,46 @@ change actually ships (`upgradeEngineLogins: []`, Renovate authoring as the bot)
 the mirror is `tatara`-owned and the call is a no-op instead. The mint is the
 worse, narrower case, and the skills say so in that order.
 
-- 2026-08-16 (tatara-operator#609 fan-out, the skill promised a log the fix cannot deliver) **`tatara-pipeline-waiting` told agents "read the failed check's `logTail` - nothing more to fetch" as an unconditional guarantee, and tatara-operator#609's fix made it false for the exact rows it added.** GitLab's `/pipelines/{id}/jobs` omits bridge (`trigger:`) jobs, so a failed child pipeline was invisible to `checks[]` and `scm_read(kind="ci")` answered `green` on a red MR; the fix reports the pipeline's own aggregate as `status` and enumerates bridges as drill-down rows. A bridge row carries **`JobID: ""` deliberately** - a bridge id is not a job id and `/jobs/{id}/trace` 404s on it - so the one row an agent must read is the one row that structurally cannot carry a log. Before the fix the promise was vacuously true (a failed bridge never appeared at all); after it, an agent following this skill sees a red it cannot explain, and the skill's own flap-vs-real table pushes it toward "infra flap, retrigger" on a real downstream failure. Corrected here rather than in the operator, because enumerating the child pipeline's jobs is #609's rejected option A3 (unbounded fan-out; nested bridges are legal) on an endpoint already paced at 1/20s per PR. **The generalisable rule for this repo: a skill sentence of the form "X is always present" is a CONTRACT on another repo's code, and it ages the moment that code grows a new row type.** Two other guarantees were corrected in the same pass: `status` is NOT a fold over `checks[]` (it is the forge's aggregate, so believe `status` when they appear to disagree), and `status == "none"` no longer means "no pipeline registered" but "no CI observation at all" - an MR with no pipeline but an external commit-status reporter now answers that reporter's verdict, which silently voids the 3-minute `none` bail-out for those repos.
+2026-08-16 (tatara-helmfile#397): release.yml gained a SECOND cd-release bump
+hop, `Bump tatara-helmfile skillsRef`, placed BEFORE the wrapper hop. Read this
+before touching either. Until now this repo's only CD target was the wrapper's
+`ARG TATARA_SKILLS_REF`, and that pin reaches no agent pod: the wrapper bakes
+it as a runtime ENV default, and `tatara-operator internal/agent/pod.go`
+appends `TATARA_SKILLS_REF` from `Project.spec.agent.skillsRef`
+unconditionally, so the Project pin always wins. That Project pin was written
+by nobody. Consequence measured, not inferred: a 72h Loki query over the
+wrapper's boot-clone line showed every pod cloning v2.1.1 or v2.0.0 while this
+repo was on v2.4.0 - v2.2.0/v2.3.0/v2.4.0 (including #56's 24 corrections to
+Procedure 1, the orient sequence every agent runs) had shipped to nobody. The
+new hop writes all three `values/project-*/common.yaml`, mtg included. It is
+FIRST because steps are sequential and fail-fast and it is the one that reaches
+production; a wrapper-hop failure must not starve it. `parent_repo ==
+tatara-helmfile` takes cd-release's terminal-hop path, so it coalesces onto
+`cd/deploy-train` - which also means a red pin-coverage check in that repo now
+blocks the whole train, not just this commit. The pin pattern
+`^(\s*skillsRef: ).*$` is duplicated as SKILLS_PIN_PATTERN in tatara-helmfile's
+check_pin_coverage.py and exercised there against the real values files, so a
+pin-site reformat reds that repo's lint instead of hard-erroring apply-pins.py
+with count==0 mid-release here.
+
+2026-08-16 (tatara-helmfile#397, review round 1): release.yml's `concurrency:`
+blocks are per-JOB and both placements are load-bearing. `release` needs one
+because it now pushes to the shared cd/deploy-train branch, where cd-release's
+terminal hop answers a losing push by re-fetching and RE-APPLYING its pins - so
+two overlapping releases let the older rewrite the newer's skillsRef and land
+the fleet at lag 1, which check_skills_currency.py scores green. It must NOT be
+at workflow level: this workflow fires on every `lint` completion including PR
+runs, a run joins its group BEFORE the job `if:` that discards it is evaluated,
+and GitHub cancels the previously PENDING member when a newer one queues - so a
+no-op PR run could cancel a queued real release, silently, because a cancelled
+run is not a failure. Job level NARROWS that (a skipped job never takes the
+slot); it does not eliminate it, since the pending-cancel rule applies to
+job-level groups too. GitHub has no queue-all mode. `sync-contract` then needs
+its OWN group (`contract-sync`) because it was silently inheriting the old
+workflow-level one: it rebuilds cd/claude-contract-sync with `checkout -B` off a
+depth-1 clone and force-pushes per consumer repo, and with `continue-on-error`
+plus `set -uo pipefail` (no -e) it cannot even red while clobbering a newer
+fragment. Not `group: release` - that would deadlock it against its own
+`needs:`.
+
+2026-08-16 (tatara-operator#609 fan-out, the skill promised a log the fix cannot deliver) **`tatara-pipeline-waiting` told agents "read the failed check's `logTail` - nothing more to fetch" as an unconditional guarantee, and tatara-operator#609's fix made it false for the exact rows it added.** GitLab's `/pipelines/{id}/jobs` omits bridge (`trigger:`) jobs, so a failed child pipeline was invisible to `checks[]` and `scm_read(kind="ci")` answered `green` on a red MR; the fix reports the pipeline's own aggregate as `status` and enumerates bridges as drill-down rows. A bridge row carries **`JobID: ""` deliberately** - a bridge id is not a job id and `/jobs/{id}/trace` 404s on it - so the one row an agent must read is the one row that structurally cannot carry a log. Before the fix the promise was vacuously true (a failed bridge never appeared at all); after it, an agent following this skill sees a red it cannot explain, and the skill's own flap-vs-real table pushes it toward "infra flap, retrigger" on a real downstream failure. Corrected here rather than in the operator, because enumerating the child pipeline's jobs is #609's rejected option A3 (unbounded fan-out; nested bridges are legal) on an endpoint already paced at 1/20s per PR. **The generalisable rule for this repo: a skill sentence of the form "X is always present" is a CONTRACT on another repo's code, and it ages the moment that code grows a new row type.** Two other guarantees were corrected in the same pass: `status` is NOT a fold over `checks[]` (it is the forge's aggregate, so believe `status` when they appear to disagree), and `status == "none"` no longer means "no pipeline registered" but "no CI observation at all" - an MR with no pipeline but an external commit-status reporter now answers that reporter's verdict, which silently voids the 3-minute `none` bail-out for those repos.

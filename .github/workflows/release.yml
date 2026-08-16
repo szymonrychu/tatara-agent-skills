@@ -20,6 +20,32 @@ jobs:
   release:
     name: Tag semver and propagate skills ref to wrapper
     runs-on: ubuntu-latest
+    # Serialize releases. As of tatara-helmfile#397 this workflow also pushes to
+    # the shared cd/deploy-train branch, and cd-release's terminal hop handles a
+    # losing push by re-fetching the branch and RE-APPLYING its pins - so two
+    # overlapping skills releases would let the older one rewrite the newer
+    # one's skillsRef and land the fleet a release behind, at lag 1, which
+    # check_skills_currency.py scores green.
+    #
+    # JOB level, not workflow level, and that distinction is load-bearing here.
+    # This workflow fires on EVERY lint completion, PR runs included; the `if:`
+    # below is what discards them. A workflow-level group is joined before any
+    # `if:` is evaluated, and GitHub cancels the previously PENDING member of a
+    # group when a newer one queues (cancel-in-progress: false only protects the
+    # in-progress one) - so at workflow level a no-op run from an unrelated PR's
+    # lint could cancel a queued REAL release, whose tag would then never be cut
+    # and whose skillsRef would never propagate, silently, because a cancelled
+    # run is not a failure. A job skipped by its `if:` never takes the slot, so
+    # at job level only real releases contend.
+    #
+    # NARROWS, does not eliminate. The pending-member cancellation rule applies
+    # to job-level groups too: three real merges in quick succession still lose
+    # the middle one's tag. GitHub has no queue-all mode, so the residual is
+    # accepted and named here rather than papered over. It is bounded by the
+    # merge corridor, which serializes merges to main in the first place.
+    concurrency:
+      group: release
+      cancel-in-progress: false
     # Only after lint succeeds, only for push-to-main (not PR validation runs).
     # The last guard breaks the recursion: the plugin.json self-pin PR merge
     # is itself a push to main that reruns lint -> would retrigger this job
@@ -49,10 +75,72 @@ jobs:
           mode: tag
           token: ${{ secrets.TATARA_CD_TOKEN }}
 
+      # mode=bump, TERMINAL HOP: rewrite `agent.skillsRef` in every project's
+      # values file. THIS is the pin that reaches an agent pod - tatara-operator
+      # internal/agent/pod.go appends TATARA_SKILLS_REF from
+      # Project.spec.agent.skillsRef unconditionally, so it always overrides the
+      # image's baked ENV. Until tatara-helmfile#397 nothing wrote it: the fleet
+      # sat on v2.1.1 for eight days and three releases while the wrapper hop
+      # below dutifully bumped a value no agent ever read.
+      #
+      # FIRST, before the wrapper hop: this is the one that reaches production,
+      # so a wrapper-hop failure must not starve it. The converse is handled by
+      # the `!cancelled()` guards on the two steps after it - neither hop
+      # starves the other, whichever fails. The re-run case that used to make
+      # those guards mandatory (cd-release's terminal path falling through to
+      # open_or_reuse_pr after a no-op, and `gh pr create` 422ing once
+      # cd/deploy-train had merged) is fixed at the root in tatara-helmfile's
+      # cd-release action, which now exits 0 on a no-op like its non-terminal
+      # branch always did. The guards stay for the failures that remain: an
+      # 8-retry push exhaustion or a forge API error here must still not freeze
+      # plugin.json behind the tag that was already cut.
+      #
+      # parent_repo == tatara-helmfile takes cd-release's terminal-hop path, so
+      # this coalesces onto cd/deploy-train with the operator and wrapper bumps
+      # and auto-merges on a green helmfile diff. Consequence worth knowing: a
+      # red pin-coverage check in that repo now blocks the whole train, not just
+      # this commit.
+      #
+      # Each pattern must keep matching its file exactly once - apply-pins.py
+      # treats count==0 as a hard error and fails the whole release, not one pin.
+      # tatara-helmfile's check_pin_coverage.py carries this pattern verbatim as
+      # SKILLS_PIN_PATTERN and its test suite applies it to the real values
+      # files, so a pin-site reformat reds that repo's lint before it can red a
+      # release run here.
+      - name: Bump tatara-helmfile skillsRef
+        if: steps.tag.outputs.version != ''
+        uses: szymonrychu/tatara-helmfile/.github/actions/cd-release@main
+        with:
+          mode: bump
+          token: ${{ secrets.TATARA_CD_TOKEN }}
+          parent_repo: szymonrychu/tatara-helmfile
+          new_value: ${{ steps.tag.outputs.version }}
+          pins: |
+            [
+              {
+                "file": "values/project-tatara/common.yaml",
+                "pattern": "^(\\s*skillsRef: ).*$",
+                "value_template": "\\1{{version}}"
+              },
+              {
+                "file": "values/project-infrastructure/common.yaml",
+                "pattern": "^(\\s*skillsRef: ).*$",
+                "value_template": "\\1{{version}}"
+              },
+              {
+                "file": "values/project-mtg/common.yaml",
+                "pattern": "^(\\s*skillsRef: ).*$",
+                "value_template": "\\1{{version}}"
+              }
+            ]
+
       # mode=bump: rewrite the wrapper Dockerfile TATARA_SKILLS_REF ARG pin to
       # the freshly cut tag and open an auto-merge PR. Single pin, no chart.
+      # This one only seeds the image's runtime ENV default, which the operator
+      # overrides for every agent pod (see the hop above); it is the right value
+      # for a container run outside the operator, and reaches no pod.
       - name: Bump wrapper TATARA_SKILLS_REF pin
-        if: steps.tag.outputs.version != ''
+        if: ${{ !cancelled() && steps.tag.outputs.version != '' }}
         uses: szymonrychu/tatara-helmfile/.github/actions/cd-release@main
         with:
           mode: bump
@@ -77,8 +165,10 @@ jobs:
       # fresh origin/main and force-pushed each run, so a stale branch left
       # over from a prior attempt is simply reset rather than causing a
       # conflict; an already-open PR for it is reused instead of duplicated.
+      # !cancelled(), not success(): a failed bump hop above must not leave
+      # plugin.json's version frozen behind the tag that was already cut.
       - name: Pin plugin.json to tag version
-        if: steps.tag.outputs.version != ''
+        if: ${{ !cancelled() && steps.tag.outputs.version != '' }}
         env:
           TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
           GH_TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
@@ -131,6 +221,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     continue-on-error: true
+    # Its OWN group, and it needs one now that `release`'s concurrency moved
+    # from workflow level to the job: this job used to inherit serialization
+    # from that block and no longer does. It rebuilds cd/claude-contract-sync
+    # with `checkout -B` off a depth-1 clone and force-pushes, per consumer
+    # repo, so two overlapping runs race exactly the way the note on `release`
+    # describes for cd/deploy-train - the older run force-pushing the older
+    # fragment over the newer one on a branch whose PR already has auto-merge
+    # armed. `continue-on-error` plus `set -uo pipefail` (no -e) means it could
+    # not even red while doing it.
+    #
+    # NOT `group: release`: sharing it would deadlock this job against the next
+    # run's `release` job, which is upstream of it via `needs:`.
+    concurrency:
+      group: contract-sync
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
