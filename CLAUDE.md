@@ -198,7 +198,6 @@ is local to this repo and is never touched by the sync, which is where a repo
 records how these rules apply to it.
 <!-- END tatara-shared-contract -->
 
-
 ## This repo owns the block above
 
 `template/CLAUDE-shared.md` is the source. Everything else here is local.
