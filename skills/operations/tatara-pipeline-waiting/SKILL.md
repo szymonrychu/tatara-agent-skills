@@ -57,13 +57,38 @@ nothing but also tells you nothing new. **30 seconds is the right interval.**
 It is above the pacing window, and it is far below any plausible inactivity
 timeout.
 
-`status` is one of `none`, `pending`, `running`, `green`, `red`.
+`status` is one of `none`, `pending`, `running`, `green`, `red`. `none` means
+**no CI observation at all** - no pipeline AND no commit status. An MR with no
+pipeline of its own but an external commit-status reporter answers that
+reporter's verdict, not `none`, so the 3-minute `none` bail-out above will not
+fire on one.
 
 `checks[]` carries each check's name, status, conclusion and url. **For a
-check that FAILED, and only for one that failed, it also carries `logTail`:
-the last 4000 bytes of that job's log.** A green run's logs are never
-fetched. You do not need to go and get them; you cannot, and you do not have
-to.
+check that FAILED, and only for one that failed, it usually also carries
+`logTail`: the last 4000 bytes of that job's log.** A green run's logs are
+never fetched. You do not need to go and get them; you cannot, and you do not
+have to.
+
+**`status` is NOT a fold over `checks[]`.** On GitLab it is the pipeline's own
+aggregate, which already accounts for child pipelines, retries and
+`allow_failure`. `checks[]` is drill-down detail. When they appear to
+disagree, `status` is the one to believe.
+
+**Two kinds of row carry NO `logTail`, even when they failed.** Neither is a
+bug, and neither is worth retrying to get a log out of:
+
+- **A `trigger:` row is a CHILD PIPELINE, not a job.** On `containers`,
+  `charts` and `helmfile` the real gating (Dockerfile lint, image build,
+  Harbor CVE scan) is generated into a child pipeline, and the parent's
+  `trigger:template` row is what carries its result. A bridge has no log of
+  its own - the failing job is one level down, and the row's `url` points at
+  that DOWNSTREAM pipeline.
+- **A commit status from an external reporter**, on an MR with no pipeline of
+  its own. Its `url` is the reporter's page.
+
+If `status` is `red` and the only failing row is one of these, **the failure
+is real and it is downstream.** Say so, and cite the `url`. Do not read a
+missing `logTail` as an infra flap, and do not retrigger on it.
 
 - The `print(...)` heartbeat each cycle is what matters, not the exact shape
   of the loop: keep output flowing every cycle. Never replace the loop with
@@ -90,13 +115,16 @@ list for it.
 A failed run is often INFRA, not your code. Only fix real failures - never
 "fix" an infra flap by touching code. Read the failed check's `logTail` (it
 is already in the `scm_read(kind="ci")` response above - nothing more to
-fetch) and classify:
+fetch) and classify. If the failing row is a `trigger:` bridge or an external
+commit status it has no `logTail` at all: that is not an inconclusive read,
+it is a real downstream failure you cannot see the log of - report it with
+its `url` rather than guessing "flap".
 
 | Old CLI-shaped idea | Now |
 |---|---|
 | list the repo's recent runs and filter by your commit's SHA | `scm_read(kind="ci", repo="<repo>", number=<mr>)` - you are watching YOUR MR, not the repo's run list |
 | list a PR's status checks | the `checks[]` array of the same response |
-| view a failed run's log | the `logTail` field of the failed check |
+| view a failed run's log | the `logTail` field of the failed check - absent on a `trigger:` bridge row, whose `url` is the child pipeline |
 | rerun a failed job | **NO EQUIVALENT. You cannot rerun a job - see below.** |
 
 **Infra flap (retrigger, do NOT touch code - see "You cannot rerun a job"):**
