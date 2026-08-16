@@ -30,13 +30,19 @@ jobs:
     # JOB level, not workflow level, and that distinction is load-bearing here.
     # This workflow fires on EVERY lint completion, PR runs included; the `if:`
     # below is what discards them. A workflow-level group is joined before any
-    # `if:` is evaluated, and GitHub cancels the previously PENDING run in a
+    # `if:` is evaluated, and GitHub cancels the previously PENDING member of a
     # group when a newer one queues (cancel-in-progress: false only protects the
-    # in-progress one) - so a no-op run from an unrelated PR's lint could cancel
-    # a queued REAL release. Its tag would never be cut, its skillsRef never
-    # propagate, and a cancelled run is not a failure, so nothing would red: a
-    # fresh instance of the silent CD stranding #397 exists to close. A job
-    # skipped by its `if:` never takes the slot.
+    # in-progress one) - so at workflow level a no-op run from an unrelated PR's
+    # lint could cancel a queued REAL release, whose tag would then never be cut
+    # and whose skillsRef would never propagate, silently, because a cancelled
+    # run is not a failure. A job skipped by its `if:` never takes the slot, so
+    # at job level only real releases contend.
+    #
+    # NARROWS, does not eliminate. The pending-member cancellation rule applies
+    # to job-level groups too: three real merges in quick succession still lose
+    # the middle one's tag. GitHub has no queue-all mode, so the residual is
+    # accepted and named here rather than papered over. It is bounded by the
+    # merge corridor, which serializes merges to main in the first place.
     concurrency:
       group: release
       cancel-in-progress: false
@@ -215,6 +221,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     continue-on-error: true
+    # Its OWN group, and it needs one now that `release`'s concurrency moved
+    # from workflow level to the job: this job used to inherit serialization
+    # from that block and no longer does. It rebuilds cd/claude-contract-sync
+    # with `checkout -B` off a depth-1 clone and force-pushes, per consumer
+    # repo, so two overlapping runs race exactly the way the note on `release`
+    # describes for cd/deploy-train - the older run force-pushing the older
+    # fragment over the newer one on a branch whose PR already has auto-merge
+    # armed. `continue-on-error` plus `set -uo pipefail` (no -e) means it could
+    # not even red while doing it.
+    #
+    # NOT `group: release`: sharing it would deadlock this job against the next
+    # run's `release` job, which is upstream of it via `needs:`.
+    concurrency:
+      group: contract-sync
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
