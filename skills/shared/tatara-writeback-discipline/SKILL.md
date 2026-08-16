@@ -159,7 +159,7 @@ shape, so you understand what your call actually causes downstream:
   self-approving OR self-requesting-changes on its own PR; `COMMENT` is the
   only event the platform ever sends). What happens next depends on whose MR
   it is: on the platform's own MR, `approve` lets the operator merge and
-  `request_changes` loops back to `implementing`; on a human's PR, BOTH
+  `request_changes` loops back to `under-implementation`; on a human's PR, BOTH
   verdicts end at `parked(awaiting-human)` - no implement pod ever spawns
   from a `review`-kind Task. `reviewed_shas` must cover every owned MR, not
   just the ones with findings - a missing entry is a 400, not a silent pass.

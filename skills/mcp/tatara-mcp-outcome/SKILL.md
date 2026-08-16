@@ -135,10 +135,10 @@ submit_outcome(verdict="approve"|"request_changes", reviewed_shas[], findings[],
   on BOTH verdicts. **What happens after that depends entirely on whose MR you
   reviewed:**
 
-  **The platform's own MR** (an implement Task cycling through `reviewing`):
-  `approve` lets the operator merge - **the merge is the approval of record.**
-  `request_changes` loops the Task back to `implementing` and an implement pod
-  fixes your findings.
+  **The platform's own MR** (an implement Task cycling through
+  `awaiting-review`): `approve` lets the operator merge - **the merge is the
+  approval of record.** `request_changes` loops the Task back to
+  `under-implementation` and an implement pod fixes your findings.
 
   **A HUMAN's PR** (you are a `review`-kind Task): BOTH verdicts end at
   `parked(awaiting-human)`. The review is posted either way; the human fixes

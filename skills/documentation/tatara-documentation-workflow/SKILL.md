@@ -33,8 +33,9 @@ repo at their current default-branch HEAD:
   (`repo_list` names them, per `tatara-mcp-platform`).
 
 You have a 2h stage budget (`docStageBudget`). If you overrun it, the operator
-force-moves you to `delivered` and stamps `documentedBy` anyway - no parent Task
-is ever pinned by a stuck doc batch. Do not sprawl.
+force-moves you to `done` with `stateReason=doc-timeout` and stamps
+`documentedBy` anyway - no parent Task is ever pinned by a stuck doc batch.
+Do not sprawl.
 
 ---
 
@@ -118,9 +119,9 @@ submit_outcome(
 batch touches one repo - the docs repo - so you may omit it.
 
 **Your MR IS reviewed.** `submit_outcome(action="submitted")` moves the Task to
-`reviewing` and a review pod reads your MR exactly like any other. Write the body
-for that reviewer. A `request_changes` verdict routes the Task back and you get
-another turn.
+`awaiting-review` and a review pod reads your MR exactly like any other. Write
+the body for that reviewer. A `request_changes` verdict routes the Task back and
+you get another turn.
 
 ---
 
@@ -134,9 +135,10 @@ submit_outcome(action="declined", decline_reason="<what the batch covered and wh
 
 **A silent finish is NOT the no-op terminal.** A Task that receives no outcome
 ages out at `parkReason=no-outcome`, its pod is deleted, and the batch is lost.
-`action="declined"` IS the clean no-op: it moves the Task to `delivered` and
-stamps `documentedBy` on every Task in `documentsTasks`, exactly as a
-submitted MR would.
+`action="declined"` IS the clean no-op: it moves the Task to `done` with
+`stateReason=doc-timeout` - a declined batch is DONE, not parked, because there
+was nothing to document - and stamps `documentedBy` on every Task in
+`documentsTasks`, exactly as a submitted MR would.
 
 Name what you looked at in `decline_reason`. "Nothing to do" is not a reason.
 
@@ -162,6 +164,6 @@ your MR back, the next docs pod on this Task reads it.
 - Editing any component repo - they are read-only clones, for reading only.
 - Pushing to the docs repo's default branch.
 - Updating docs "just in case" when the change is purely internal.
-- Assuming the docs MR auto-merges without review. It goes to `reviewing` like
-  every other MR on this platform.
+- Assuming the docs MR auto-merges without review. It goes to `awaiting-review`
+  like every other MR on this platform.
 - Merging anything. You have no merge action; the operator merges.

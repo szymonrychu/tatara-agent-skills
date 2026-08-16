@@ -48,10 +48,11 @@ anywhere in your profile.
 What the operator does with your verdict depends on whose PR you reviewed
 (contract C.5, F.3):
 
-- **The platform's own MR** (an implement Task cycling through `reviewing`):
-  the operator posts a `COMMENT` review carrying your verdict, then merges on
-  `approve` - **the merge is the approval of record**, not the review post.
-  `request_changes` loops the Task back to `implementing`.
+- **The platform's own MR** (an implement Task cycling through
+  `awaiting-review`): the operator posts a `COMMENT` review carrying your
+  verdict, then merges on `approve` - **the merge is the approval of record**,
+  not the review post.
+  `request_changes` loops the Task back to `under-implementation`.
 - **A human-authored PR** (you are a `review`-kind Task): the operator posts
   the `COMMENT` review either way, but **BOTH `approve` and `request_changes`
   end at `parked(awaiting-human)`.** A `review`-kind Task never spawns an

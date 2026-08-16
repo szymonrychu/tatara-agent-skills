@@ -32,10 +32,10 @@ not to reach a maintainer.
 
 "Surface reasoning at outcome time" means: put the tradeoff and your default
 choice into the `reason` / `decline_reason` / finding body your kind's
-`submit_outcome` shape requires. When a Task enters `failed`, `rejected`, or
-a parked state, the operator posts a bot comment on every owned open issue
-naming the reason - that is how your decision reaches a human if you had no
-direct comment tool this turn.
+`submit_outcome` shape requires. When a Task reaches a terminal outcome (`done`
+or `rejected`) or is parked, the operator posts a bot comment on every owned
+open issue naming the reason - that is how your decision reaches a human if you
+had no direct comment tool this turn.
 
 ---
 
@@ -130,7 +130,7 @@ infrastructure is NEVER a `decline`/`skip`/`discuss` - that is
 `report_internal_issue` territory (see `tatara-platform-contract`). Reserve
 the outcome-shaped block for genuine human decisions.
 
-This parks or declines the task and, for `failed`/`rejected`/parked
+This parks or declines the task and, for `done`/`rejected`/parked
 transitions, the operator posts your reason to the issue thread automatically.
 
 ---
