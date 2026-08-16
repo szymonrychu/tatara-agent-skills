@@ -147,7 +147,7 @@ submit_outcome(verdict="approve"|"request_changes", reviewed_shas[], findings[],
   path. Do not write findings as if you are briefing a bot that will act on
   them; write them for the person who opened the PR. If they push and comment,
   you may be re-invoked on the same PR to review the new head - up to 5 times
-  (`maxHumanReviewRounds`), after which the Task stays parked for a human.
+  (`MaxHumanReviewRounds`), after which the Task stays parked for a human.
 
   Either way you have no `mr_write(approve)` and no merge action; do not go
   looking for one.

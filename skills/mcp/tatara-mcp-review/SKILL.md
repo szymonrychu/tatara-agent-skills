@@ -59,7 +59,7 @@ What the operator does with your verdict depends on whose PR you reviewed
   implement pod, by any path - the human fixes their own PR and the human
   merges it. Write your findings for the person who opened the PR, not for a
   bot that will act on them. If they push and comment, you may be re-invoked
-  on the new head, up to `maxHumanReviewRounds` (5).
+  on the new head, up to `MaxHumanReviewRounds` (5).
 
 `GitHub` 422s a self-approve and a self-request-changes; only `COMMENT` is
 ever sent, on every verdict, on every PR. This is why there is no `approve`

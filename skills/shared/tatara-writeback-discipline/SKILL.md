@@ -351,5 +351,5 @@ citation or fall back to `action="discuss"` on the same turn.
      ])
    -> Operator posts a single COMMENT review carrying the verdict and the
       finding as an inline comment. This is the platform's own MR, so the
-      Task loops back to implementing for the fix.
+      Task loops back to under-implementation for the fix.
 ```

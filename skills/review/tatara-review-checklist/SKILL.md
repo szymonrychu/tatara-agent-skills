@@ -241,7 +241,7 @@ the human fixes and merges their own PR. **No implement agent will ever run on a
 `review`-kind Task, by any path** - so do not write your findings as a work order
 for a bot that will pick them up. Write them for the person who opened the PR. If
 they push and comment, you may be re-invoked on the same PR to review the new
-head, up to 5 rounds (`maxHumanReviewRounds`); after that the Task stays parked.
+head, up to 5 rounds (`MaxHumanReviewRounds`); after that the Task stays parked.
 
 `change_significance` is OPTIONAL on your outcome. It may only RAISE the level
 the implementer declared (`patch` < `minor` < `major`); a lower value is ignored.

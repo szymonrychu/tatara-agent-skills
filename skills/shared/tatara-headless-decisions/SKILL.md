@@ -32,10 +32,14 @@ not to reach a maintainer.
 
 "Surface reasoning at outcome time" means: put the tradeoff and your default
 choice into the `reason` / `decline_reason` / finding body your kind's
-`submit_outcome` shape requires. When a Task reaches a terminal outcome (`done`
-or `rejected`) or is parked, the operator posts a bot comment on every owned
-open issue naming the reason - that is how your decision reaches a human if you
-had no direct comment tool this turn.
+`submit_outcome` shape requires. Know where that text actually goes, because it
+is narrower than it looks: only the gate's `action="rejected"` reason becomes an
+issue comment verbatim (it is the close comment). A park or a decline puts your
+words in a `task_note` and nowhere else, and the operator's own terminal notice
+- posted on every still-open owned issue when the Task ends at `done`/`rejected`,
+and on a parked one only once it is finally reaped - quotes `status.state` and
+`status.parkReason`, never your prose. Choose the reason a human can act on from
+those two words alone, then write the rest for the next pod.
 
 ---
 
@@ -130,8 +134,10 @@ infrastructure is NEVER a `decline`/`skip`/`discuss` - that is
 `report_internal_issue` territory (see `tatara-platform-contract`). Reserve
 the outcome-shaped block for genuine human decisions.
 
-This parks or declines the task and, for `done`/`rejected`/parked
-transitions, the operator posts your reason to the issue thread automatically.
+This parks or ends the task. Only the `implement` gate's `rejected` arm puts
+your reason on the issue thread automatically; a `declined`/`skip`/
+`false_positive` park does not, so post the Step 3 comment while your profile
+still allows one.
 
 ---
 
