@@ -61,11 +61,33 @@ docs/
   eval/               # eval scaffolding for reference skills (A/B gate fixtures)
 .github/
   workflows/
-    lint.yml          # SKILL.md frontmatter + JSON manifest validation
+    lint.yml          # the whole lint gate: frontmatter, profiles, tool calls, vocabulary, manifests
+  tool-manifest-version       # pin for tatara-cli's published tool-manifest.json
+  platform-vocabulary.json    # vendored snapshot of tatara-operator's agent-facing data model
   scripts/
     validate_skills.py
     validate_profiles.py
+    validate_tool_calls.py         # documented tool calls vs tatara-cli's tool manifest
+    validate_vocabulary.py         # documented field paths / reasons vs tatara-operator's DTOs
+    gen_platform_vocabulary.py     # regenerates platform-vocabulary.json (not run in CI)
+    tests/                         # pytest suite for the two validators
 ```
+
+### Keeping the vocabulary snapshot current
+
+`validate_vocabulary.py` pins the field paths (`status.state`, `repositoryRef`,
+...), the `parkReason` / `stateReason` vocabularies and a verified dead-term
+denylist to `.github/platform-vocabulary.json`. That file is a generated,
+vendored snapshot of `tatara-operator`'s **DTOs** (`internal/restapi/dto.go`) -
+the flat JSON an agent actually receives, which has no `spec` envelope - not of
+the CRDs behind them. After an operator change that moves the data model:
+
+```
+python3 .github/scripts/gen_platform_vocabulary.py /path/to/tatara-operator
+```
+
+and commit the diff. The generator fails if a listed dead term has come back to
+life in the operator, so the denylist is not append-only.
 
 ## Typed subagents (`.claude/agents/`)
 

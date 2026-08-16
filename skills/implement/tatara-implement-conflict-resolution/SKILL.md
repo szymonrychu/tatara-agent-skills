@@ -8,8 +8,8 @@ profiles: ["implement", "upgrade"]
 
 TASK skill. The review verdict was `request_changes` (or the merge attempt found
 a moved head), and the operator routed your Task back because an MR under it is
-unmergeable. On an implement Task that routing lands at the `implementing` stage,
-on an implement pod. On an upgrade Task it lands back on the UPGRADE agent, on
+unmergeable. On an implement Task that routing lands at `status.state`
+`under-implementation`, on an implement pod. On an upgrade Task it lands back on the UPGRADE agent, on
 the same Task, with the same MRs - there is no separate implement pod for an
 upgrade MR. Either way your mandate is BINARY: reach one of two terminal outcomes
 this turn. Never leave the MR parked, never stop half-done.

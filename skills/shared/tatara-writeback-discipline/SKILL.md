@@ -44,7 +44,7 @@ way to accidentally do the operator's job - the tool shape does not permit it.
 Every writeback tool is gated per profile (contract D.6). Never assume a
 tool you do not see in `tools/list` will appear if you retry.
 
-| `spec.kind` | `submit_outcome` shape | SCM write tools you own |
+| `kind` | `submit_outcome` shape | SCM write tools you own |
 |---|---|---|
 | `implement` | `action="approved"\|"discuss"\|"rejected"\|"submitted"\|"declined"` (+ `approving_maintainer`, `plan_note_id`, `approval_citations` on `approved`) | `issue_write` and `mr_write` |
 | `documentation` | `action="submitted"\|"declined"` | `mr_write` (no `issue_write`) |
@@ -58,10 +58,10 @@ Full outcome schemas live in `tatara-mcp-outcome`; full `issue_write`/
 and discipline, not the payload shapes.
 
 `brainstorm` and `incident` never push code and never open an MR - the
-operator has no repo target for a project-scoped WorkItem with no branch.
-`implement` and `review` are also project-scoped Tasks but DO push code /
-act on MRs - scoped to the specific repo(s) named in the Task's WorkItem
-ledger, never a repo outside it.
+operator has no repo target for a Task that carries no `repositoryRef` and
+no branch. `implement` and `review` DO push code / act on MRs - scoped to
+the repo(s) the Task itself names, via its `repositoryRef` and the
+`status.issueRefs` / `status.mrRefs` it owns, never a repo outside them.
 
 ---
 
@@ -159,7 +159,7 @@ shape, so you understand what your call actually causes downstream:
   self-approving OR self-requesting-changes on its own PR; `COMMENT` is the
   only event the platform ever sends). What happens next depends on whose MR
   it is: on the platform's own MR, `approve` lets the operator merge and
-  `request_changes` loops back to `implementing`; on a human's PR, BOTH
+  `request_changes` loops back to `under-implementation`; on a human's PR, BOTH
   verdicts end at `parked(awaiting-human)` - no implement pod ever spawns
   from a `review`-kind Task. `reviewed_shas` must cover every owned MR, not
   just the ones with findings - a missing entry is a 400, not a silent pass.
@@ -351,5 +351,5 @@ citation or fall back to `action="discuss"` on the same turn.
      ])
    -> Operator posts a single COMMENT review carrying the verdict and the
       finding as an inline comment. This is the platform's own MR, so the
-      Task loops back to implementing for the fix.
+      Task loops back to under-implementation for the fix.
 ```

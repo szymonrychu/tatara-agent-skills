@@ -43,7 +43,7 @@ One call, at the end, carrying everything you decided:
 - **`links`** attach an existing issue or MR to this Task without folding a Task around it.
 
 A turn that submits no outcome does not quietly stop: the Task ages out at
-`stageReason=no-outcome`, the pod is deleted, and the grooming is lost.
+`parkReason=no-outcome`, the pod is deleted, and the grooming is lost.
 
 ## Procedure (execute the numbered phases in order)
 
@@ -62,10 +62,12 @@ A turn that submits no outcome does not quietly stop: the Task ages out at
    loses its semantic match. That is an EXPECTED platform state, not a stop condition: call
    `report_internal_issue` ONCE at `severity="warn"` and groom on. You stop only when you cannot
    see a repo's ISSUES. Full contract in `tatara-mcp-memory`.
-2. **Priority-0 gave-up queue.** Select Tasks whose stage is `parked` with a stageReason that says
-   an agent gave up: `implement-declined`, `review-loop-exhausted`, `stage-deadline`, `no-outcome`.
-   **NEVER touch a Task in a live (non-terminal) stage** - that agent is running. For each gave-up
-   Task's issues, choose exactly ONE branch:
+2. **Priority-0 gave-up queue.** Select PARKED Tasks - `status.parkReason` is set - whose reason
+   says an agent gave up: `implement-declined`, `review-loop-exhausted`, `stage-deadline`,
+   `no-outcome`. Parking is a flag, orthogonal to `status.state` (#521): a parked Task sits at
+   whatever state it stalled in, so match on the park reason and never on a state name.
+   **NEVER touch a Task that is not parked and whose `status.state` is neither `done` nor
+   `rejected`** - that agent is running. For each gave-up Task's issues, choose exactly ONE branch:
    - delivered / duplicate / obsolete -> a `closes[]` entry citing the commit, MR or sibling issue.
    - still wanted -> `issue_write(action="comment")` with a sharper single-deliverable scope that
      addresses why the prior attempts failed. Do NOT close it.

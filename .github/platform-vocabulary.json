@@ -1,0 +1,204 @@
+{
+  "provenance": {
+    "repo": "szymonrychu/tatara-operator",
+    "version": "v2.16.1",
+    "commit": "eab7870979b452e348c2d1f4bf99bf0c6021efe0",
+    "generator": ".github/scripts/gen_platform_vocabulary.py",
+    "sources": {
+      "dtoFields": "internal/restapi/dto.go",
+      "state": "api/v1alpha1/task_types.go",
+      "parkReason": "internal/stage/stage.go (ParkReasons)",
+      "stateReason": "internal/stage/stage.go (RejectReasons + DoneReasons)",
+      "agentKind": "internal/stage/stage.go",
+      "deadTerms": "hand-curated, verified absent from api/ and internal/"
+    }
+  },
+  "dtoFields": {
+    "task": {
+      "top": [
+        "name",
+        "projectRef",
+        "repositoryRef",
+        "goal",
+        "kind",
+        "dedupKey",
+        "source.provider",
+        "source.issueRef",
+        "source.url",
+        "source.authorLogin",
+        "source.isPR",
+        "source.number",
+        "title",
+        "body",
+        "issues",
+        "mrs",
+        "ageSeconds",
+        "mergeOrder",
+        "alertRules",
+        "documentsTasks"
+      ],
+      "status": [
+        "podName",
+        "conditions",
+        "state",
+        "stateEnteredAt",
+        "stateWorkStartedAt",
+        "agentKind",
+        "stateReason",
+        "parkReason",
+        "parkedAt",
+        "parkedFromState",
+        "notes",
+        "stats",
+        "issueRefs",
+        "mrRefs",
+        "mergeCursor",
+        "deliveredAt",
+        "documentedBy"
+      ]
+    },
+    "project": {
+      "top": [
+        "name",
+        "scmSecretRef",
+        "triggerLabel",
+        "maxConcurrentAgents",
+        "agentPodTTLSeconds",
+        "maxNewTasksPerSweep",
+        "maxOpenTasks",
+        "maxBundleBytes",
+        "agent.model",
+        "agent.image",
+        "agent.permissionMode",
+        "agent.turnTimeoutSeconds"
+      ],
+      "status": [
+        "webhookURL",
+        "conditions"
+      ]
+    },
+    "repository": {
+      "top": [
+        "name",
+        "projectRef",
+        "url",
+        "defaultBranch",
+        "ingestEnabled"
+      ],
+      "status": [
+        "phase",
+        "lastIngestedCommit",
+        "lastIngestTime",
+        "jobName",
+        "conditions"
+      ]
+    }
+  },
+  "enums": {
+    "state": [
+      "new",
+      "refined",
+      "under-implementation",
+      "awaiting-review",
+      "merged",
+      "deployed",
+      "done",
+      "rejected"
+    ],
+    "parkReason": [
+      "backlog-sweep",
+      "triage-stalled",
+      "name-too-long",
+      "stage-deadline",
+      "awaiting-human",
+      "identity-unverified",
+      "implement-declined",
+      "review-loop-exhausted",
+      "review-post-refused",
+      "merge-timeout",
+      "merge-blocked",
+      "merge-order-missing",
+      "deploy-timeout",
+      "deploy-blocked",
+      "no-outcome",
+      "turn-budget-exhausted",
+      "pod-recreation-exhausted",
+      "object-too-large",
+      "fold-adoption-unverified",
+      "admission-starved",
+      "agent-contract-mismatch",
+      "operator-error",
+      "head-moving",
+      "handoff-stalled",
+      "ownership-lost",
+      "merge-auth-refused",
+      "ci-red",
+      "ci-blocked"
+    ],
+    "stateReason": [
+      "declined",
+      "false-positive",
+      "tracked-elsewhere",
+      "issue-closed",
+      "mr-closed-externally",
+      "mr-taken-over",
+      "doc-timeout",
+      "mr-merged-externally"
+    ],
+    "agentKind": [
+      "brainstorm",
+      "incident",
+      "refine",
+      "implement",
+      "review",
+      "documentation",
+      "upgrade"
+    ]
+  },
+  "deadTerms": [
+    {
+      "term": "WorkItem",
+      "note": "deleted CRD; a Task is project-scoped and names its repos via repositoryRef"
+    },
+    {
+      "term": "lifecycleState",
+      "note": "deleted status field; #521 replaced it with status.state"
+    },
+    {
+      "term": "cascadeStage",
+      "note": "deleted status field; #521 replaced the cascade with the state table"
+    },
+    {
+      "term": "deployArtifact",
+      "note": "deleted status field"
+    },
+    {
+      "term": "implementOutcome",
+      "note": "deleted status field; outcomes are submit_outcome payloads"
+    },
+    {
+      "term": "reviewVerdict",
+      "note": "deleted status field; the verdict is a submit_outcome argument"
+    },
+    {
+      "term": "prOutcome",
+      "note": "deleted status field"
+    },
+    {
+      "term": "changeSummary",
+      "note": "deleted status field; change_significance carries the level"
+    },
+    {
+      "term": "pendingInterjections",
+      "note": "deleted status field"
+    },
+    {
+      "term": "implementContext",
+      "note": "deleted status field"
+    },
+    {
+      "term": "implementGiveUps",
+      "note": "deleted status field"
+    }
+  ]
+}

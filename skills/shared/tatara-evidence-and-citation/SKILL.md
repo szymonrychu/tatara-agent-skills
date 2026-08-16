@@ -12,8 +12,7 @@ This is a REFERENCE skill. It defines the evidence standard and citation convent
 
 Every injected turn-0 prompt that requires codebase investigation anchors its output requirement in evidence:
 
-- `brainstormGoalProject` (`internal/controller/projectscan.go`): proposals must include "the concrete defect with file:line evidence from the code graph."
-- `healthCheckGoalProject` (`internal/controller/projectscan.go`): proposals require "the concrete defect with file:line evidence, the proposed fix."
+- `brainstormGoalProject` (`internal/controller/projectscan.go`): a proposal body must open with "a one-paragraph problem statement citing the concrete file/symbol you read", then a decomposition into sub-problems, 2-3 options per sub-problem, and the maintainer's decision framed as picking one option each. The `healthCheck` activity shares this builder - it is a label on `Kind=brainstorm`, not a prompt of its own.
 - `incident.GoalProject` (`internal/incident/goal.go`): the issue body MUST contain "the queries/tools you ran and their results."
 
 `triage` and `lifecycle` are retired Task kinds; their evidence requirements are subsumed by `implement` (via the since-retired `clarify` kind, which was itself merged into `implement`).

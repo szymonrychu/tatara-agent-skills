@@ -48,17 +48,18 @@ anywhere in your profile.
 What the operator does with your verdict depends on whose PR you reviewed
 (contract C.5, F.3):
 
-- **The platform's own MR** (an implement Task cycling through `reviewing`):
-  the operator posts a `COMMENT` review carrying your verdict, then merges on
-  `approve` - **the merge is the approval of record**, not the review post.
-  `request_changes` loops the Task back to `implementing`.
+- **The platform's own MR** (an implement Task cycling through
+  `awaiting-review`): the operator posts a `COMMENT` review carrying your
+  verdict, then merges on `approve` - **the merge is the approval of record**,
+  not the review post.
+  `request_changes` loops the Task back to `under-implementation`.
 - **A human-authored PR** (you are a `review`-kind Task): the operator posts
   the `COMMENT` review either way, but **BOTH `approve` and `request_changes`
   end at `parked(awaiting-human)`.** A `review`-kind Task never spawns an
   implement pod, by any path - the human fixes their own PR and the human
   merges it. Write your findings for the person who opened the PR, not for a
   bot that will act on them. If they push and comment, you may be re-invoked
-  on the new head, up to `maxHumanReviewRounds` (5).
+  on the new head, up to `MaxHumanReviewRounds` (5).
 
 `GitHub` 422s a self-approve and a self-request-changes; only `COMMENT` is
 ever sent, on every verdict, on every PR. This is why there is no `approve`

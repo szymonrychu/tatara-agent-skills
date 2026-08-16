@@ -223,7 +223,7 @@ Whose MR you are reviewing changes what your verdict DOES:
 
 | you are reviewing | `approve` | `request_changes` |
 |---|---|---|
-| the platform's own MR (an implement Task cycling through `reviewing`) | the OPERATOR merges. That merge is the approval of record - still the operator's action, never yours | back to the implement agent, which fixes your findings and pushes again |
+| the platform's own MR (an implement Task cycling through `awaiting-review`) | the OPERATOR merges. That merge is the approval of record - still the operator's action, never yours | back to the implement agent, which fixes your findings and pushes again |
 | an ADOPTED third-party dependency MR (a bot opened it; the platform took it over into an `upgrade` Task) | the OPERATOR merges, exactly as on the platform's own MR. This is the COMMON and correct answer: most dependency bumps oblige nothing beyond the pin | back to the UPGRADE agent, which pushes complementary commits onto that same branch |
 | a HUMAN's PR (you are a `review`-kind Task) | `parked(awaiting-human)` | `parked(awaiting-human)` |
 
@@ -241,7 +241,7 @@ the human fixes and merges their own PR. **No implement agent will ever run on a
 `review`-kind Task, by any path** - so do not write your findings as a work order
 for a bot that will pick them up. Write them for the person who opened the PR. If
 they push and comment, you may be re-invoked on the same PR to review the new
-head, up to 5 rounds (`maxHumanReviewRounds`); after that the Task stays parked.
+head, up to 5 rounds (`MaxHumanReviewRounds`); after that the Task stays parked.
 
 `change_significance` is OPTIONAL on your outcome. It may only RAISE the level
 the implementer declared (`patch` < `minor` < `major`); a lower value is ignored.

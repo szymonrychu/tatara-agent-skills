@@ -45,7 +45,7 @@ comment on an arbitrary human issue, only on a tracker your own survey found.
 ## Hard rails
 
 **[HARD RAIL]** `submit_outcome` is called EXACTLY ONCE, and it is not optional.
-Two calls is a bug; zero calls ages the Task out at `stageReason=no-outcome`,
+Two calls is a bug; zero calls ages the Task out at `parkReason=no-outcome`,
 deletes the pod, and loses the work. The three shapes:
 
 ```

@@ -72,16 +72,16 @@ Run this sequence before any planning, investigation, or brainstorm work.
 
 ```
 1. task_get()
-   -> Read spec.kind, spec.repo, status.stage, status.notes, status.issueRef,
+   -> Read kind, repositoryRef, status.state, status.notes, status.issueRefs,
       status.mrRefs. This is your task brief. Do not proceed without reading it.
 
 2. project_get()
-   -> Read spec.scm, spec.model, spec.turnTimeoutSeconds, spec.podTTL.
-      Tells you the SCM host (GitHub/GitLab), agent model, and turn/pod budgets.
+   -> Read agent.model, agent.turnTimeoutSeconds, agentPodTTLSeconds.
+      Tells you the agent model and the turn/pod budgets.
 
 3. repo_list()
-   -> Returns all enrolled Repository CRs. Each has spec.scm.owner + spec.scm.repo
-      (the slug) and spec.scm.branch (default branch).
+   -> Returns all enrolled Repository CRs. Each has url (the clone URL, which
+      carries both the host and the owner/repo slug) and defaultBranch.
       Use this to build the complete list of repos in scope before touching code.
 ```
 
@@ -170,7 +170,7 @@ Call `task_get()` again whenever you suspect the Task's status has changed
 (e.g., after a long code generation pass, before calling `submit_outcome`).
 
 ```
-task_get()  -> check status.stage, status.notes for any operator updates
+task_get()  -> check status.state, status.notes for any operator updates
 ```
 
 Call `task_context()` again if a note you wrote earlier this turn should now
@@ -187,7 +187,7 @@ Project spec.
 
 ## Anti-patterns
 
-- Do NOT omit `task_get` at task start. The task brief (`spec.kind`, `spec.repo`)
+- Do NOT omit `task_get` at task start. The task brief (`kind`, `repositoryRef`)
   is the authoritative source of your assignment; do not infer it
   from memory or context alone.
 - Do NOT call `report_internal_issue` for transient failures (a single timeout,

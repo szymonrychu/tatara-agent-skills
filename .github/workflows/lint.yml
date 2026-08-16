@@ -29,6 +29,9 @@ jobs:
       - name: Validate tool calls against tatara-cli tool manifest
         run: python3 .github/scripts/validate_tool_calls.py
 
+      - name: Validate platform vocabulary against tatara-operator's data model
+        run: python3 .github/scripts/validate_vocabulary.py
+
       # This repo owns template/CLAUDE-shared.md and its own CLAUDE.md is the
       # first consumer, so a fragment edit that forgets to regenerate it is
       # caught here rather than by a fan-out PR into eight other repos.
