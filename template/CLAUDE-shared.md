@@ -1,21 +1,3 @@
-# CLAUDE.md - tatara-agent-skills
-
-## What this repo is
-
-The Claude Code plugin every tatara agent pod loads: the skills library under
-`skills/`, the per-kind `profiles:` routing that decides which of them install,
-the `.claude/agents/` typed subagents, and - since #57 - the shared CLAUDE.md
-contract block below. The wrapper clones this repo at the `TATARA_SKILLS_REF`
-pin baked into its image; the release workflow moves that pin.
-
-## What this repo is NOT
-
-- Not a service. No Go, no Dockerfile, no chart. Source that another image clones.
-- Not the tool surface. Tool availability is `TATARA_TOOL_PROFILE`, set by the
-  operator in `internal/agent/pod.go`. A skill that names a tool outside its
-  profile produces a runtime error; `validate_tool_calls.py` fails CI on it.
-- Not documentation. Prose for humans belongs in `tatara-documentation`.
-
 <!-- BEGIN tatara-shared-contract (generated from tatara-agent-skills/template/CLAUDE-shared.md - do not edit below this line) -->
 ## The tatara platform
 
@@ -197,29 +179,3 @@ workflow fans it out. Content ABOVE the BEGIN marker and BELOW the END marker
 is local to this repo and is never touched by the sync, which is where a repo
 records how these rules apply to it.
 <!-- END tatara-shared-contract -->
-
-## This repo owns the block above
-
-`template/CLAUDE-shared.md` is the source. Everything else here is local.
-
-- Edit the contract: PR against `template/CLAUDE-shared.md`. `lint.yml` checks
-  this repo's own `CLAUDE.md` against it, so the two never diverge in-repo.
-- Fan-out: the `sync-contract` job in `release.yml` runs after a release tag and
-  opens one PR per consumer repo whose block differs. It is
-  `continue-on-error: true` on purpose - a stale paragraph must never red a
-  release, and the next release retries it.
-- A repo opts in by carrying the marker pair. `sync_claude_contract.py` creates
-  nothing and skips a CLAUDE.md with no markers; a half-marked or duplicated
-  pair is a hard error rather than a guessed rewrite.
-
-## Skill authoring
-
-- `CONTENT-TYPES.md` is the taxonomy: which of skill / reference / doc a piece
-  of text belongs in. Read it before adding a file.
-- Every SKILL.md needs `name` + `description` frontmatter and a `profiles:`
-  list. `validate_skills.py` also fails CI on a forge-CLI invocation or a
-  merge/approve instruction: an in-cluster pod has neither the token nor the
-  tool, so such an instruction only teaches it to hallucinate (rule 7's
-  in-cluster carve-out).
-- Skills for a workstation human, run with their own `gh` auth, are the
-  documented exception and live under `skills/operations/`.

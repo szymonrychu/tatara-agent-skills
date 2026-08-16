@@ -113,3 +113,84 @@ jobs:
               --base main
           fi
           gh pr merge "${branch}" --auto --squash --delete-branch --subject "${title}"
+
+  # Fan the owned CLAUDE.md contract block out to the consumer repos. Its own
+  # job, NOT a step of `release`: a doc paragraph must never red a release, so
+  # it is continue-on-error and runs only after the tag is already cut
+  # (pre-mortem 2 on skills#57). apply-pins.py could not carry this - its
+  # value_template language is three version placeholders - and cd-release
+  # mode=bump targets exactly one parent_repo, so there is no existing 1->N
+  # channel to reuse.
+  #
+  # Silent when nothing changed: sync_claude_contract.py rewrites only the
+  # marker-delimited block, so a release that does not touch the fragment
+  # produces no diff and no PR. A repo whose CLAUDE.md carries no markers is
+  # skipped, never created - opting in is that repo's own PR.
+  sync-contract:
+    name: Fan out the shared CLAUDE.md contract block
+    runs-on: ubuntu-latest
+    needs: release
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Open a sync PR per drifted consumer repo
+        env:
+          TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+          GH_TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+        run: |
+          set -uo pipefail
+          consumers="tatara-cli tatara-memory tatara-memory-repo-ingester \
+                     tatara-claude-code-wrapper tatara-operator tatara-helmfile \
+                     tatara-observability tatara-documentation"
+          branch="cd/claude-contract-sync"
+          title="chore: sync the shared CLAUDE.md contract block"
+          body="Automated sync of the block between the tatara-shared-contract markers from [tatara-agent-skills/template/CLAUDE-shared.md](https://github.com/szymonrychu/tatara-agent-skills/blob/main/template/CLAUDE-shared.md) at ${{ github.event.workflow_run.head_sha }}. Content outside the markers is untouched. Edit the fragment in tatara-agent-skills, not here."
+          fragment="$PWD/template/CLAUDE-shared.md"
+          script="$PWD/.github/scripts/sync_claude_contract.py"
+          failed=""
+
+          for repo in $consumers; do
+            echo "::group::${repo}"
+            work="$(mktemp -d)"
+            if ! git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/szymonrychu/${repo}.git" "$work"; then
+              failed="${failed} ${repo}(clone)"
+              echo "::endgroup::"
+              continue
+            fi
+            if ! python3 "$script" --write --fragment "$fragment" "$work/CLAUDE.md"; then
+              failed="${failed} ${repo}(sync)"
+              echo "::endgroup::"
+              continue
+            fi
+            if git -C "$work" diff --quiet -- CLAUDE.md; then
+              echo "${repo}: already in sync"
+              echo "::endgroup::"
+              continue
+            fi
+            git -C "$work" config user.name "szymonrychu-bot"
+            git -C "$work" config user.email "szymonrychu-bot@users.noreply.github.com"
+            git -C "$work" checkout -B "$branch"
+            git -C "$work" add CLAUDE.md
+            git -C "$work" commit -m "$title"
+            if ! git -C "$work" push --force origin "${branch}:${branch}"; then
+              failed="${failed} ${repo}(push)"
+              echo "::endgroup::"
+              continue
+            fi
+            pr="$(gh pr list --repo "szymonrychu/${repo}" --head "$branch" --state open --json number --jq '.[0].number')"
+            if [ -z "$pr" ]; then
+              gh pr create --repo "szymonrychu/${repo}" --title "$title" --body "$body" --head "$branch" --base main \
+                || failed="${failed} ${repo}(pr)"
+            fi
+            gh pr merge --repo "szymonrychu/${repo}" "$branch" --auto --squash --delete-branch --subject "$title" \
+              || echo "${repo}: auto-merge not armed, PR left open for a human"
+            echo "::endgroup::"
+          done
+
+          if [ -n "$failed" ]; then
+            echo "::warning::contract sync incomplete for:${failed} - the next release retries"
+          fi

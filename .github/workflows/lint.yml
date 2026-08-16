@@ -21,7 +21,7 @@ jobs:
           python3 -m pip install --quiet pyyaml
           python3 .github/scripts/validate_profiles.py
 
-      - name: Unit-test the validators
+      - name: Unit-test the .github/scripts validators
         run: |
           python3 -m pip install --quiet pytest
           python3 -m pytest .github/scripts/tests/ -v
@@ -31,6 +31,12 @@ jobs:
 
       - name: Validate platform vocabulary against tatara-operator's data model
         run: python3 .github/scripts/validate_vocabulary.py
+
+      # This repo owns template/CLAUDE-shared.md and its own CLAUDE.md is the
+      # first consumer, so a fragment edit that forgets to regenerate it is
+      # caught here rather than by a fan-out PR into eight other repos.
+      - name: Check CLAUDE.md against the shared contract fragment
+        run: python3 .github/scripts/sync_claude_contract.py --check CLAUDE.md
 
       - name: Validate plugin manifests (JSON)
         run: |
