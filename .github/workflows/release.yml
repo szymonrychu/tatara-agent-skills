@@ -16,6 +16,17 @@ on:
 permissions:
   contents: write
 
+# Serialize releases. Matches tatara-claude-code-wrapper's release.yml and for
+# the same second reason: as of tatara-helmfile#397 this workflow also pushes to
+# the shared cd/deploy-train branch. cd-release's terminal hop handles a losing
+# push by re-fetching the branch and RE-APPLYING its pins, so two overlapping
+# skills releases would let the older one rewrite the newer one's skillsRef and
+# land the fleet a release behind - at lag 1, which check_skills_currency.py
+# scores green. cancel-in-progress=false lets each in-flight release finish.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Tag semver and propagate skills ref to wrapper
@@ -57,9 +68,14 @@ jobs:
       # sat on v2.1.1 for eight days and three releases while the wrapper hop
       # below dutifully bumped a value no agent ever read.
       #
-      # FIRST, before the wrapper hop. Steps are sequential and fail-fast, and
-      # this is the one that reaches production; a wrapper-hop failure must not
-      # starve it.
+      # FIRST, before the wrapper hop: this is the one that reaches production,
+      # so a wrapper-hop failure must not starve it. The converse is handled by
+      # the `!cancelled()` guards on the two steps after it - neither hop
+      # starves the other. That guard is load-bearing on a RE-RUN: cd-release's
+      # terminal path prints "nothing to commit" and then still calls
+      # open_or_reuse_pr, which fails once cd/deploy-train has merged (gh pr
+      # create 422, no commits between). Without the guard, a re-run to recover
+      # a failed wrapper hop could never reach the wrapper hop.
       #
       # parent_repo == tatara-helmfile takes cd-release's terminal-hop path, so
       # this coalesces onto cd/deploy-train with the operator and wrapper bumps
@@ -106,7 +122,7 @@ jobs:
       # overrides for every agent pod (see the hop above); it is the right value
       # for a container run outside the operator, and reaches no pod.
       - name: Bump wrapper TATARA_SKILLS_REF pin
-        if: steps.tag.outputs.version != ''
+        if: ${{ !cancelled() && steps.tag.outputs.version != '' }}
         uses: szymonrychu/tatara-helmfile/.github/actions/cd-release@main
         with:
           mode: bump
@@ -131,8 +147,10 @@ jobs:
       # fresh origin/main and force-pushed each run, so a stale branch left
       # over from a prior attempt is simply reset rather than causing a
       # conflict; an already-open PR for it is reused instead of duplicated.
+      # !cancelled(), not success(): a failed bump hop above must not leave
+      # plugin.json's version frozen behind the tag that was already cut.
       - name: Pin plugin.json to tag version
-        if: steps.tag.outputs.version != ''
+        if: ${{ !cancelled() && steps.tag.outputs.version != '' }}
         env:
           TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
           GH_TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
