@@ -34,20 +34,32 @@ precedent: every genuine documented call in this corpus is written that way.
 
   1. FIELD PATHS (allow-list). `spec.X` is ALWAYS an error - the DTO has no spec
      envelope - and `status.X` must name a field some DTO status actually
-     carries. This is the self-maintaining half: a field the operator deletes
-     reds the build on the next snapshot refresh, without anyone remembering to
-     add it to a list.
+     carries. `status.X` is the self-maintaining half: a status field the
+     operator deletes reds the build on the next snapshot refresh, without
+     anyone remembering to add it to a list.
+     LIMIT, stated plainly: the flat top-level names (`repositoryRef`,
+     `dedupKey`, `documentsTasks`) are recorded in the snapshot and used to
+     SUGGEST a replacement, but they are not themselves checked - a bare word
+     in prose carries no marker saying it is meant as a field. If the operator
+     renames one, this guard stays green. Same for the `state` and `agentKind`
+     enums: recorded for provenance, not yet checked, because a bare state name
+     in backticks is indistinguishable from ordinary English.
   2. REASON FIELDS. A `<something>Reason=<value>` literal must name a real field
      (`parkReason` or `stateReason`), its value must be in that field's enum,
      and it must NOT be in the other's. stage.go partitions the F.5 closed set
      for a reason; `stageReason=no-outcome` collapsed both halves into a field
      name that is neither, eight times. The match is case-sensitive on the
      capital R, so the restapi's own `reason=head-moved` response literal - a
-     real, unrelated thing - is left alone.
-  3. DEAD TERMS (denylist). Word-boundary, case-insensitive. Hand-curated in the
-     generator, but every entry is verified there to have zero hits in the
-     operator's api/ and internal/ trees, so the list cannot rot into blessing a
-     term that came back.
+     real, unrelated thing - is left alone, and an unknown `*Reason=` field is
+     reported only when its VALUE is one of ours, so the wrapper's
+     `stopReason=end_turn` is not this guard's business.
+  3. DEAD TERMS (denylist). Word-boundary, case-insensitive, and scanned in
+     PROSE as well as code - see the comment on that check for why it is the one
+     exception to the scoping above. Hand-curated in the generator, but every
+     entry is verified there to have zero hits in the operator's api/ and
+     internal/ trees, so the list cannot rot into blessing a term that came
+     back, and a test pins every entry to a camelCase identifier so the prose
+     scan can never fire on an English word.
 
 LINE-LEVEL SUPPRESSION, ported from tatara-documentation/scripts/
 check-stale-terms.sh: text that must legitimately NAME a dead thing (to say it
@@ -68,6 +80,12 @@ Not in scope, and deliberately: state-name literals. `parked` and `implementing`
 read as ordinary English (`a parked Task`, `while implementing`) far more often
 than as a claim about status.state, so a word-boundary check on them would be a
 false-positive machine. Those hits stay a review-time judgement.
+
+Residual false positive, accepted: a Kubernetes/Helm path that genuinely STARTS
+with the envelope - `spec.template.spec.containers` in a kubectl example - is
+reported, because it is indistinguishable from a claim about our own data model.
+The lookbehind on FIELD_RE kills the common cases (quoted source paths,
+jsonpath, Go selectors); this one wants a marker, and the error message says so.
 """
 
 import difflib
@@ -80,17 +98,32 @@ from validate_tool_calls import _code_mask, _line_number
 
 VOCABULARY_FILE = ".github/platform-vocabulary.json"
 
-REQUIRED_SECTIONS = ("dtoFields", "enums", "deadTerms")
+REQUIRED_SECTIONS = ("provenance", "dtoFields", "enums", "deadTerms")
 REASON_FIELDS = ("parkReason", "stateReason")
+
+HATCH = "suppress with <!-- vocab-ok: %s --> on this line if it is deliberate"
 
 # `spec.x` / `status.x`. Only the first segment after the envelope is captured -
 # `spec.scm.owner` reports as `spec.scm`, which is the part that is wrong.
-FIELD_RE = re.compile(r"\b(spec|status)\.([A-Za-z][A-Za-z0-9_]*)")
+#
+# The lookbehind requires the envelope to START its dotted token. Without it
+# `internal/restapi/status.go`, `foo.spec.ts` and `jsonpath='{.spec.nodeName}'`
+# all report as field paths - and this is a fleet whose subject IS a Kubernetes
+# operator, so quoted source paths and kubectl snippets are ordinary PR content.
+FIELD_RE = re.compile(r"(?<![\w./-])(spec|status)\.([A-Za-z][A-Za-z0-9_]*)")
 
-# `<something>Reason=<value>`, case-SENSITIVE on the capital R so the restapi's
-# `reason=head-moved` result literal (internal/restapi/outcome.go) is not a
-# claim about the Task data model and is not checked here.
-REASON_RE = re.compile(r"\b([a-z][A-Za-z0-9]*Reason)\s*=\s*([a-z][a-z0-9-]*)")
+# `<something>Reason = <value>`, case-SENSITIVE on the capital R so the
+# restapi's `reason=head-moved` result literal (internal/restapi/outcome.go) is
+# not read as a claim about the Task data model.
+#
+# Two branches: a quoted value after `=` or `:` (the `field="value"` shape this
+# corpus actually writes, and the JSON shape a documented response uses), or a
+# bare value after `=` only. A bare value after `:` is not matched - that is
+# ordinary English punctuation, not a literal.
+REASON_RE = re.compile(
+    r'"?\b([a-z][A-Za-z0-9]*Reason)\b"?\s*[=:]\s*"([a-z][a-z0-9-]*)"'
+    r"|\b([a-z][A-Za-z0-9]*Reason)\s*=\s*([a-z][a-z0-9-]*)"
+)
 
 MARKER_RE = re.compile(r"<!--\s*vocab-ok:([^>]*?)-->")
 
@@ -128,11 +161,14 @@ def load_vocabulary() -> dict | None:
 def _status_fields(vocab: dict) -> set[str]:
     """Union of status field names across every DTO - the checker cannot tell
     which object a given `status.x` refers to, so any DTO's status field is
-    accepted."""
+    accepted. A nested status object is recorded as dotted leaves, so its
+    parent name is admitted too; without that, the first operator change that
+    nests one turns `status.<parent>` into a false positive."""
     return {
-        name
+        segment
         for dto in vocab["dtoFields"].values()
         for name in dto.get("status", [])
+        for segment in (name, name.split(".", 1)[0])
     }
 
 
@@ -178,11 +214,14 @@ def validate_file(path: pathlib.Path, vocab: dict) -> list[str]:
     enums = vocab["enums"]
 
     def report(offset: int, literal: str, message: str) -> None:
+        """`literal` is both what the marker must NAME to suppress this hit and
+        what the message tells the author to write - the two can never drift
+        apart, so a marker cannot suppress more than it names."""
         n = _line_number(line_starts, offset)
         line = lines[n - 1]
         if literal.lower() in _exempted(line):
             return
-        errors.append(f"{path}:{n}: {message}: {line.strip()}")
+        errors.append(f"{path}:{n}: {message} [{HATCH % literal}]: {line.strip()}")
 
     # 1. Field paths.
     for match in FIELD_RE.finditer(text):
@@ -215,33 +254,47 @@ def validate_file(path: pathlib.Path, vocab: dict) -> list[str]:
     for match in REASON_RE.finditer(text):
         if not mask[match.start()]:
             continue
-        field, value = match.group(1), match.group(2)
+        field = match.group(1) or match.group(3)
+        value = match.group(2) or match.group(4)
+        literal = f"{field}={value}"
+        owner = next((f for f in REASON_FIELDS if value in enums[f]), None)
         if field not in REASON_FIELDS:
-            owner = next((f for f in REASON_FIELDS if value in enums[f]), None)
-            hint = f" - `{value}` is a `{owner}`" if owner else ""
+            # An unknown `*Reason=` field is only a claim about the TASK data
+            # model when it carries one of our values. `stopReason=end_turn` is
+            # the Claude API's, `skipReason=already-ingested` is the ingester's,
+            # and owning every camelCase *Reason token in the fleet would be an
+            # assumption about the future rather than a measurement.
+            if owner is None:
+                continue
             report(
                 match.start(),
-                field,
+                literal,
                 f"`{field}` is not a Task reason field; the two are "
-                f"`{'` and `'.join(REASON_FIELDS)}`{hint}",
+                f"`{'` and `'.join(REASON_FIELDS)}` - `{value}` is a `{owner}`",
             )
             continue
         if value in enums[field]:
             continue
-        other = next((f for f in REASON_FIELDS if f != field and value in enums[f]), None)
         detail = (
-            f"it is a `{other}` - the two vocabularies are disjoint on purpose"
-            if other
+            f"it is a `{owner}` - the two vocabularies are disjoint on purpose"
+            if owner
             else f"not in the {field} enum ({len(enums[field])} values)"
         )
-        report(match.start(), f"{field}={value}", f"`{field}={value}` - {detail}")
+        report(match.start(), literal, f"`{literal}` - {detail}")
 
-    # 3. Dead terms.
+    # 3. Dead terms - checked in PROSE TOO, unlike the two checks above.
+    #
+    # This is the one place the code-span scoping is deliberately NOT reused.
+    # Both `WorkItem` occurrences this guard was written for were bare prose
+    # ("no repo target for a project-scoped WorkItem with no branch"), so a
+    # masked scan would have caught 0 of 2. A dead noun is English-shaped and
+    # gets written in sentences - which is why check-stale-terms.sh, the script
+    # this list and its marker are ported from, greps prose. The safety comes
+    # from the denylist holding only camelCase platform identifiers (never a
+    # word), pinned by a test, plus the per-line marker.
     for entry in vocab["deadTerms"]:
         term = entry["term"]
         for match in re.finditer(rf"\b{re.escape(term)}\b", text, re.IGNORECASE):
-            if not mask[match.start()]:
-                continue
             report(
                 match.start(),
                 term,
@@ -262,10 +315,17 @@ def main() -> int:
         )
         return 1
 
+    # Wider than validate_tool_calls.py's walk, which takes SKILL.md only: the
+    # reference/*.md and *-prompt.md files a skill points an agent at are loaded
+    # into a context window just the same, and 24 of them were unscanned.
+    # Deliberately NOT the repo root - MEMORY.md and CONTENT-TYPES.md describe
+    # deleted things on purpose and must stay free to name them.
     root = pathlib.Path(__file__).parent.parent.parent
-    doc_files = sorted(root.glob("skills/**/**/SKILL.md"))
-    doc_files += sorted(root.glob("template/SKILL.md"))
-    doc_files += sorted(root.glob(".claude/agents/*.md"))
+    doc_files = sorted(
+        set(root.glob("skills/**/*.md"))
+        | set(root.glob("template/**/*.md"))
+        | set(root.glob(".claude/agents/*.md"))
+    )
 
     errors = []
     for path in doc_files:

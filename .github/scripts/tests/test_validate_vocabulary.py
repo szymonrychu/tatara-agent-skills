@@ -14,11 +14,21 @@ code spans by validate_tool_calls._code_mask:
 3. dead terms    - a word-boundary denylist of platform nouns the operator
                    deleted.
 
-Written to fail against the pre-fix corpus (which had 12 wrong field paths, 9
-collapsed reason mentions and 2 WorkItem references) and pass after it.
+Measured against the pre-fix corpus at origin/main (74 files), the guard reports
+30 drift errors: 17 `spec.X` paths, 3 unknown `status.X` fields, 8 `stageReason`
+collapses and 2 `WorkItem` references. That last pair is why the dead-term check
+does NOT reuse the code-span scoping - both sat in bare prose, so a masked scan
+scored 0 of 2 on the only real occurrences it was written for.
+
+Two corrected lines are NOT among those 30 and no version of this guard would
+have caught them: `tatara-backlog-groomer:65` ("Tasks whose stage is `parked`
+with a stageReason that says") and `tatara-implement-conflict-resolution:11`
+("the `implementing` stage"). Both are bare state-name prose, which is
+deliberately out of scope - see the module docstring of the guard.
 """
 
 import json
+import re
 
 import pytest
 
@@ -182,9 +192,94 @@ def test_dead_term_needs_a_word_boundary(tmp_path):
     assert vv.validate_file(path, VOCAB) == []
 
 
-def test_dead_term_in_bare_prose_is_not_flagged(tmp_path):
-    path = write(tmp_path, "A generic handover between two humans is fine English.\n")
+def test_dead_term_in_bare_prose_is_an_error(tmp_path):
+    """Dead terms are checked in PROSE as well as in code spans, unlike the
+    other two checks. Both real `WorkItem` occurrences this issue fixed were
+    bare prose ("a project-scoped WorkItem with no branch"), so a code-span
+    scoping would have caught 0 of 2 - a dead noun is English-shaped and gets
+    written in sentences, which is exactly why the script this is ported from
+    (check-stale-terms.sh) greps prose and pays for it with the marker."""
+    path = write(tmp_path, "no repo target for a project-scoped WorkItem with no branch.\n")
+    errors = vv.validate_file(path, VOCAB)
+    assert errors and any("WorkItem" in e for e in errors)
+
+
+def test_dead_term_denylist_holds_no_ordinary_english():
+    """The prose scan above is only safe because every listed term is a
+    camelCase platform identifier, never a word. `handover` is the term that
+    fails this bar - it is live English AND live in the operator's own source -
+    which is why it is not on the list even though the docs repo lists it."""
+    for entry in vv.load_vocabulary()["deadTerms"]:
+        term = entry["term"]
+        assert re.search(r"[a-z][A-Z]", term), f"{term} is not camelCase enough to scan prose for"
+
+
+# ---------------------------------------------------------------------------
+# False positives. A guard on every PR in a fleet ABOUT a Kubernetes operator
+# has to survive ordinary Kubernetes-flavoured text and quoted source paths.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The handler lives in `internal/restapi/status.go`.\n",
+        "Add a case to `src/app/foo.spec.ts`.\n",
+        "The contract lives in `docs/openapi-spec.yaml`.\n",
+        "```\nkubectl get pod -o jsonpath='{.spec.nodeName}'\n```\n",
+        "```\nif deploy.status.readyReplicas == 0 { }\n```\n",
+        "Read `resp.status.code` from the gateway.\n",
+    ],
+)
+def test_dotted_token_that_merely_contains_an_envelope_is_not_a_field_path(text, tmp_path):
+    """`spec`/`status` must START the dotted token. A filename, a jsonpath and
+    a Go selector all contain one mid-token, and reporting those would red an
+    unrelated PR with a message about internal/restapi/dto.go."""
+    assert vv.validate_file(write(tmp_path, text), VOCAB) == []
+
+
+def test_foreign_reason_field_with_a_foreign_value_is_not_flagged(tmp_path):
+    """`stopReason` is the Claude API's field and `skipReason` is the
+    ingester's. Owning every `*Reason=` token in the fleet is an assumption
+    about the future, not a measurement - so an unknown field is only a claim
+    about the Task data model when its VALUE is one of ours."""
+    path = write(
+        tmp_path,
+        "The turn ended with `stopReason=end_turn`, and `skipReason=already-ingested`.\n",
+    )
     assert vv.validate_file(path, VOCAB) == []
+
+
+def test_foreign_reason_field_carrying_one_of_our_values_is_still_an_error(tmp_path):
+    """...and `stageReason=no-outcome` is exactly that: a foreign field name
+    wrapped around a real parkReason value."""
+    assert vv.validate_file(write(tmp_path, "`stageReason=no-outcome`\n"), VOCAB)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'It parks at `stageReason="no-outcome"`.\n',
+        '```json\n{"stageReason": "no-outcome"}\n```\n',
+        '```\nsubmit_outcome(stageReason="no-outcome")\n```\n',
+    ],
+)
+def test_quoted_reason_values_are_checked_too(text, tmp_path):
+    """A bare `field=value` is the LEAST likely shape a future author picks -
+    this corpus writes literals as `field="value"` (which is why
+    validate_tool_calls.py exists) and documents responses as JSON. Checking
+    only the bare form would let all eight fixed occurrences back in with
+    quotes."""
+    assert vv.validate_file(write(tmp_path, text), VOCAB)
+
+
+def test_nested_status_object_is_a_known_field(tmp_path):
+    """The snapshot records nested status objects as dotted leaves. The parent
+    name must resolve too, or the first operator change that nests a status
+    object turns `status.<parent>` into a false positive."""
+    vocab = json.loads(json.dumps(VOCAB))
+    vocab["dtoFields"]["task"]["status"].append("sub.leaf")
+    assert vv.validate_file(write(tmp_path, "```\nstatus.sub.leaf\n```\n"), vocab) == []
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +302,19 @@ def test_vocab_ok_marker_naming_another_term_does_not_suppress(tmp_path):
     standing, so a marker cannot silently hide a second, real defect."""
     path = write(tmp_path, "the `WorkItem` CRD <!-- vocab-ok: handover -->\n")
     assert vv.validate_file(path, VOCAB)
+
+
+def test_vocab_ok_marker_naming_a_reason_field_does_not_blanket_its_values(tmp_path):
+    """The docstring promises a marker can never hide a second, unrelated
+    defect on its line. Exempting on the bare field name would let one marker
+    bless every value ever written next to it, including one edited in later."""
+    path = write(
+        tmp_path,
+        "It parks at `stageReason=no-outcome` or `stageReason=awaiting-human`. "
+        "<!-- vocab-ok: stageReason=no-outcome -->\n",
+    )
+    errors = vv.validate_file(path, VOCAB)
+    assert len(errors) == 1 and "awaiting-human" in errors[0], errors
 
 
 def test_blanket_vocab_ok_marker_exempts_nothing(tmp_path):
@@ -237,6 +345,19 @@ def test_unparseable_vocabulary_file_fails_the_run(monkeypatch, tmp_path):
     bad.write_text("{not json", encoding="utf-8")
     monkeypatch.setattr(vv, "VOCABULARY_FILE", str(bad))
     assert vv.main() != 0, "an unparseable vocabulary snapshot must fail the run"
+
+
+def test_vocabulary_without_provenance_fails_the_run(monkeypatch, tmp_path):
+    """main() reports the operator version it validated against. A snapshot
+    with no provenance must fail with the regenerate-it guidance, not a
+    KeyError traceback from the success path."""
+    thin = tmp_path / "platform-vocabulary.json"
+    thin.write_text(
+        json.dumps({k: VOCAB[k] for k in ("dtoFields", "enums", "deadTerms")}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(vv, "VOCABULARY_FILE", str(thin))
+    assert vv.main() != 0
 
 
 def test_vocabulary_missing_a_required_section_fails_the_run(monkeypatch, tmp_path):

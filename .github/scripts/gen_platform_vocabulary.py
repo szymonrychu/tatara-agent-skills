@@ -160,6 +160,11 @@ def slice_members(text: str, var_name: str, consts: dict[str, str]) -> list[str]
     for name, body in SLICE_RE.findall(text):
         if name != var_name:
             continue
+        # Strip line comments first: a commented-out `// ReasonB, ReasonC` would
+        # otherwise be tokenized as live members and silently keep a retired
+        # reason blessed - the one way this generator could produce a WRONG
+        # answer rather than dying loudly.
+        body = re.sub(r"//[^\n]*", "", body)
         members = []
         for token in re.findall(r"\b(\w+),", body):
             if token not in consts:
