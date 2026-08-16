@@ -57,11 +57,12 @@ nothing but also tells you nothing new. **30 seconds is the right interval.**
 It is above the pacing window, and it is far below any plausible inactivity
 timeout.
 
-`status` is one of `none`, `pending`, `running`, `green`, `red`. `none` means
-**no CI observation at all** - no pipeline AND no commit status. An MR with no
-pipeline of its own but an external commit-status reporter answers that
-reporter's verdict, not `none`, so the 3-minute `none` bail-out above will not
-fire on one.
+`status` is one of `none`, `pending`, `running`, `green`, `red`. On GitLab,
+`none` means **no CI observation at all** - no pipeline AND no commit status.
+An MR with no pipeline of its own but an external commit-status reporter
+answers that reporter's verdict, not `none`, so the 3-minute `none` bail-out
+above will not fire on one. On GitHub, `none` can still appear with a legacy
+commit-status reporter present, so the bail-out CAN fire there.
 
 `checks[]` carries each check's name, status, conclusion and url. **For a
 check that FAILED, and only for one that failed, it usually also carries
