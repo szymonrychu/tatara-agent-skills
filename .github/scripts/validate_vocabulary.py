@@ -155,6 +155,14 @@ def load_vocabulary() -> dict | None:
         if not vocab["enums"].get(field):
             print(f"ERROR: {path}: enums.{field} is empty or absent", file=sys.stderr)
             return None
+    for entry in vocab["deadTerms"]:
+        if not isinstance(entry, dict) or not entry.get("term") or not entry.get("note"):
+            print(
+                f"ERROR: {path}: every deadTerms entry must be "
+                f'{{"term": ..., "note": ...}}, got {entry!r}',
+                file=sys.stderr,
+            )
+            return None
     return vocab
 
 

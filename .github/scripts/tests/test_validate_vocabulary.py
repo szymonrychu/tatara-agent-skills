@@ -360,6 +360,18 @@ def test_vocabulary_without_provenance_fails_the_run(monkeypatch, tmp_path):
     assert vv.main() != 0
 
 
+def test_malformed_dead_term_entry_fails_the_run(monkeypatch, tmp_path):
+    """A hand-edited snapshot listing bare strings instead of {term, note}
+    must fail with the regenerate-it guidance, not a TypeError from inside the
+    per-file walk."""
+    bad = tmp_path / "platform-vocabulary.json"
+    vocab = json.loads(json.dumps(VOCAB))
+    vocab["deadTerms"] = ["WorkItem"]
+    bad.write_text(json.dumps(vocab), encoding="utf-8")
+    monkeypatch.setattr(vv, "VOCABULARY_FILE", str(bad))
+    assert vv.main() != 0
+
+
 def test_vocabulary_missing_a_required_section_fails_the_run(monkeypatch, tmp_path):
     """A snapshot that parses but carries no dtoFields would validate every file
     clean - the same silent no-op #46 hardened against."""
