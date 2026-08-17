@@ -44,6 +44,33 @@ repo-wide grep confirms no other exclusive two-action framing remains.
 self-resolving on tatara-cli's next release. `validate_skills.py` and
 `validate_profiles.py` both still pass.
 
+2026-08-18 (documentation workflow Phase 2): the nightly doc pod's scope was
+"Tasks delivered in the last 24h that shipped code", with an explicit
+instruction not to look at when a page was last updated. A page no code Task
+ever touches was therefore structurally invisible to it - the reason the
+getting-started index and the explainers had not moved since June/July. Phase
+2 covers the whole doc surface minus `reference/`, `operations/runbooks.md`,
+and `appendix/`, capped at 3 pages a night; scope and cap are independent
+knobs and move separately.
+
+2026-08-18 (documentation workflow Phase 2, shallow-clone trap): Phase 2 ranks
+candidate pages by git last-modified date. A SHALLOW clone returns the SAME
+date for every file instead of failing, so the sort still prints a plausible-
+looking list whose order is meaningless - the pod would have audited three
+arbitrary pages while reporting them as the stalest. The skill now runs `git
+rev-parse --is-shallow-repository`, tries `git fetch --unshallow`, and SKIPS
+Phase 2 with a stated message rather than auditing arbitrarily. It also treats
+"every candidate page carries an identical date" as the same failure, since
+that is the observable symptom whether or not the shallow check itself lied.
+
+2026-08-18 (voice contract): the new shared `tatara-writing-voice` skill is
+the prose voice contract - the warm/clinical register split, banned
+vocabulary, and rewrite pairs every doc-facing skill is now measured against.
+`validate_profiles.py` is an exact-set lock: a new skill must be registered in
+every profile set it declares or CI fails, so `tatara-writing-voice`'s
+`["documentation", "review", "brainstorm"]` frontmatter had to land in the same
+commit as its three profile-set entries.
+
 2026-07-28 (approval is judged, not matched): the operator's `approvalPhrases`
 wordlist is gone (paired tatara-operator change). The clarify agent now READS a
 maintainer's comment, judges whether it approves, and CITES it back as

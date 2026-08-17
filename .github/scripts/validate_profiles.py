@@ -36,6 +36,10 @@ Each locked set protects a specific profile's tool-surface boundary
   groomer reads issues, not code).
 - `documentation`: the documentation-workflow skill plus code-graph and SCM
   references. Must never pick up incident/brainstorm-only skills.
+  Since 2026-08-17 it also carries `tatara-writing-voice`, the register and
+  banned-list contract Phase 2 applies. `brainstorm` and `review` carry it
+  too: brainstorm drafts issue prose, review enforces the register and the
+  humor gate that Vale structurally cannot check.
 - `upgrade`: the upgrade-workflow skill plus code-graph, SCM and pipeline-
   waiting references, and the implement conflict-resolution skill (see the
   comment on its entry below). Like implement it opens MRs, so it must never
@@ -62,6 +66,7 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-deep-research",
         "tatara-mcp-code-graph",
         "tatara-mcp-scm",
+        "tatara-writing-voice",
     },
     "incident": {
         "tatara-incident-investigation",
@@ -89,6 +94,7 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-pipeline-waiting",
         "tatara-review-checklist",
         "tatara-review-takeover",
+        "tatara-writing-voice",
     },
     "refine": {
         "tatara-triage-judgment",
@@ -99,6 +105,7 @@ EXPECTED_PROFILE_SKILLS = {
         "tatara-documentation-workflow",
         "tatara-mcp-code-graph",
         "tatara-mcp-scm",
+        "tatara-writing-voice",
     },
     # The 7th profile (2026-08-13). tatara-implement-conflict-resolution is here
     # because AgentKindFor(under-implementation, upgrade) routes the post-

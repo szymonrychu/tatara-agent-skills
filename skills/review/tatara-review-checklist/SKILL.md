@@ -134,6 +134,25 @@ For each dimension: record a finding (pass, or severity + evidence). Skip none.
 - Missing Prometheus counter/histogram/gauge for anything that counts, times
   out, or can fail - platform rule
 - Naming clarity, dead code, unnecessary complexity
+- **Register and humor** (Markdown changes only). Does the page sit in the
+  right register per `tatara-writing-voice` - warm for `docs/index.md`,
+  `docs/concepts/**`, `docs/getting-started/**`, `docs/explainers/**` and
+  section index pages; clinical for `docs/reference/**`, `docs/workflows/**`,
+  `docs/architecture/**`, `docs/components/**` and `docs/operations/**`
+  including runbooks; `docs/appendix/**` never edited at all? **A warmed-up
+  clinical page is the failure mode to watch for**, and it is now more likely
+  than it used to be: the documentation pod's Phase 2 sorts the whole surface
+  by staleness, so it lands on `components/` and `architecture/` pages far
+  more often than on the newcomer path, and Vale is path-scoped to the warm
+  half so it never runs on them. Second person, contractions, or a lead
+  rewritten to "what you get" on a reference page is a finding even when every
+  sentence is true. Then: is the prose CLEARER than what it replaced, not
+  merely compliant with the banned list - a Vale-clean rewrite that explains
+  less is a regression, and Vale cannot see that either. If a line attempts a
+  joke and you are unsure it lands, say so: the humor gate is the one tone
+  rule no tool checks, and this checklist is where it gets checked. Severity
+  routing: `low` unless the register is flatly wrong for the path (a runbook
+  step written in second-person banter), which is `medium`.
 
 ### 3d. Tests
 
