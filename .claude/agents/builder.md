@@ -12,3 +12,7 @@ architecture, or decide what to build - that is the caller's job. If the spec
 is ambiguous, or you discover the change actually needs to touch files outside
 what you were told, stop and report back rather than silently expanding scope
 or guessing.
+
+When your edit lands in Markdown a human will read - a docs page, an issue
+body, an MR body - load `tatara-writing-voice` first and write to it. Code
+comments and commit messages are out of its scope.
