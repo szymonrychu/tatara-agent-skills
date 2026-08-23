@@ -35,7 +35,7 @@ import pytest
 import validate_vocabulary as vv
 
 VOCAB = {
-    "provenance": {"version": "v0.0.0-test"},
+    "provenance": {"version": "v0.0.0-test", "commit": "abc1234def"},
     "dtoFields": {
         "task": {
             "top": ["name", "kind", "repositoryRef", "goal", "dedupKey", "documentsTasks"],
@@ -154,6 +154,30 @@ def test_state_value_on_park_reason_is_an_error(tmp_path):
 def test_value_in_neither_vocabulary_is_an_error(tmp_path):
     path = write(tmp_path, "It parks at `parkReason=invented-reason`.\n")
     assert vv.validate_file(path, VOCAB)
+
+
+def test_unknown_value_message_names_the_snapshot_provenance(tmp_path):
+    """#68: the snapshot froze at operator v2.16.1 while the operator reached
+    v3.x, so the guard began REJECTING correct text. An author who hits that
+    has to be able to tell "the snapshot is behind" from "my text is wrong" -
+    without the provenance in the message, the `vocab-ok` marker is the nearest
+    fix and it is the wrong one."""
+    errors = vv.validate_file(write(tmp_path, "`parkReason=merge-conflict`\n"), VOCAB)
+    assert len(errors) == 1
+    assert "v0.0.0-test" in errors[0] and "abc1234" in errors[0], errors[0]
+
+
+def test_unknown_value_message_names_the_regeneration_command(tmp_path):
+    errors = vv.validate_file(write(tmp_path, "`parkReason=merge-conflict`\n"), VOCAB)
+    assert "gen_platform_vocabulary.py" in errors[0], errors[0]
+
+
+def test_disjointness_message_does_not_blame_the_snapshot(tmp_path):
+    """A value that IS in the snapshot, under the other field, is a genuine
+    author error. Telling that author to regenerate would send them to fix a
+    file that is already correct."""
+    errors = vv.validate_file(write(tmp_path, "`parkReason=declined`\n"), VOCAB)
+    assert len(errors) == 1 and "gen_platform_vocabulary.py" not in errors[0], errors[0]
 
 
 def test_bare_reason_field_is_not_checked(tmp_path):
@@ -357,6 +381,21 @@ def test_vocabulary_without_provenance_fails_the_run(monkeypatch, tmp_path):
         encoding="utf-8",
     )
     monkeypatch.setattr(vv, "VOCABULARY_FILE", str(thin))
+    assert vv.main() != 0
+
+
+@pytest.mark.parametrize("provenance", [{"version": "v1.0.0"}, {"commit": "abc1234"}, {}])
+def test_provenance_without_version_and_commit_fails_the_run(monkeypatch, tmp_path, provenance):
+    """Both keys are load-bearing now that the unknown-value message reports
+    them (#68). Checking only that `provenance` is truthy would move the
+    KeyError from the success path onto the ERROR path - raised precisely when
+    an author is already looking at a rejected value and needs the message."""
+    thin = tmp_path / "platform-vocabulary.json"
+    vocab = json.loads(json.dumps(VOCAB))
+    vocab["provenance"] = provenance
+    thin.write_text(json.dumps(vocab), encoding="utf-8")
+    monkeypatch.setattr(vv, "VOCABULARY_FILE", str(thin))
+    assert vv.load_vocabulary() is None
     assert vv.main() != 0
 
 

@@ -1,8 +1,8 @@
 {
   "provenance": {
     "repo": "szymonrychu/tatara-operator",
-    "version": "v2.16.1",
-    "commit": "eab7870979b452e348c2d1f4bf99bf0c6021efe0",
+    "version": "v3.10.0",
+    "commit": "d22349aac1c5ecebc72ca691d43e4200b2c7ce69",
     "generator": ".github/scripts/gen_platform_vocabulary.py",
     "sources": {
       "dtoFields": "internal/restapi/dto.go",
@@ -133,7 +133,13 @@
       "ownership-lost",
       "merge-auth-refused",
       "ci-red",
-      "ci-blocked"
+      "ci-blocked",
+      "merge-conflict",
+      "ci-pending",
+      "ci-failed",
+      "merge-conflict-retry",
+      "mr-surface-spent",
+      "retry-exhausted"
     ],
     "stateReason": [
       "declined",

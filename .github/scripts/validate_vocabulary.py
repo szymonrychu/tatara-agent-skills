@@ -151,6 +151,17 @@ def load_vocabulary() -> dict | None:
             file=sys.stderr,
         )
         return None
+    # version and commit are load-bearing, not decoration: the unknown-value
+    # error names them so a stale snapshot self-diagnoses (#68). Checked here,
+    # or the KeyError lands inside the per-file walk - on the ERROR path, in
+    # front of an author who is already confused about a rejected value.
+    absent = [k for k in ("version", "commit") if not vocab["provenance"].get(k)]
+    if absent:
+        print(
+            f"ERROR: {path}: provenance is missing {', '.join(absent)}",
+            file=sys.stderr,
+        )
+        return None
     for field in REASON_FIELDS:
         if not vocab["enums"].get(field):
             print(f"ERROR: {path}: enums.{field} is empty or absent", file=sys.stderr)
@@ -220,6 +231,7 @@ def validate_file(path: pathlib.Path, vocab: dict) -> list[str]:
     status_fields = _status_fields(vocab)
     flat_paths = _flat_paths(vocab)
     enums = vocab["enums"]
+    provenance = vocab["provenance"]
 
     def report(offset: int, literal: str, message: str) -> None:
         """`literal` is both what the marker must NAME to suppress this hit and
@@ -283,11 +295,29 @@ def validate_file(path: pathlib.Path, vocab: dict) -> list[str]:
             continue
         if value in enums[field]:
             continue
-        detail = (
-            f"it is a `{owner}` - the two vocabularies are disjoint on purpose"
-            if owner
-            else f"not in the {field} enum ({len(enums[field])} values)"
-        )
+        # Two very different faults, and the message has to tell them apart.
+        #
+        # `owner` set means the value IS in the snapshot, under the other
+        # field: a genuine author error against a snapshot that is right.
+        #
+        # `owner` unset means the snapshot has never heard of the value - which
+        # is ALSO what a stale snapshot looks like, and #68 is the proof: the
+        # snapshot froze at operator v2.16.1, the operator reached v3.x, and
+        # `parkReason=merge-conflict` failed CI for being correct. An author who
+        # cannot tell those apart reaches for the vocab-ok marker, which is
+        # permanent, invisible, and exactly how this guard stops guarding. So
+        # name the provenance and the regeneration command, in the failure the
+        # author actually reads.
+        if owner:
+            detail = f"it is a `{owner}` - the two vocabularies are disjoint on purpose"
+        else:
+            detail = (
+                f"not in the {field} enum ({len(enums[field])} values from "
+                f"tatara-operator {provenance['version']} ({provenance['commit'][:7]})); "
+                "if the operator has added it since, refresh the snapshot with "
+                "`python3 .github/scripts/gen_platform_vocabulary.py <operator-checkout>` "
+                "rather than suppressing this"
+            )
         report(match.start(), literal, f"`{literal}` - {detail}")
 
     # 3. Dead terms - checked in PROSE TOO, unlike the two checks above.
