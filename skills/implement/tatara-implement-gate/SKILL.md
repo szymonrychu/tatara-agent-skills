@@ -22,6 +22,24 @@ way - so there is no merge request that can carry those commits and no reviewer
 who will ever see them. This is not a warning about wasted effort; it is what the
 operator does. Get `granted: true` FIRST, then write code.
 
+**A REFUSED SUBMIT SENDS THE TASK BACK TO `refined`, AND YOU HAVE TO RE-WIN THE
+GATE BEFORE RE-SUBMITTING.** This is the part that is not obvious from the
+refusal alone. `submit_outcome(action="submitted")` refused with
+`reason: "approval-required"` does not leave the Task where it was: it moves it
+to `refined`, because every remedy the refusal names ends in
+`submit_outcome(action="approved")` and that is not a legal call from
+`under-implementation`. So the sequence is always:
+
+1. Fix what the refusal named - get the maintainer comment, or cite one you
+   already have.
+2. `submit_outcome(action="approved")` with the citation and the plan note id,
+   and read `granted: true`.
+3. Re-submit, with the SAME title, body and `change_significance`.
+
+Skipping step 2 and re-sending the submit gets you the same refusal again,
+naming `action="approved"`. Your code, your branch and your pushed commits are
+untouched throughout - only the authorisation has to be redone.
+
 ## 1. Digest and research
 
 Your turn-0 bundle carries every Issue your Task owns, each with its full
