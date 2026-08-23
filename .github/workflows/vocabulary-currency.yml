@@ -1,0 +1,236 @@
+name: vocabulary-currency
+
+# Scheduled staleness check on .github/platform-vocabulary.json (#68).
+# Deliberately NOT on pull_request and NOT a step of lint.yml:
+#
+# - It clones tatara-operator, so it cannot live in validate_vocabulary.py
+#   without costing that merge gate its offline, stdlib-only,
+#   pre-commit-runnable contract. The snapshot is vendored precisely so the
+#   blocking guard needs no network.
+# - Staleness is a fleet condition, not a property of the PR in front of you.
+#   #56 already paid for that distinction and the shape here is copied from
+#   tatara-helmfile's skills-currency.yaml, which closed the same class (#397).
+#
+# Its job is the one thing #56 left with no owner: noticing that a snapshot
+# taken by hand has fallen behind. It had, by six park reasons, and the guard
+# was rejecting skill text that matched the operator.
+#
+# NO auto-merge, unlike release.yml's sync-contract job. A vocabulary bump
+# changes what a blocking guard accepts and rejects, so the PR gets a human.
+# The PR is also why this files no issue the way skills-currency.yaml does -
+# there is already a visible artifact to point at.
+#
+# Two known limits, both shared with skills-currency.yaml and both stated
+# rather than papered over:
+#
+# - It compares against operator `main`, but gen_platform_vocabulary.py stamps
+#   provenance with `git describe --tags`. Under semver push-CD main is tagged
+#   on every merge, so the two normally coincide; in the window between a merge
+#   and its tag, a bump can bless vocabulary from main while labelling it with
+#   the previous release.
+# - GitHub disables a scheduled workflow after 60 days of repository
+#   inactivity. A repo quiet that long has no skills drifting either, but the
+#   fail-closed argument below does not cover this one - only workflow_dispatch
+#   or a commit brings it back.
+
+on:
+  schedule:
+    # 06:40 UTC daily, after tatara-helmfile's 06:15 skills-currency run.
+    - cron: '40 6 * * *'
+  workflow_dispatch:
+
+# The bump branch is rebuilt with `checkout -B` and force-pushed, so two
+# overlapping runs would race the older snapshot over the newer one.
+concurrency:
+  group: vocabulary-currency
+  cancel-in-progress: false
+
+jobs:
+  currency:
+    name: Check the vocabulary snapshot against tatara-operator main
+    runs-on: ubuntu-latest
+    # Read-only: every write below goes through TATARA_CD_TOKEN, which is what
+    # release.yml's sync-contract job already uses to clone all eight consumer
+    # repos. This job needs that secret for the operator clone (private) and
+    # for the bump PR; it introduces no new credential and no new trust.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The bump step pushes with TATARA_CD_TOKEN via the remote URL. Left
+          # persisted, checkout's `http.extraheader` Authorization would still
+          # be sent alongside it - carrying the read-only github.token this job
+          # declares - and the push would 403 while looking like a credential
+          # problem in the wrong credential.
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # FAILS CLOSED, and note this is the OPPOSITE of the policy on
+      # tatara-observability's reconcile_metric_provenance.py, which treats a
+      # failed operator clone as a neutral skip. That is right for a job that
+      # gates unrelated PRs. This one gates nothing, so a skipped clone
+      # reporting green is a currency check that silently stopped checking -
+      # the #46 lesson. `set -euo pipefail` before the clone, so it reds.
+      #
+      # Full clone, not --depth 1: gen_platform_vocabulary.py runs
+      # `git describe --tags --abbrev=0`, which needs a tag reachable from
+      # HEAD. A depth-1 clone has no ancestry, so describe fails and the
+      # provenance block silently writes "unknown". .git is under 4M.
+      - name: Re-derive from tatara-operator main and compare
+        id: check
+        env:
+          TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/tatara-operator"
+          git clone "https://x-access-token:${TOKEN}@github.com/szymonrychu/tatara-operator.git" "$work"
+          echo "operator=${work}" >> "$GITHUB_OUTPUT"
+
+          set +e
+          python3 .github/scripts/check_vocabulary_currency.py "$work" 2>&1 \
+            | tee "${RUNNER_TEMP}/currency.log"
+          verdict="${PIPESTATUS[0]}"
+          set -e
+          echo "verdict=${verdict}" >> "$GITHUB_OUTPUT"
+
+          # Only 0/1/2/3 have a branch below, so ANY other status - 127 from a
+          # broken PATH, 137 from an OOM kill, 143 from a runner timeout -
+          # would leave this step at exit 0 and the whole job GREEN. That is
+          # the fail-open this job's entire docstring argues against, reached
+          # through the `set +e` that captures the verdict.
+          case "$verdict" in
+            0|1|2|3) ;;
+            *) echo "::error::check_vocabulary_currency.py exited ${verdict}, which is not a verdict"
+               exit 1 ;;
+          esac
+
+      # Exit 2. The derivation collapsed - a `var ParkReasons = []string{...}`
+      # or a `State*` const block moved out from under the generator's
+      # patterns, or the generator die()d outright - and the bump PR would
+      # DELETE live vocabulary. Red, and propose nothing (#68 pre-mortem 4).
+      - name: Suspect derivation - refuse to propose a bump
+        if: ${{ steps.check.outputs.verdict == '2' }}
+        run: |
+          echo "::error::gen_platform_vocabulary.py derived a collapsed vocabulary; check its patterns against tatara-operator before touching the snapshot"
+          exit 1
+
+      # Exit 3. The script could not run at all. Kept off the message above so
+      # a bad argv or an unreadable snapshot is not reported as a fault in
+      # tatara-operator's source.
+      - name: Currency check could not run
+        if: ${{ steps.check.outputs.verdict == '3' }}
+        run: |
+          echo "::error::check_vocabulary_currency.py could not compare - see the log above"
+          exit 1
+
+      # Exit 1. Ordinary drift: regenerate, propose, and stay red until the
+      # bump merges. The red IS the mechanism - a green run with an open bump
+      # PR is a channel nobody reads.
+      - name: Open or update the bump PR
+        if: ${{ steps.check.outputs.verdict == '1' }}
+        env:
+          TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+          GH_TOKEN: ${{ secrets.TATARA_CD_TOKEN }}
+          # Explicit, not inferred from the remote: that URL carries the token
+          # in its userinfo once the set-url below lands.
+          GH_REPO: ${{ github.repository }}
+          OPERATOR: ${{ steps.check.outputs.operator }}
+        run: |
+          set -euo pipefail
+          branch="cd/vocabulary-bump"
+          title="chore: refresh the platform vocabulary snapshot from tatara-operator"
+          snapshot=".github/platform-vocabulary.json"
+
+          git config user.name "szymonrychu-bot"
+          git config user.email "szymonrychu-bot@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+
+          # Base the bump on the OPEN PR's own head, not on main. The DIRTY
+          # case below tells a human to fix skill text ON THIS BRANCH, and a
+          # reviewer may push there too; rebuilding from main every night would
+          # force-push all of that away, then re-open the same PR still DIRTY.
+          # The fetch is NOT error-suppressed - a fetch that fails while a PR is
+          # open must not fall through to the rebuild-from-main path.
+          #
+          # With no open PR the branch is disposable, so it is rebuilt from
+          # main. That is also how a branch orphaned by a closed PR gets reset
+          # rather than resurrected with whatever was on it.
+          if [ -n "$pr" ]; then
+            git fetch --depth 1 origin "$branch"
+            git checkout -B "$branch" FETCH_HEAD
+          else
+            git checkout -B "$branch"
+          fi
+
+          # From here the scripts are the BRANCH's, which is the right ones to
+          # run: they are what a merge of this PR would ship. The branch is
+          # short-lived by construction - the job is red until it merges.
+          python3 .github/scripts/gen_platform_vocabulary.py "$OPERATOR"
+
+          # The regenerated snapshot must still validate the corpus. If the
+          # operator REMOVED a value some skill still names, the bump turns the
+          # blocking gate red on merge; say so in the PR rather than shipping a
+          # surprise (#68 pre-mortem 1).
+          corpus="clean"
+          python3 .github/scripts/validate_vocabulary.py > "${RUNNER_TEMP}/corpus.log" 2>&1 \
+            || corpus="DIRTY"
+
+          # Skip a no-op force-push: the drift is re-detected every day until
+          # the bump merges, and re-pushing an identical snapshot under a fresh
+          # commit sha would reset that PR's checks and any review on it daily.
+          if git diff --quiet -- "$snapshot"; then
+            echo "#${pr} already carries this snapshot; leaving it alone"
+            exit 1
+          fi
+
+          git add "$snapshot"
+          git commit -m "$title"
+          git push --force origin "${branch}:${branch}"
+
+          {
+            echo "Re-derived from \`szymonrychu/tatara-operator\` \`main\` by the scheduled"
+            echo "\`vocabulary-currency\` job. Regenerate locally to reproduce:"
+            echo
+            echo '```'
+            echo "python3 .github/scripts/gen_platform_vocabulary.py <operator-checkout>"
+            echo '```'
+            echo
+            echo "### Drift"
+            echo
+            echo '```'
+            # Tolerant on purpose: under `set -e` a missing log would abort
+            # this block, and the abort looks exactly like the intended exit 1
+            # while having pushed a branch and opened no PR.
+            cat "${RUNNER_TEMP}/currency.log" 2>/dev/null || echo "(no drift log)"
+            echo '```'
+            echo
+            echo "### validate_vocabulary.py against the regenerated snapshot: ${corpus}"
+            echo
+            echo '```'
+            cat "${RUNNER_TEMP}/corpus.log" 2>/dev/null || echo "(no validator log)"
+            echo '```'
+            if [ "$corpus" = "DIRTY" ]; then
+              echo
+              echo "**Do not merge as-is.** The operator removed a value the corpus still"
+              echo "names, so this bump reds the blocking lint. Fix the skill text on this"
+              echo "branch first."
+            fi
+            echo
+            echo "Not auto-merged on purpose: this changes what \`validate_vocabulary.py\`"
+            echo "accepts and rejects."
+          } > "${RUNNER_TEMP}/pr.md"
+
+          if [ -z "$pr" ]; then
+            gh pr create --title "$title" --body-file "${RUNNER_TEMP}/pr.md" --head "$branch" --base main
+          else
+            gh pr edit "$pr" --body-file "${RUNNER_TEMP}/pr.md"
+          fi
+
+          # Red until the bump merges.
+          exit 1

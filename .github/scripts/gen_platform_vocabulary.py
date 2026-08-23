@@ -3,10 +3,18 @@
 
     python3 .github/scripts/gen_platform_vocabulary.py /path/to/tatara-operator
 
-This is NOT run in CI. It exists so the vendored snapshot that
-validate_vocabulary.py checks against is REPRODUCIBLE from the operator's own
-source rather than hand-transcribed, and so refreshing it after an operator
-lifecycle change is a one-command chore with a diff a reviewer can read.
+It exists so the vendored snapshot that validate_vocabulary.py checks against is
+REPRODUCIBLE from the operator's own source rather than hand-transcribed, and so
+refreshing it after an operator lifecycle change is a one-command chore with a
+diff a reviewer can read.
+
+Reproducible is not current, which is what #68 measured: one week after #56 took
+the snapshot, the operator had grown six park reasons, nothing in the repo could
+say so, and the blocking guard was REJECTING correct skill text. So build() is
+now also called from CI, by the scheduled check_vocabulary_currency.py job that
+re-derives against operator `main` and opens a bump PR on any difference.
+Running THIS script is still a human action - it is the thing that writes the
+file, and that write goes through review.
 
 Why a vendored snapshot rather than a fetched artifact (tatara-agent-skills#56
 proposed A1, "the operator publishes a release artifact pinned exactly as
@@ -200,12 +208,13 @@ def verify_dead(root: pathlib.Path) -> list[dict]:
     return terms
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) != 2:
-        print(__doc__.splitlines()[2].strip(), file=sys.stderr)
-        return 2
-    root = pathlib.Path(argv[1]).resolve()
+def build(root: pathlib.Path) -> dict:
+    """Derive the whole vocabulary from an operator checkout.
 
+    Split out of main() so check_vocabulary_currency.py compares against the
+    same derivation the bump PR would commit, rather than a second
+    implementation of it that could disagree.
+    """
     dto = read(root, DTO_SOURCE)
     states_src = read(root, STATE_SOURCE)
     reasons_src = read(root, REASON_SOURCE)
@@ -237,7 +246,7 @@ def main(argv: list[str]) -> int:
         ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True
     )
 
-    vocab = {
+    return {
         "provenance": {
             "repo": "szymonrychu/tatara-operator",
             "version": describe.stdout.strip() or "unknown",
@@ -262,13 +271,22 @@ def main(argv: list[str]) -> int:
         "deadTerms": verify_dead(root),
     }
 
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print(__doc__.splitlines()[2].strip(), file=sys.stderr)
+        return 2
+
+    vocab = build(pathlib.Path(argv[1]).resolve())
+    enums = vocab["enums"]
+
     out = pathlib.Path(__file__).parent.parent.parent / OUTPUT_FILE
     out.write_text(json.dumps(vocab, indent=2) + "\n", encoding="utf-8")
     print(
         f"OK: wrote {OUTPUT_FILE} from {vocab['provenance']['repo']} "
         f"{vocab['provenance']['version']} ({vocab['provenance']['commit'][:7]}): "
-        f"{len(states)} states, {len(park)} park reasons, "
-        f"{len(state_reasons)} state reasons, {len(agent_kinds)} agent kinds, "
+        f"{len(enums['state'])} states, {len(enums['parkReason'])} park reasons, "
+        f"{len(enums['stateReason'])} state reasons, {len(enums['agentKind'])} agent kinds, "
         f"{len(vocab['deadTerms'])} dead terms"
     )
     return 0
