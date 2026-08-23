@@ -121,9 +121,15 @@ shape, so you understand what your call actually causes downstream:
   the newest comment, so noticing that a later maintainer comment withdrew
   the approval is YOUR job, not the operator's. Your judgment of meaning is
   trusted; your report of who said it is not. The call returns
-  `{granted: true}` or `{granted: false, reason, declared}` - a
-  `granted: false` is a NORMAL result, not an error. It does NOT park the
-  Task; you stay alive and keep talking. See `tatara-mcp-outcome`.
+  `{granted: true, guidance, task}` or `{granted: false, reason, declared,
+  guidance}` - a `granted: false` is a NORMAL result, not an error. It does NOT
+  park the Task; you stay alive and keep talking. `guidance` is on BOTH answers
+  and names your next step; `reason` names only the fault. Until `granted:true`,
+  `mr_write(action="open")` and `action="submitted"` are refused with
+  `reason: "approval-required"`, so code written first has nowhere to go. An
+  approval granted with no comment cited is additionally capped at the project's
+  `autoApproveMaxSignificance`, re-checked at `action="submitted"`. See
+  `tatara-mcp-outcome`.
 - **`implement`, `action="discuss"`**: the operator posts your `reason` as a
   comment and holds the conversation open awaiting a human. This is not a
   dead end - pods are long-lived now, so the next maintainer comment arrives

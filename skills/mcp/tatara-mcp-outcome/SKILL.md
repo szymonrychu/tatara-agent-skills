@@ -56,12 +56,22 @@ code (see `tatara-implement-workflow`). One agent, five actions, one turn each.
     off"), submit `action="discuss"` instead. A benign newer comment ("thanks -
     ping me when the PR is up") leaves the approval standing.
   - Omit it only when NO human has commented at all - that is the auto-approve
-    carve-out for tatara's own proposals, and there is no comment to cite.
+    carve-out for tatara's own proposals, and there is no comment to cite. That
+    grant is PROVISIONAL: it is capped at the project's
+    `autoApproveMaxSignificance` ceiling and re-checked against your declared
+    `change_significance` at `action="submitted"`, which refuses
+    `over-auto-approve-ceiling` if you are over it. A cited approval is never
+    capped.
 - `approving_maintainer` must be the author of the comment you cited.
   A mismatch is refused with `approver-mismatch`; a non-maintainer login is
   refused with `approver-not-maintainer`.
 - `plan_note_id` is the id `task_note(kind="plan")` returned. The operator hashes
   that note at grant and re-checks it before you write code.
+- **Read `granted` on the reply, and act on `guidance`.** Both answers carry a
+  `guidance` string naming your next step; `reason` names only the fault. Until
+  `granted:true`, `mr_write(action="open")` and `action="submitted"` are BOTH
+  refused with `reason: "approval-required"`, so code written first has nowhere
+  to go.
 - `change_significance` is `major` / `minor` / `patch`. YOU own this level. A
   reviewer may raise it. Nobody can lower it. It becomes the release tag.
 - `merge_order` is REQUIRED the moment your change spans more than one repo:

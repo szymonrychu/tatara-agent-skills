@@ -43,7 +43,10 @@ If the `<notes>` element reports a nonzero `elided` count, pull the rest with
 If your Task's issue has not been approved yet, you are not in this skill yet.
 Go to `tatara-implement-gate`, agree a plan, and come back when
 `submit_outcome(action="approved")` returned `granted: true`. There is no path
-into code that does not go through it.
+into code that does not go through it, and that is ENFORCED, not advised:
+`mr_write(action="open")` and `submit_outcome(action="submitted")` both refuse
+with `reason: "approval-required"` while any live issue this Task owns carries no
+approval. Code written before the grant is lost - nothing can carry it.
 
 You are the SAME agent on both sides of that gate - no separate pod digests the
 ask, wins the approval and then hands the Task off to you. The plan you agreed in the thread is

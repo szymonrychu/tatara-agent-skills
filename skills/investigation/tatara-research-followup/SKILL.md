@@ -25,7 +25,10 @@ server. You never use git or gh.
   the PR is up") leaves it standing and you should still cite it. So end this
   turn with `submit_outcome(action="discuss", reason=...)`
   unless a maintainer has actually posted something you can honestly read, and
-  quote, as approval, and nothing later in the thread takes it back.
+  quote, as approval, and nothing later in the thread takes it back. Reporting an
+  approval you cannot cite does not buy you a head start either: until the gate
+  returns `granted:true`, `mr_write(action="open")` is refused, so there is
+  nothing for the code to land in.
 - Silence over noise - HARD RULE. When no human has replied since the
   last bot message, post NOTHING and submit `action="discuss"`
   immediately (a silent hold). Do not re-post a comment that only
