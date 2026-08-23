@@ -144,7 +144,6 @@ jobs:
           set -euo pipefail
           branch="cd/vocabulary-bump"
           title="chore: refresh the platform vocabulary snapshot from tatara-operator"
-          snapshot=".github/platform-vocabulary.json"
 
           git config user.name "szymonrychu-bot"
           git config user.email "szymonrychu-bot@users.noreply.github.com"
@@ -171,27 +170,56 @@ jobs:
           # From here the scripts are the BRANCH's, which is the right ones to
           # run: they are what a merge of this PR would ship. The branch is
           # short-lived by construction - the job is red until it merges.
-          python3 .github/scripts/gen_platform_vocabulary.py "$OPERATOR"
+          #
+          # WHETHER THERE IS ANYTHING TO PUSH IS THE COMPARATOR'S CALL, NOT
+          # `git diff`'s. gen_platform_vocabulary.py stamps provenance.commit
+          # with the operator's HEAD, and compare() deliberately ignores
+          # provenance - so on every day the operator merged anything, a
+          # byte-level guard sees a diff in a field that is not drift and
+          # force-pushes a provenance-only commit onto the open PR, resetting
+          # its checks and any review on it. That is the exact outcome the
+          # no-op guard exists to prevent, and under push-CD the day the
+          # operator does NOT move is the rare one. Run BEFORE the
+          # regeneration, so it reads the branch's committed snapshot rather
+          # than the one we are about to write over it.
+          set +e
+          python3 .github/scripts/check_vocabulary_currency.py "$OPERATOR" \
+            > "${RUNNER_TEMP}/branch.log" 2>&1
+          on_branch="$?"
+          set -e
+          cat "${RUNNER_TEMP}/branch.log"
 
-          # The regenerated snapshot must still validate the corpus. If the
+          # The branch is main plus at most a snapshot bump, so only CURRENT and
+          # DRIFTED are reachable here; the check step already ruled out SUSPECT
+          # and ERROR against main. Anything else is a fault, not a verdict.
+          case "$on_branch" in
+            0|1) ;;
+            *) echo "::error::check_vocabulary_currency.py exited ${on_branch} against the ${branch} snapshot"
+               exit 1 ;;
+          esac
+
+          if [ "$on_branch" = 0 ]; then
+            echo "${branch} already carries a current snapshot; not pushing"
+          else
+            python3 .github/scripts/gen_platform_vocabulary.py "$OPERATOR"
+          fi
+
+          # The snapshot on the branch must still validate the corpus. If the
           # operator REMOVED a value some skill still names, the bump turns the
           # blocking gate red on merge; say so in the PR rather than shipping a
-          # surprise (#68 pre-mortem 1).
+          # surprise (#68 pre-mortem 1). Run on BOTH paths, and the PR body is
+          # rewritten from it below on both paths too: the DIRTY banner asks a
+          # human to fix skill text on this branch, so the run that clears it is
+          # the one where there is nothing left to push.
           corpus="clean"
           python3 .github/scripts/validate_vocabulary.py > "${RUNNER_TEMP}/corpus.log" 2>&1 \
             || corpus="DIRTY"
 
-          # Skip a no-op force-push: the drift is re-detected every day until
-          # the bump merges, and re-pushing an identical snapshot under a fresh
-          # commit sha would reset that PR's checks and any review on it daily.
-          if git diff --quiet -- "$snapshot"; then
-            echo "#${pr} already carries this snapshot; leaving it alone"
-            exit 1
+          if [ "$on_branch" != 0 ]; then
+            git add .github/platform-vocabulary.json
+            git commit -m "$title"
+            git push --force origin "${branch}:${branch}"
           fi
-
-          git add "$snapshot"
-          git commit -m "$title"
-          git push --force origin "${branch}:${branch}"
 
           {
             echo "Re-derived from \`szymonrychu/tatara-operator\` \`main\` by the scheduled"
@@ -201,16 +229,20 @@ jobs:
             echo "python3 .github/scripts/gen_platform_vocabulary.py <operator-checkout>"
             echo '```'
             echo
-            echo "### Drift"
+            echo "### Drift this branch closes, measured before the regeneration"
             echo
             echo '```'
             # Tolerant on purpose: under `set -e` a missing log would abort
             # this block, and the abort looks exactly like the intended exit 1
             # while having pushed a branch and opened no PR.
-            cat "${RUNNER_TEMP}/currency.log" 2>/dev/null || echo "(no drift log)"
+            #
+            # The BRANCH's log, not the check step's against main: on a rerun
+            # with nothing left to push it reads "OK: current", which is the
+            # honest description of the PR as it stands.
+            cat "${RUNNER_TEMP}/branch.log" 2>/dev/null || echo "(no drift log)"
             echo '```'
             echo
-            echo "### validate_vocabulary.py against the regenerated snapshot: ${corpus}"
+            echo "### validate_vocabulary.py against this branch's snapshot: ${corpus}"
             echo
             echo '```'
             cat "${RUNNER_TEMP}/corpus.log" 2>/dev/null || echo "(no validator log)"

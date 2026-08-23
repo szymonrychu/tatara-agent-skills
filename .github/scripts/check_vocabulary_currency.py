@@ -49,8 +49,11 @@ propose-a-bump branch for exactly the collapse this verdict exists to stop.
 build() is therefore called inside a catch-all.
 
 The shrink guard is two rules, because one leaf is not the only way to collapse:
-a per-leaf "lost more than half", and an aggregate "lost more than half of all
-members at once" for the pattern change that shortens every list a little.
+a per-leaf "lost more than half", and an aggregate "lost more than a QUARTER of
+all members at once" for the pattern change that shortens every list a little.
+The aggregate has to sit BELOW the per-leaf threshold or it is arithmetic rather
+than a check - if the total lost more than half then some single leaf must have
+too, so a half-on-half aggregate can never fire on its own.
 LIMIT, stated plainly: a single leaf losing 6 of 17 trips neither, so a
 derivation that half-breaks one DTO still reads as ordinary drift. The bump PR
 is not auto-merged and carries a validate_vocabulary.py run in its body, which

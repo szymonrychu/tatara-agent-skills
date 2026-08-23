@@ -61,7 +61,8 @@ docs/
   eval/               # eval scaffolding for reference skills (A/B gate fixtures)
 .github/
   workflows/
-    lint.yml          # the whole lint gate: frontmatter, profiles, tool calls, vocabulary, manifests
+    lint.yml               # the whole lint gate: frontmatter, profiles, tool calls, vocabulary, manifests
+    vocabulary-currency.yml # scheduled staleness check on platform-vocabulary.json; gates no PR
   tool-manifest-version       # pin for tatara-cli's published tool-manifest.json
   platform-vocabulary.json    # vendored snapshot of tatara-operator's agent-facing data model
   scripts/
@@ -69,8 +70,10 @@ docs/
     validate_profiles.py
     validate_tool_calls.py         # documented tool calls vs tatara-cli's tool manifest
     validate_vocabulary.py         # documented field paths / reasons vs tatara-operator's DTOs
-    gen_platform_vocabulary.py     # regenerates platform-vocabulary.json (not run in CI)
-    tests/                         # pytest suite for the two validators
+    gen_platform_vocabulary.py     # writes platform-vocabulary.json from an operator checkout
+    check_vocabulary_currency.py   # is that snapshot still what the operator says? (cron only)
+    sync_claude_contract.py        # fans template/CLAUDE-shared.md out to the consumer repos
+    tests/                         # pytest suite for the scripts above
 ```
 
 ### Keeping the vocabulary snapshot current
@@ -80,14 +83,33 @@ docs/
 denylist to `.github/platform-vocabulary.json`. That file is a generated,
 vendored snapshot of `tatara-operator`'s **DTOs** (`internal/restapi/dto.go`) -
 the flat JSON an agent actually receives, which has no `spec` envelope - not of
-the CRDs behind them. After an operator change that moves the data model:
+the CRDs behind them.
+
+The snapshot is vendored so the blocking guard stays offline and stdlib-only,
+which means nothing in the lint gate can notice it going stale. #68 measured
+what that costs: the snapshot sat at operator v2.16.1 while the operator reached
+v3.10.0, and the guard built to stop skills drifting from the operator's data
+model was rejecting skill text that **matched** it. So currency is a separate,
+scheduled job:
+
+| | |
+|---|---|
+| `vocabulary-currency.yml` | daily cron plus `workflow_dispatch`. Clones `tatara-operator`, re-derives, and on any difference opens or updates a `cd/vocabulary-bump` PR and stays **red until it merges**. Not in `lint.yml`, not a required check, gates no PR. |
+| `check_vocabulary_currency.py` | the comparator. `0` current, `1` drifted, `2` the derivation collapsed so propose nothing, `3` could not run. Fails closed: a run that cannot compare never reports green. |
+
+The bump PR is never auto-merged - it changes what a blocking guard accepts and
+rejects - and it carries a `validate_vocabulary.py` run against the regenerated
+snapshot in its body, so a bump that would red the lint says so before merge.
+
+To regenerate by hand (after an operator change that moves the data model, or to
+reproduce a bump PR locally):
 
 ```
 python3 .github/scripts/gen_platform_vocabulary.py /path/to/tatara-operator
 ```
 
-and commit the diff. The generator fails if a listed dead term has come back to
-life in the operator, so the denylist is not append-only.
+The generator fails if a listed dead term has come back to life in the operator,
+so the denylist is not append-only.
 
 ## Typed subagents (`.claude/agents/`)
 
