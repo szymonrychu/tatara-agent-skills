@@ -105,10 +105,13 @@ Three more ways to get this wrong:
 
 Omit `approval_citations` only when NO human has commented on the issue at all -
 that is the auto-approve carve-out for tatara's own proposals, and there is
-nothing to cite. Never invent an entry.
+nothing to cite. Never invent an entry. That grant is PROVISIONAL: it ships only
+up to the project's `autoApproveMaxSignificance` ceiling, checked against your
+declared `change_significance` at `action="submitted"`.
 
 If your report fails the operator's check, it returns `granted:false` with a
-`reason` and you keep talking. The refusal does NOT stop you and does NOT park
+`reason`, a `guidance` string naming your next step, and you keep talking. Act on
+`guidance`: some refusals are repairs you can make in this same turn. The refusal does NOT stop you and does NOT park
 the Task: you are the same live agent, on the same open conversation. Post that
 `reason` in the thread so the maintainer can see what was missing, submit
 `action="discuss"`, and wait for their reply as a new turn. Do not resubmit the

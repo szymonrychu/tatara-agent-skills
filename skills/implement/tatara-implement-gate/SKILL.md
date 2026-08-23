@@ -15,6 +15,13 @@ after.
 not a "just to see if it works". The gate is the only thing standing between an
 agent's reading of a thread and a merged, tagged, auto-deployed release.
 
+**WORK YOU DO BEFORE THE GATE GRANTS IS LOST.** `mr_write(action="open")` is
+REFUSED with `reason: "approval-required"` while any live issue this Task owns
+carries no approval, and `submit_outcome(action="submitted")` is refused the same
+way - so there is no merge request that can carry those commits and no reviewer
+who will ever see them. This is not a warning about wasted effort; it is what the
+operator does. Get `granted: true` FIRST, then write code.
+
 ## 1. Digest and research
 
 Your turn-0 bundle carries every Issue your Task owns, each with its full
@@ -83,6 +90,13 @@ is your own with no human reply since, do not post again.
 - `plan_note_id` names the plan the maintainer approved. The operator hashes that
   note's body at grant and re-checks the hash before you write code. If you edit
   the plan after approval, the gate refuses.
+- **An approval with NO maintainer comment behind it is PROVISIONAL and CAPPED.**
+  A project sets `autoApproveMaxSignificance` (`off` | `patch` | `minor` |
+  `major`); on the omit-both path the operator grants on provenance alone, then
+  re-checks your declared `change_significance` against that ceiling at
+  `action="submitted"` and refuses `over-auto-approve-ceiling` however green the
+  PR is. Your assignment names the ceiling for this project. A citation from a
+  real maintainer is never capped.
 - One go-ahead on one issue does not approve a Task that owns four. Every live
   Issue that a human has commented on needs its own comment and its own citation.
   A live Issue with NO human comment at all needs neither.
@@ -95,15 +109,23 @@ catches this.**
 
 ## 5. Read the result before you do anything else
 
-`submit_outcome(action="approved")` returns `granted: true` or
-`granted: false, reason: "...", declared: "..."`.
+`submit_outcome(action="approved")` returns `granted: true, guidance: "...",
+task: {...}` or `granted: false, reason: "...", declared: "...", guidance: "..."`.
 
-- **`granted: true`** - the gate is open. Go to `tatara-implement-workflow` and
-  start writing code.
+**Both answers carry `guidance`, and it is the field to act on.** `reason` names
+the fault; `guidance` names the next step, and the two do not follow from each
+other - `plan-note-not-plan` is fixed in this turn, `no-maintainer-comment`
+cannot be fixed by you at all.
+
+- **`granted: true`** - the gate is open, and `mr_write(action="open")` is now
+  unblocked. Go to `tatara-implement-workflow` and start writing code.
 - **`granted: false`** - you are still alive and the conversation is still open.
-  Post the returned `reason` in the thread so the maintainer can see what was
-  missing, then submit `action="discuss"` and keep talking. Do NOT resubmit the
-  same citation; it will be refused the same way. Do NOT start writing code.
+  Do what `guidance` says. If it names a repair you can make in this turn
+  (a wrong `plan_note_id`, a paraphrased quote, a mismatched
+  `approving_maintainer`), make it and call `approved` again. If it says a human
+  is needed, post the `reason` in the thread and submit `action="discuss"`. Do
+  NOT resubmit the same citation unchanged; it will be refused the same way. Do
+  NOT start writing code.
 
 A refusal is not an error and not a park. It is the gate working.
 
@@ -118,6 +140,11 @@ stale one is worse than a second approval round.
 ## Anti-patterns
 
 - Writing any code, opening any branch, or opening an MR before `granted: true`.
+  The MR open is REFUSED, so the code has nowhere to go and the turn is spent.
+- Reading `reason` and ignoring `guidance`, then submitting `discuss` for a
+  refusal you could have repaired in the same turn.
+- Declaring a `change_significance` above the project's auto-approve ceiling on
+  an issue no human has commented on, and discovering it only at submit.
 - Posting a plan comment without writing the matching `task_note(kind="plan")`,
   or writing a note whose body differs from the comment.
 - Reporting `action="approved"` on an issue whose thread has no maintainer
